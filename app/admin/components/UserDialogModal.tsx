@@ -1,33 +1,32 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import TimezoneCombobox from "@/components/ui/combobox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { BuildingApiService, FactoryApiService, RoleApiService } from "@/lib/api";
-import type { Building, Factory, Role, User } from "@/lib/types";
-import { useEffect, useMemo, useState } from "react";
-import moment from "moment-timezone";
-import { formatInTimeZone } from "date-fns-tz";
+import { BuildingApiService, FactoryApiService, FloorApiService, LineApiService, RoleApiService, UserApiService } from "@/lib/api";
+import type { Building, Factory, Floor, Line, Role, User } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { toast } from 'sonner';
 
 interface UserDialogModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: "add" | "edit" | "view";
   user?: User | null;
-  onSave: (userData: Partial<User>) => void;
+  onSave: (userData: User) => void;
 }
 
 export default function UserDialogModal({
@@ -40,25 +39,30 @@ export default function UserDialogModal({
   const [userData, setUserData] = useState({
     username: "",
     email: "",
-    role: "Viewer" as User["role"],
+    roleId: "",
     factoryAccess: [] as string[],
     buildingAccess: [] as string[],
     floorAccess: [] as string[],
     lineAccess: [] as string[],
     language: "en" as "en" | "vi",
-    timezone: "Asia/Ho_Chi_Minh",
+    timezone: "",
     isActive: true,
   });
   const [factories, setFactories] = useState<Factory[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<{ username?: string; email?: string; factoryAccess?: string }>({});
+  
   useEffect(() => {
     if ((mode === "edit" || mode === "view") && user) {
       setUserData({
         username: user.username,
         email: user.email,
-        role: user.role,
+        roleId: user.roleId,
         factoryAccess: user.factoryAccess || [],
         buildingAccess: user.buildingAccess || [],
         floorAccess: user.floorAccess || [],
@@ -67,34 +71,33 @@ export default function UserDialogModal({
         timezone: user.timezone || "Asia/Ho_Chi_Minh",
         isActive: user.isActive,
       });
+      console.log("Loaded user data:", user)
     } else if (mode === "add") {
       setUserData({
         username: "",
         email: "",
-        role: "Viewer",
+        roleId: "",
         factoryAccess: [],
         buildingAccess: [],
         floorAccess: [],
         lineAccess: [],
         language: "en",
         timezone: "Asia/Ho_Chi_Minh",
-        isActive: true,
+        isActive: false,
       });
     }
   }, [mode, user, isOpen]);
 
   const fetchData = async () => {
     try {
-      const [factoryList, buildingList, roleList] = await Promise.all([
+      const [factoryList, roleList] = await Promise.all([
         FactoryApiService.getFactories(),
-        BuildingApiService.getBuildings(),
         RoleApiService.getRoles(),
       ]);
       setFactories(factoryList);
-      setBuildings(buildingList);
       setRoles(roleList);
     } catch (error) {
-      console.error("Failed to load factories and buildings:", error);
+      console.error("Failed to load factories and roles:", error);
     }
   };
 
@@ -103,43 +106,176 @@ export default function UserDialogModal({
   }, []);
 
   useEffect(() => {
-    const fetchBuildings = async () => {
-      try {
-        let buildingList: Building[] = [];
-        if (userData.factoryAccess.length > 0) {
-          const promises = userData.factoryAccess.map((factoryId) =>
-            BuildingApiService.getBuildingsByFactory(factoryId)
+  const fetchBuildings = async () => {
+    try {
+      let buildingList: Building[] = [];
+      if (userData.factoryAccess.length > 0) {
+        // Lấy buildings thuộc factories đã chọn
+        const promises = userData.factoryAccess.map((factoryId) =>
+          BuildingApiService.getBuildingsByFactory(factoryId)
+        );
+        const results = await Promise.all(promises);
+        buildingList = Array.from(
+          new Map(
+            results.flat().map((building) => [building.id, building])
+          ).values()
+        );
+        // Chỉ cập nhật buildingAccess nếu chưa có building nào được chọn
+        setUserData((prev) => ({
+          ...prev,
+          buildingAccess: prev.buildingAccess.filter((id) =>
+                  buildingList.some((b) => b.id === id)
+                ), // Giữ lại các building hợp lệ
+        }));
+      }
+      console.log("Fetched buildings:", buildingList);
+      console.log("Current buildingAccess:", userData.buildingAccess);
+      console.log("Current factoryAccess:", userData.factoryAccess);
+      setBuildings(buildingList);
+    } catch (error) {
+      console.error("Failed to load buildings:", error);
+    }
+  };
+
+  fetchBuildings();
+}, [userData.factoryAccess]);
+
+  useEffect(() => {
+    const fetchFloorsAndLines = async () => {
+      if (userData.buildingAccess.length > 0) {
+        try {
+          // Load floors thuộc buildings đã chọn
+          const floorPromises = userData.buildingAccess.map(buildingId => 
+            FloorApiService.getFloorsByBuilding(buildingId)
           );
-          const results = await Promise.all(promises);
-          buildingList = Array.from(
-            new Map(
-              results.flat().map((building) => [building.id, building])
-            ).values()
+          const floorResults = await Promise.all(floorPromises);
+          const allFloors = Array.from(
+            new Map(floorResults.flat().map(floor => [floor.id, floor])).values()
           );
-        } else {
-          buildingList = await BuildingApiService.getBuildings();
+          setFloors(allFloors);
+
+          // Load lines thuộc floors đã chọn
+          const linePromises = userData.floorAccess.map(floorId =>
+            LineApiService.getLinesByFloor(floorId)
+          );
+          const lineResults = await Promise.all(linePromises);
+          const allLines = Array.from(
+            new Map(lineResults.flat().map(line => [line.id, line])).values()
+          );
+          setLines(allLines);
+
+          // Auto-populate nếu không phải advanced mode
+          if (!isAdvancedMode) {
+            setUserData(prev => ({
+              ...prev,
+              floorAccess: allFloors.map(f => f.id),
+              lineAccess: allLines.map(l => l.id)
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to load floors and lines:", error);
         }
-        setBuildings(buildingList);
-      } catch (error) {
-        console.error("Failed to load buildings:", error);
+      } else {
+        setFloors([]);
+        setLines([]);
+        setUserData(prev => ({
+          ...prev,
+          floorAccess: [],
+          lineAccess: []
+        }));
       }
     };
 
-    fetchBuildings();
-  }, [userData.factoryAccess]);
+    fetchFloorsAndLines();
+  }, [userData.buildingAccess, isAdvancedMode]);
 
-  const handleSave = () => {
-    onSave(userData);
-    onClose();
-  };
+    const validate = () => {
+        let valid = true;
+        const newErrors: { username?: string; email?: string; factoryAccess?: string; } = {};
+        if (!userData.username) {
+            newErrors.username = 'Tên đăng nhập là bắt buộc.';
+            valid = false;
+        }
+        if (!userData.email) {
+            newErrors.email = 'Email là bắt buộc.';
+            valid = false;
+        } else if (!/\S+@\S+\.\S+/.test(userData.email)) {
+            newErrors.email = 'Email không hợp lệ.';
+            valid = false;
+        }
 
-    const timezoneOptions = useMemo(() => {
-        return moment.tz.names().map((tz) => ({
-            value: tz,
-            label: `${tz} (GMT${formatInTimeZone(new Date(), tz, "XXX")})`,
-            }))
-            .sort((a, b) => a.label.localeCompare(b.label));
-    }, []);
+        if(userData.factoryAccess.length === 0) {
+            newErrors.factoryAccess = 'Phải có ít nhất một nhà máy được chọn.';
+            valid = false;
+        }
+        setErrors(newErrors);
+        return valid;
+    }
+    const handleSave = async () => {
+        // Reset lỗi trước khi validate
+        setErrors({});
+        setIsSaving(true);
+
+        if(validate()) {  // ✅ Đúng: Nếu validate pass (true), thì mới tạo user
+            try {
+                let savedUser: User;
+                if (mode === 'add') {
+                    savedUser = await UserApiService.createUser(userData);
+                } else if (mode === 'edit') {
+                    // Placeholder vì chưa có API update
+                    throw new Error('API cập nhật người dùng chưa được implement');
+                    // savedUser = await UserApiService.updateUser(user?.id, userData);
+                } else {
+                    return; // Không xử lý mode 'view'
+                }
+                // Toast thành công và đóng dialog
+                toast.success('Lưu thành công!', {
+                description: `Người dùng ${userData.username} đã được ${mode === 'add' ? 'tạo' : 'cập nhật'}.`,
+                });
+                onSave(savedUser); // Gọi onSave để parent refresh
+                onClose(); // Đóng dialog
+            } catch (error: any) {
+                // Xử lý lỗi từ API
+                const errorMessage = 'Lưu thất bại';
+                const errorDetails = error?.error || error?.message || 'Vui lòng thử lại.';
+
+                // Toast lỗi nếu API thất bại
+                setErrors(errorDetails);
+                toast.error(errorMessage, {
+                    description: errorDetails,
+                    duration: 10000,
+                });
+                console.error('Lưu người dùng thất bại:', error);
+            } finally {
+                setIsSaving(false);
+            }
+        } else {
+            console.log('Error:', errors);
+            toast.error("Lỗi thêm thông tin người dùng", {
+                duration: 10000,
+            });
+            setIsSaving(false);  // ✅ Thêm: Reset saving state khi validate fail
+        }
+    };
+
+    // Xóa error khi user sửa input (chỉ xóa error của field đang sửa)
+    useEffect(() => {
+        if (errors.username) {
+            setErrors((prev) => ({ ...prev, username: undefined }));
+        }
+    }, [userData.username]);
+
+    useEffect(() => {
+        if (errors.email) {
+            setErrors((prev) => ({ ...prev, email: undefined }));
+        }
+    }, [userData.email]);
+
+    useEffect(() => {
+        if (errors.factoryAccess) {
+            setErrors((prev) => ({ ...prev, factoryAccess: undefined }));
+        }
+    }, [userData.factoryAccess]);
 
   const getDialogTitle = () => {
     switch (mode) {
@@ -171,7 +307,7 @@ export default function UserDialogModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{getDialogTitle()}</DialogTitle>
           <DialogDescription>{getDialogDescription()}</DialogDescription>
@@ -185,7 +321,9 @@ export default function UserDialogModal({
                 value={userData.username}
                 onChange={(e) => setUserData({ ...userData, username: e.target.value })}
                 readOnly={isReadOnly}
+                className={errors.username ? 'border-red-500' : ''}
               />
+                {errors.username && <p className="text-sm text-red-500">{errors.username}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -195,14 +333,17 @@ export default function UserDialogModal({
                 value={userData.email}
                 onChange={(e) => setUserData({ ...userData, email: e.target.value })}
                 readOnly={isReadOnly}
+                className={errors.email ? 'border-red-500' : ''}
+                // style={{ color: errors.email ? 'red' : 'gray' }}
               />
+                {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="role">Vai Trò</Label>
             <Select
-              value={userData.role}
-              onValueChange={(value: User["role"]) => setUserData({ ...userData, role: value })}
+              value={userData.roleId}
+              onValueChange={(value) => setUserData({ ...userData, roleId: value })}
               disabled={isReadOnly}
             >
               <SelectTrigger>
@@ -210,7 +351,7 @@ export default function UserDialogModal({
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.name}>
+                  <SelectItem key={role.id} value={role.id}>
                     {role.name}
                   </SelectItem>
                 ))}
@@ -220,7 +361,25 @@ export default function UserDialogModal({
 
           {/* Factory Access */}
           <div className="space-y-2">
-            <Label>Quyền Truy Cập Nhà Máy (Để trống cho tất cả)</Label>
+            <div className="flex items-center justify-between">
+                <Label>Quyền Truy Cập Nhà Máy</Label>
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="select-all-factories"
+                        checked={userData.factoryAccess.length === factories.length}
+                        onCheckedChange={(checked) => {
+                            setUserData((prev) => ({
+                            ...prev,
+                            factoryAccess: checked ? factories.map((f) => f.id) : [],
+                            // buildingAccess: checked ? buildings.map((b) => b.id) : [],
+                            }));
+                        }}
+                        disabled={isReadOnly}
+                    />
+                    <Label htmlFor="select-all-factories" className="text-sm">Truy cập tất cả nhà máy</Label>
+                </div>
+            </div>
+            {errors.factoryAccess && <p className="text-sm text-red-500">{errors.factoryAccess}</p>}
             <div className="grid grid-cols-2 gap-2">
               {factories.map((factory) => (
                 <div key={factory.id} className="flex items-center space-x-2">
@@ -246,7 +405,7 @@ export default function UserDialogModal({
                     }}
                     disabled={isReadOnly}
                   />
-                  <Label htmlFor={`factory-${factory.id}`} className="text-sm">
+                  <Label htmlFor={`factory-${factory.id}`} className="text-sm cursor-pointer">
                     {factory.name}
                   </Label>
                 </div>
@@ -257,7 +416,24 @@ export default function UserDialogModal({
           {/* Building Access */}
           {userData.factoryAccess.length > 0 && (
             <div className="space-y-2">
-              <Label>Quyền Truy Cập Tòa Nhà (Để trống cho tất cả trong nhà máy đã chọn)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Quyền Truy Cập Tòa nhà</Label>
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="select-all-buildings"
+                        checked={userData.buildingAccess.length === buildings.length}
+                        onCheckedChange={(checked) => {
+                            setUserData((prev) => ({
+                            ...prev,
+                            // factoryAccess: checked ? factories.map((f) => f.id) : [],
+                            buildingAccess: checked ? buildings.map((b) => b.id) : [],
+                            }));
+                        }}
+                        disabled={isReadOnly}
+                    />
+                    <Label htmlFor="select-all-buildings" className="text-sm">Truy cập tất cả theo nhà máy đã chọn</Label>
+                </div>
+            </div>
               <ScrollArea>
                 <div className="grid grid-cols-2 gap-2">
                   {buildings.map((building) => (
@@ -281,7 +457,7 @@ export default function UserDialogModal({
                         disabled={isReadOnly}
                       />
                       <Label htmlFor={`building-${building.id}`} className="text-sm">
-                        {building.name}
+                        {building.name} - {building.factoryName}
                       </Label>
                     </div>
                   ))}
@@ -309,22 +485,12 @@ export default function UserDialogModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="timezone">Múi Giờ</Label>
-              <Select
+              <TimezoneCombobox
                 value={userData.timezone}
                 onValueChange={(value) => setUserData({ ...userData, timezone: value })}
                 disabled={isReadOnly}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn múi giờ..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {timezoneOptions.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Chọn múi giờ..."
+              />
             </div>
           </div>
 
@@ -339,6 +505,84 @@ export default function UserDialogModal({
               <Label htmlFor="isActive">Người Dùng Hoạt Động</Label>
             </div>
           )}
+
+          {/* Advanced mode toggle and Floor/Line access */}
+          {userData.buildingAccess.length > 0 && (
+            <>
+              {/* Toggle cho advanced mode */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="advanced-mode"
+                  checked={isAdvancedMode}
+                  onCheckedChange={setIsAdvancedMode}
+                  disabled={isReadOnly}
+                />
+                <Label htmlFor="advanced-mode">Chọn chi tiết tầng và băng chuyền</Label>
+              </div>
+
+              {/* Floor Access - chỉ hiển thị khi advanced mode */}
+              {isAdvancedMode && floors.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Quyền Truy Cập Tầng</Label>
+                  <ScrollArea>
+                    <div className="grid grid-cols-2 gap-2">
+                      {floors.map((floor) => (
+                        <div key={floor.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`floor-${floor.id}`}
+                            checked={userData.floorAccess.includes(floor.id)}
+                            onCheckedChange={(checked) => {
+                              setUserData((prev) => ({
+                                ...prev,
+                                floorAccess: checked 
+                                  ? [...prev.floorAccess, floor.id]
+                                  : prev.floorAccess.filter((id) => id !== floor.id),
+                              }));
+                            }}
+                            disabled={isReadOnly}
+                          />
+                          <Label htmlFor={`floor-${floor.id}`} className="text-sm">
+                            {floor.name} - {floor.buildingName}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+
+              {/* Line Access - chỉ hiển thị khi advanced mode */}
+              {isAdvancedMode && lines.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Quyền Truy Cập Băng Chuyền</Label>
+                  <ScrollArea>
+                    <div className="grid grid-cols-2 gap-2">
+                      {lines.map((line) => (
+                        <div key={line.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`line-${line.id}`}
+                            checked={userData.lineAccess.includes(line.id)}
+                            onCheckedChange={(checked) => {
+                              setUserData((prev) => ({
+                                ...prev,
+                                lineAccess: checked 
+                                  ? [...prev.lineAccess, line.id]
+                                  : prev.lineAccess.filter((id) => id !== line.id),
+                              }));
+                            }}
+                            disabled={isReadOnly}
+                          />
+                          <Label htmlFor={`line-${line.id}`} className="text-sm">
+                            {line.name} - {line.floorName}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
@@ -347,9 +591,9 @@ export default function UserDialogModal({
           {mode !== "view" && (
             <Button
               onClick={handleSave}
-              disabled={!userData.username || !userData.email}
+              disabled={!userData.username || !userData.email || !userData.roleId || isSaving}
             >
-              {mode === "add" ? "Thêm Người Dùng" : "Lưu Thay Đổi"}
+              {isSaving ? 'Đang lưu...' : (mode === "add" ? "Thêm Người Dùng" : "Lưu Thay Đổi")}
             </Button>
           )}
         </DialogFooter>

@@ -57,17 +57,19 @@ export interface DashboardStats {
 }
 
 export interface User {
-    id: string
+    id?: string
     username: string
     email: string
-    role: string
+    password?: string
+    roleId: string
+    role?: string
     factoryAccess: string[]
     buildingAccess: string[]
     floorAccess: string[]
     lineAccess: string[]
     language: "en" | "vi"
     timezone: string
-    createdAt: string
+    createdAt?: string
     lastLogin?: string
     isActive: boolean
 }
@@ -162,6 +164,7 @@ export interface Building {
     id: string
     name: string
     factoryId: string
+    factoryName?: string
     floors?: Floor[]
     floorCount: number
     power: number
@@ -176,6 +179,7 @@ export interface Floor {
     id: string
     name: string
     buildingId: string
+    buildingName?: string
     lines?: Line[]
     lineCount: number
     power: number
@@ -190,6 +194,7 @@ export interface Line {
     id: string
     name: string
     floorId: string
+    floorName?: string
     devices: Device[]
     power: number
     operationalTime: {

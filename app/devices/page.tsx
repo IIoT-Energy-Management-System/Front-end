@@ -64,14 +64,8 @@ export default function DevicesPage() {
         }
       }
       
-      // Handle factories response format
-      let factoryArray: any[] = []
-      if (factoriesData && factoriesData.data && Array.isArray(factoriesData.data)) {
-        factoryArray = factoriesData.data
-      }
-      
       setDevices(deviceArray)
-      setApiFactories(factoryArray)
+      setApiFactories(factoriesData)
       
       // Debug logging để kiểm tra dữ liệu từ API
       console.log("Devices loaded from API:", deviceArray)

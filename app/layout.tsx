@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from 'sonner';
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import type React from "react"
@@ -21,7 +21,7 @@ export default function RootLayout({
     <html className="mdl-js">
       <body className={inter.className}>
         {children}
-        <Toaster />
+        <Toaster richColors/>
       </body>
     </html>
   )

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserApiService } from "@/lib/api"
-import { db } from "@/lib/database"
 import type { User } from "@/lib/types"
 import { Edit, Eye, Plus, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -38,30 +37,30 @@ export default function UserManagement() {
     loadData()
   }, [])
 
-  const handleAddUser = async (userData: Partial<User>) => {
+  const handleAddUser = async (userData: User) => {
     try {
-      await db.createUser({
-        ...userData,
-        isActive: true,
-      } as User)
-      loadData()
+        await UserApiService.createUser(userData)
+        loadData()
+        // Chỉ hiện alert khi tạo thành công
+        alert("Thêm người dùng thành công!")
+        console.log("Add user data:", userData)
     } catch (error) {
       console.error("Failed to add user:", error)
     }
   }
 
-  const handleEditUser = async (userData: Partial<User>) => {
-    if (!dialogState.user) return
+//   const handleEditUser = async (userData: User) => {
+//     if (!dialogState.user) return
 
-    try {
-      await db.updateUser(dialogState.user.id, {
-        ...userData,
-      } as User)
-      loadData()
-    } catch (error) {
-      console.error("Failed to update user:", error)
-    }
-  }
+//     try {
+//       await db.updateUser(dialogState.user.id, {
+//         ...userData,
+//       } as User)
+//       loadData()
+//     } catch (error) {
+//       console.error("Failed to update user:", error)
+//     }
+//   }
 
   const openAddDialog = () => {
     setDialogState({
@@ -95,12 +94,8 @@ export default function UserManagement() {
     })
   }
 
-  const handleSaveUser = (userData: Partial<User>) => {
-    if (dialogState.mode === 'add') {
-      handleAddUser(userData)
-    } else if (dialogState.mode === 'edit') {
-      handleEditUser(userData)
-    }
+  const handleSaveUser = async (userData: User) => {
+    await loadData();
   }
 
   return (
@@ -142,7 +137,7 @@ export default function UserManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="text-xs">
-                      {user.factoryAccess.length > 0 ? `${user.factoryAccess.length} Nhà Máy` : "Tất Cả Nhà Máy"}
+                      {user.factoryAccess.length > 0 && `${user.factoryAccess.length} Nhà Máy`}
                       {user.buildingAccess.length > 0 && `, ${user.buildingAccess.length} Tòa Nhà`}
                       {user.floorAccess.length > 0 && `, ${user.floorAccess.length} Tầng`}
                       {user.lineAccess.length > 0 && `, ${user.lineAccess.length} Dây Chuyền`}

@@ -208,10 +208,8 @@ const loadDataFromApi = async (
     try {
         setLoading(true)
         const response = await apiCall()
-        if (response.success && response.data) {
-            setState(response.data)
-            toast.success(`${successMessage} ${response.data.length} mục`)
-        }
+        setState(response)
+        toast.success(`${successMessage} ${response.length} mục`)
     } catch (error) {
         console.error('Error loading data:', error)
         toast.error(errorMessage)
@@ -308,23 +306,20 @@ const loadStats = async () => {
     if (apiFactories.length > 0) {
         try {
         const buildingsResponse = await getBuildingsByFactory(factory.id)
-        const buildingsData = buildingsResponse.success ? buildingsResponse.data : []
         
-        for (const building of buildingsData) {
+        for (const building of buildingsResponse) {
             const buildingDevices = currentDevices.filter((d) => d.buildingId === building.id)
             newStats.set(`building-${building.id}`, await calculateStats(buildingDevices))
 
             const floorsResponse = await getFloorsByBuilding(building.id)
-            const floorsData = floorsResponse.success ? floorsResponse.data : []
             
-            for (const floor of floorsData) {
+            for (const floor of floorsResponse) {
             const floorDevices = currentDevices.filter((d) => d.floorId === floor.id)
             newStats.set(`floor-${floor.id}`, await calculateStats(floorDevices))
 
             const linesResponse = await getLinesByFloor(floor.id)
-            const linesData = linesResponse.success ? linesResponse.data : []
             
-            for (const line of linesData) {
+            for (const line of linesResponse) {
                 const lineDevices = currentDevices.filter((d) => d.lineId === line.id)
                 newStats.set(`line-${line.id}`, await calculateStats(lineDevices))
             }
@@ -620,7 +615,7 @@ const handleAddFactory = async () => {
     setIsAddFactoryOpen(false)
     // Refresh data
     const factories = await getFactories()
-    setApiFactories(factories.data)
+    setApiFactories(factories)
     } catch (error) {
     toast.error("Không thể thêm nhà máy")
     }
@@ -639,7 +634,7 @@ const handleAddBuilding = async () => {
     setIsAddBuildingOpen(false)
     // Refresh data
     const buildings = await getBuildingsByFactory(selectedFactoryId)
-    setApiBuildings(buildings.data)
+    setApiBuildings(buildings)
     } catch (error) {
     toast.error("Không thể thêm tòa nhà")
     }
@@ -658,7 +653,7 @@ const handleAddFloor = async () => {
     setIsAddFloorOpen(false)
     // Refresh data
     const floors = await getFloorsByBuilding(selectedBuildingId)
-    setApiFloors(floors.data)
+    setApiFloors(floors)
     } catch (error) {
     toast.error("Không thể thêm tầng")
     }
@@ -677,7 +672,7 @@ const handleAddLine = async () => {
     setIsAddLineOpen(false)
     // Refresh data
     const lines = await getLinesByFloor(selectedFloorId)
-    setApiLines(lines.data)
+    setApiLines(lines)
     } catch (error) {
     toast.error("Không thể thêm dây chuyền")
     }

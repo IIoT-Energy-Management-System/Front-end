@@ -1,4 +1,4 @@
-import type { Alert, AnalyticsData, Building, DashboardStats, Device, Factory, RankingData, ReportData, Role, User } from './types'
+import type { Alert, AnalyticsData, Building, DashboardStats, Device, Factory, Floor, Line, RankingData, ReportData, Role, User } from './types'
 
 const API_BASE_URL = 'http://localhost:5000'
 
@@ -6,7 +6,13 @@ const API_BASE_URL = 'http://localhost:5000'
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`API Error ${response.status}: ${errorText}`)
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);  // Parse JSON từ backend
+    } catch {
+      errorData = { error: errorText };  // Fallback nếu không phải JSON
+    }
+    throw errorData;  // Throw object trực tiếp
   }
   return response.json()
 }
@@ -320,60 +326,31 @@ export class BuildingApiService {
 // Floor API Service
 export class FloorApiService {
   // GET /api/floors - Lấy danh sách tầng
-  static async getFloors(): Promise<{
-    success: boolean
-    data: Array<{
-      id: string
-      name: string
-      buildingId: string
-      lineCount?: number
-    }>
-  }> {
+  static async getFloors(): Promise<Floor[]> {
     const response = await fetch(`${API_BASE_URL}/api/floors`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Floor[] }>(response)
+    return result.data
   }
 
   // GET /api/floors/:id - Lấy chi tiết tầng
-  static async getFloorById(id: string): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      buildingId: string
-      lineCount?: number
-    }
-  }> {
+  static async getFloorById(id: string): Promise<Floor[]> {
     const response = await fetch(`${API_BASE_URL}/api/floors/${id}`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Floor[] }>(response)
+    return result.data
   }
 
   // GET /api/buildings/:buildingId/floors - Lấy tầng theo tòa nhà
-  static async getFloorsByBuilding(buildingId: string): Promise<{
-    success: boolean
-    data: Array<{
-      id: string
-      name: string
-      buildingId: string
-      lineCount?: number
-    }>
-  }> {
+  static async getFloorsByBuilding(buildingId: string): Promise<Floor[]> {
     const response = await fetch(`${API_BASE_URL}/api/floors?buildingId=${buildingId}`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Floor[] }>(response)
+    return result.data
   }
 
   // POST /api/floors - Tạo tầng mới
   static async createFloor(floorData: {
     name: string
     buildingId: string
-  }): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      buildingId: string
-      lineCount?: number
-    }
-  }> {
+  }): Promise<Floor[]> {
     const response = await fetch(`${API_BASE_URL}/api/floors`, {
       method: 'POST',
       headers: {
@@ -381,22 +358,15 @@ export class FloorApiService {
       },
       body: JSON.stringify(floorData),
     })
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Floor[] }>(response)
+    return result.data
   }
 
   // PUT /api/floors/:id - Cập nhật tầng
   static async updateFloor(id: string, floorData: {
     name?: string
     buildingId?: string
-  }): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      buildingId: string
-      lineCount?: number
-    }
-  }> {
+  }): Promise<Floor[]> {
     const response = await fetch(`${API_BASE_URL}/api/floors/${id}`, {
       method: 'PUT',
       headers: {
@@ -404,7 +374,8 @@ export class FloorApiService {
       },
       body: JSON.stringify(floorData),
     })
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Floor[] }>(response)
+    return result.data
   }
 
   // DELETE /api/floors/:id - Xóa tầng
@@ -423,56 +394,31 @@ export class FloorApiService {
 // Line API Service
 export class LineApiService {
   // GET /api/lines - Lấy danh sách chuyền
-  static async getLines(): Promise<{
-    success: boolean
-    data: Array<{
-      id: string
-      name: string
-      floorId: string
-    }>
-  }> {
+  static async getLines(): Promise<Line[]> {
     const response = await fetch(`${API_BASE_URL}/api/lines`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Line[] }>(response)
+    return result.data
   }
 
   // GET /api/lines/:id - Lấy chi tiết chuyền
-  static async getLineById(id: string): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      floorId: string
-    }
-  }> {
+  static async getLineById(id: string): Promise<Line[]> {
     const response = await fetch(`${API_BASE_URL}/api/lines/${id}`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Line[] }>(response)
+    return result.data
   }
 
   // GET /api/floors/:floorId/lines - Lấy chuyền theo tầng
-  static async getLinesByFloor(floorId: string): Promise<{
-    success: boolean
-    data: Array<{
-      id: string
-      name: string
-      floorId: string
-    }>
-  }> {
+  static async getLinesByFloor(floorId: string): Promise<Line[]> {
     const response = await fetch(`${API_BASE_URL}/api/lines?floorId=${floorId}`)
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Line[] }>(response)
+    return result.data
   }
 
   // POST /api/lines - Tạo chuyền mới
   static async createLine(lineData: {
     name: string
     floorId: string
-  }): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      floorId: string
-    }
-  }> {
+  }): Promise<Line[]> {
     const response = await fetch(`${API_BASE_URL}/api/lines`, {
       method: 'POST',
       headers: {
@@ -480,21 +426,15 @@ export class LineApiService {
       },
       body: JSON.stringify(lineData),
     })
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Line[] }>(response)
+    return result.data
   }
 
   // PUT /api/lines/:id - Cập nhật chuyền
   static async updateLine(id: string, lineData: {
     name?: string
     floorId?: string
-  }): Promise<{
-    success: boolean
-    data: {
-      id: string
-      name: string
-      floorId: string
-    }
-  }> {
+  }): Promise<Line[]> {
     const response = await fetch(`${API_BASE_URL}/api/lines/${id}`, {
       method: 'PUT',
       headers: {
@@ -502,7 +442,8 @@ export class LineApiService {
       },
       body: JSON.stringify(lineData),
     })
-    return handleResponse(response)
+    const result = await handleResponse<{ success: boolean; data: Line[] }>(response)
+    return result.data
   }
 
   // DELETE /api/lines/:id - Xóa chuyền
@@ -584,14 +525,14 @@ export class AnalyticApiService {
 
 export class UserApiService {
   // GET /api/users - Lấy danh sách người dùng
-  static async getUsers(): Promise<any[]> {
+  static async getUsers(): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/api/users`)
     const result = await handleResponse<{ success: boolean; data: User[] }>(response)
     return result.data
   }
 
   // GET /api/users/:id - Lấy chi tiết người dùng
-  static async getUserById(id: string): Promise<any> {
+  static async getUserById(id: string): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/api/users/${id}`)
     const result = await handleResponse<{ success: boolean; data: User[] }>(response)
     return result.data
@@ -601,9 +542,14 @@ export class UserApiService {
   static async createUser(userData: {
     username: string
     email: string
-    password: string
-    role: string
-  }): Promise<any> {
+    roleId: string
+    factoryAccess?: string[]
+    buildingAccess?: string[]
+    floorAccess?: string[]
+    lineAccess?: string[]
+    language?: "en" | "vi"
+    timezone?: string
+  }): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
       method: 'POST',
       headers: {
@@ -611,7 +557,7 @@ export class UserApiService {
       },
       body: JSON.stringify(userData),
     })
-    const result = await handleResponse<{ success: boolean; data: User[] }>(response)
+    const result = await handleResponse<{ success: boolean; data: User }>(response)
     return result.data
   }
 
@@ -621,7 +567,7 @@ export class UserApiService {
     email?: string
     password?: string
     role?: string
-  }): Promise<any> {
+  }): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
       method: 'PUT',
       headers: {
