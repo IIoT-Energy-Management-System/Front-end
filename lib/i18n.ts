@@ -73,6 +73,7 @@ export const translations = {
     "devices.vibration": "Vibration",
     "devices.deviceId": "Device ID",
     "devices.createdAt": "Created At",
+    "devices.noPermissionToAdd": "No permission to add devices",
 
     // Layouts
     "layouts.title": "Layout Management",
@@ -131,6 +132,7 @@ export const translations = {
     "common.noDataRealTime": "No real-time data available - Device may be offline or not yet connected",
     "common.deviceNeedsConfiguration": "Device needs to be connected and configured to start transmitting data automatically.",
     "common.systemInformation": "System Information",
+    "common.noPermissionToAdd": "No permission to add",
 
     // Units
     "units.kw": "kW",
@@ -347,6 +349,7 @@ export const translations = {
     "devices.vibration": "Dao động",
     "devices.deviceId": "ID thiết bị",
     "devices.createdAt": "Ngày tạo",
+    "devices.noPermissionToAdd": "Không có quyền thêm thiết bị",
 
     // Layouts
     "layouts.title": "Quản lý bố cục",
@@ -402,6 +405,7 @@ export const translations = {
     "common.noDataRealTime": "Không có dữ liệu thời gian thực - Thiết bị có thể không hoạt động hoặc chưa được kết nối",
     "common.deviceNeedsConfiguration": "Thiết bị cần được kết nối và cấu hình để bắt đầu truyền dữ liệu tự động.",
     "common.systemInformation": "Thông tin hệ thống",
+    "common.noPermissionToAdd": "Không có quyền thêm",
 
     // Units
     "units.kw": "kW",

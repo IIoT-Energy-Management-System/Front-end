@@ -2,6 +2,7 @@
 
 import DeviceModal from "@/components/DeviceModal"
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -269,13 +270,22 @@ export default function DevicesPage() {
             </h1>
             <p className="text-gray-600 mt-2">{t("devices.description")}</p>
           </div>
-          <Button 
-            onClick={handleAddDevice}
-            className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700"
+          <PermissionGuard
+            permission="device.create"
+            fallback={
+              <div className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
+                {t("devices.noPermissionToAdd")}
+              </div>
+            }
           >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("devices.addDevice")}
-          </Button>
+            <Button 
+              onClick={handleAddDevice}
+              className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("devices.addDevice")}
+            </Button>
+          </PermissionGuard>
         </div>
 
         {/* Status Overview Cards */}
@@ -421,47 +431,95 @@ export default function DevicesPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge className={getStatusColor(device.status)}>{device.status}</Badge>
-                            <Select value={device.status} onValueChange={(value: Device['status']) => handleStatusChange(device, value)}>
-                              <SelectTrigger className="w-20 h-6 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Online">{t("devices.online")}</SelectItem>
-                                <SelectItem value="Offline">{t("devices.offline")}</SelectItem>
-                                <SelectItem value="Maintenance">{t("devices.maintenance")}</SelectItem>
-                                <SelectItem value="Error">{t("devices.error")}</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <PermissionGuard
+                              permission="device.edit"
+                            >
+                              <Select value={device.status} onValueChange={(value: Device['status']) => handleStatusChange(device, value)}>
+                                <SelectTrigger className="w-20 h-6 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Online">{t("devices.online")}</SelectItem>
+                                  <SelectItem value="Offline">{t("devices.offline")}</SelectItem>
+                                  <SelectItem value="Maintenance">{t("devices.maintenance")}</SelectItem>
+                                  <SelectItem value="Error">{t("devices.error")}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </PermissionGuard>
                           </div>
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{getLocationString(device)}</TableCell>
                         <TableCell>{device.lastSeen ? new Date(device.lastSeen).toLocaleString() : "Never"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="hover:bg-blue-100"
-                              onClick={() => handleViewDevice(device)}
+                            <PermissionGuard
+                              permission="device.view"
+                              fallback={
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  disabled
+                                  className="opacity-50 cursor-not-allowed"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              }
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="hover:bg-green-100"
-                              onClick={() => handleEditDevice(device)}
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="hover:bg-blue-100"
+                                onClick={() => handleViewDevice(device)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </PermissionGuard>
+                            
+                            <PermissionGuard
+                              permission="device.edit"
+                              fallback={
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  disabled
+                                  className="opacity-50 cursor-not-allowed"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              }
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteDevice(device.id)}
-                              className="hover:bg-red-100"
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="hover:bg-green-100"
+                                onClick={() => handleEditDevice(device)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </PermissionGuard>
+                            
+                            <PermissionGuard
+                              permission="device.delete"
+                              fallback={
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  disabled
+                                  className="opacity-50 cursor-not-allowed"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              }
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDevice(device.id)}
+                                className="hover:bg-red-100"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGuard>
                           </div>
                         </TableCell>
                       </TableRow>

@@ -19,17 +19,17 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 
-const navigation = [
-  { name: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "nav.devices", href: "/devices", icon: Cpu },
-  { name: "nav.layouts", href: "/layouts", icon: Map },
-  { name: "nav.analytics", href: "/analytics", icon: BarChart3 },
-  { name: "nav.reports", href: "/reports", icon: FileText },
-  { name: "nav.alerts", href: "/alerts", icon: AlertTriangle },
-  { name: "nav.admin", href: "/admin", icon: Settings },
+export const navigation = [
+  { name: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard, permission: null }, // Dashboard accessible to all logged in users
+  { name: "nav.devices", href: "/devices", icon: Cpu, permission: "device.view" },
+  { name: "nav.layouts", href: "/layouts", icon: Map, permission: "layout.view" },
+  { name: "nav.analytics", href: "/analytics", icon: BarChart3, permission: "analytic.view" },
+  { name: "nav.reports", href: "/reports", icon: FileText, permission: "report.view" },
+  { name: "nav.alerts", href: "/alerts", icon: AlertTriangle, permission: "alert.view" },
+  { name: "nav.admin", href: "/admin", icon: Settings, permission: "settings.view" }, // Admin requires settings.view permission
 ]
 
 export function Sidebar() {
@@ -37,6 +37,23 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user, logout, language, setLanguage } = useAppStore()
   const { t } = useTranslation()
+
+  // Filter navigation based on user permissions
+  const filteredNavigation = useMemo(() => {
+    if (!user) return []
+    
+    // Admin role has access to everything
+    if (user.role === "Admin") return navigation
+    console.log("user permission: ", user.permissions);
+    // Filter navigation items based on permissions
+    return navigation.filter(item => {
+      // If no permission required, allow access
+      if (!item.permission) return true
+      console.log("list permission: ", item.permission);
+      // Check if user has the required permission
+      return user.permissions?.includes(item.permission) || false
+    })
+  }, [user])
 
   const handleLogout = () => {
     logout()
@@ -71,6 +88,8 @@ export function Sidebar() {
       <div className="p-4 border-b">
         <div className="text-sm font-medium">{user?.username}</div>
         <div className="text-xs text-muted-foreground">{user?.role}</div>
+        {/* <div><PermissionGuard permission="user.view"><Button variant="ghost" size="sm" onClick={() => handleEdit(user.id, user.name, "người dùng")}>Edit</Button></PermissionGuard></div> */}
+        <div className="text-xs text-muted-foreground">{user?.permissions?.join("| |")}</div>
       </div>
 
       {/* Language Selector */}
@@ -92,7 +111,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
+        {filteredNavigation.map((item) => {
           const isActive = pathname === item.href
           return (
             <Link

@@ -12,10 +12,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
-import { useDeviceApi } from "@/lib/api"
+import { useBuildingApi, useDeviceApi, useFloorApi, useLineApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
-import type { Device, Factory } from "@/lib/types"
+import type { Building, Device, Factory, Floor, Line } from "@/lib/types"
 import {
     Activity,
     Clock,
@@ -33,6 +32,7 @@ import {
     Zap
 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { toast } from 'sonner'
 import ConnectionModal from "./ConnectionModal"
 
 interface DeviceModalProps {
@@ -60,7 +60,7 @@ onDeviceUpdated
 }: DeviceModalProps) {
 const { t } = useTranslation()
 const { createDeviceConnection, deleteDeviceConnection } = useDeviceApi()
-const { toast } = useToast()
+
 const [formData, setFormData] = useState({
     name: "",
     type: "Sewing Machine" as Device["type"],
@@ -74,6 +74,20 @@ const [formData, setFormData] = useState({
 const [loading, setLoading] = useState(false)
 const [connectionModalOpen, setConnectionModalOpen] = useState(false)
 const [refreshKey, setRefreshKey] = useState(0)
+const [selectedFactoryId, setSelectedFactoryId] = useState<string | null>(null)
+const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
+const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null)
+const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
+
+// API states
+const [apiBuildings, setApiBuildings] = useState<Building[]>([])
+const [apiFloors, setApiFloors] = useState<Floor[]>([])
+const [apiLines, setApiLines] = useState<Line[]>([])
+
+// API hooks
+const { getBuildingsByFactory } = useBuildingApi()
+const { getFloorsByBuilding } = useFloorApi()
+const { getLinesByFloor } = useLineApi()
 
 // Initialize form data when modal opens or device changes
 useEffect(() => {
@@ -99,8 +113,70 @@ useEffect(() => {
         ratedPower: device.ratedPower,
         status: device.status,
     })
+    setSelectedFactoryId(device.factoryId || null)
+    setSelectedBuildingId(device.buildingId || null)
+    setSelectedFloorId(device.floorId || null)
+    setSelectedLineId(device.lineId || null)
     }
 }, [mode, device, isOpen])
+
+const loadDataFromApi = async (
+    apiCall: () => Promise<any>,
+    setState: (data: any[]) => void,
+    errorMessage: string,
+    setEmptyOnError: boolean = true
+) => {
+    try {
+        setLoading(true)
+        const response = await apiCall()
+        setState(response)
+    } catch (error) {
+        console.error('Error loading data:', error)
+        toast.error(errorMessage)
+        if (setEmptyOnError) {
+            setState([])
+        }
+    } finally {
+        setLoading(false)
+    }
+}
+
+const loadBuildingsFromApi = async (factoryId: string) => {
+    await loadDataFromApi(
+        () => getBuildingsByFactory(factoryId),
+        setApiBuildings,
+        'Không thể tải danh sách tòa nhà'
+    )
+}
+
+const loadFloorsFromApi = async (buildingId: string) => {
+    await loadDataFromApi(
+        () => getFloorsByBuilding(buildingId),
+        setApiFloors,
+        'Không thể tải danh sách tầng'
+    )
+}
+
+const loadLinesFromApi = async (floorId: string) => {
+    await loadDataFromApi(
+        () => getLinesByFloor(floorId),
+        setApiLines,
+        'Không thể tải danh sách dây chuyền'
+    )
+}
+
+useEffect(() => {
+    console.log("Selected Factory ID:", selectedFactoryId)
+    if(selectedFactoryId) {
+    loadBuildingsFromApi(selectedFactoryId)
+    }
+    if(selectedBuildingId) {
+    loadFloorsFromApi(selectedBuildingId)
+    }
+    if(selectedFloorId) {
+    loadLinesFromApi(selectedFloorId)
+    }
+}, [selectedFactoryId, selectedBuildingId, selectedFloorId])
 
 const isReadOnly = mode === "view"
 const isEdit = mode === "edit"
@@ -138,30 +214,19 @@ const handleSave = async () => {
     setLoading(true)
     console.log(formData)
     try {
-    await onSave(formData)
-    
-    // Hiển thị toast thành công
-    toast({
-        title: "Success",
-        description: mode === "edit" 
-        ? `Thiết bị "${formData.name}" đã được cập nhật thành công!`
-        : `Thiết bị "${formData.name}" đã được thêm mới thành công!`
-    })
-    
-    onClose()
+        await onSave(formData)
+        
+        // Hiển thị toast thành công
+        toast.success("Lưu thiết bị thành công!")
+        
+        onClose()
     } catch (error) {
-    console.error("Failed to save device:", error)
-    
-    // Hiển thị toast lỗi
-    toast({
-        title: "Error",
-        description: mode === "edit"
-        ? "Không thể cập nhật thiết bị. Vui lòng thử lại."
-        : "Không thể thêm thiết bị. Vui lòng thử lại.",
-        variant: "destructive"
-    })
+        console.error("Failed to save device:", error)
+        
+        // Hiển thị toast lỗi
+        toast.error("Lưu thiết bị thất bại. Vui lòng thử lại.", { description: (error as any).error || "Có lỗi xảy ra" })
     } finally {
-    setLoading(false)
+        setLoading(false)
     }
 }
 
@@ -193,11 +258,7 @@ const getTypeColor = (type: Device["type"]) => {
 
 const handleAddConnection = () => {
     if (!device?.id) {
-    toast({
-        title: "Error",
-        description: "Device must be saved before adding connections",
-        variant: "destructive"
-    })
+    toast.error("Please save the device before adding connections.")
     return
     }
     setConnectionModalOpen(true)
@@ -205,18 +266,15 @@ const handleAddConnection = () => {
 
 const handleConnectionSave = async (connectionData: any) => {
     try {
-    await createDeviceConnection(connectionData)
-    setRefreshKey(prev => prev + 1)
-    if (onDeviceUpdated) {
-        onDeviceUpdated()
-    }
-    toast({
-        title: "Success",
-        description: "Connection added successfully!",
-    })
+        await createDeviceConnection(connectionData)
+        setRefreshKey(prev => prev + 1)
+        if (onDeviceUpdated) {
+            onDeviceUpdated()
+        }
+        toast.success("Connection created successfully!")
     } catch (error) {
-    console.error("Failed to create connection:", error)
-    throw error
+        console.error("Failed to create connection:", error)
+        throw error
     }
 }
 
@@ -228,17 +286,10 @@ const handleDeleteConnection = async (connectionId: string) => {
         if (onDeviceUpdated) {
         onDeviceUpdated()
         }
-        toast({
-        title: "Success",
-        description: "Connection deleted successfully!",
-        })
+        toast.success("Connection deleted successfully!")
     } catch (error) {
         console.error("Failed to delete connection:", error)
-        toast({
-        title: "Error",
-        description: "Failed to delete connection. Please try again.",
-        variant: "destructive"
-        })
+        toast.error("Failed to delete connection. Please try again.")
     }
     }
 }
@@ -398,9 +449,7 @@ return (
                 ) : (
                     <Select
                     value={formData.factoryId}
-                    onValueChange={(value) =>
-                        setFormData({ ...formData, factoryId: value, buildingId: "", floorId: "", lineId: "" })
-                    }
+                    onValueChange={(value) => [setSelectedFactoryId(value), setFormData({ ...formData, factoryId: value, buildingId: "", floorId: "", lineId: "" })]}
                     >
                     <SelectTrigger className="border-2 border-green-200 focus:border-green-400 bg-white">
                         <SelectValue placeholder="Select factory" />
@@ -422,24 +471,20 @@ return (
                     <Label htmlFor="building" className="text-sm font-semibold">{t("layouts.building")}</Label>
                     {isReadOnly ? (
                     <div className="px-3 py-2 border rounded-md bg-white shadow-sm font-medium">
-                        {device?.buildingName || factories
-                        .find(f => f.id === formData.factoryId)
-                        ?.buildings?.find(b => b.id === formData.buildingId)?.name || "Unknown"}
+                        {device?.buildingName || apiBuildings?.find(b => b.id === formData.buildingId)?.name || "Unknown"}
                     </div>
                     ) : (
                     <Select
                         value={formData.buildingId}
                         onValueChange={(value) =>
-                        setFormData({ ...formData, buildingId: value, floorId: "", lineId: "" })
+                        [setSelectedBuildingId(value), setFormData({ ...formData, buildingId: value, floorId: "", lineId: "" })]
                         }
                     >
                         <SelectTrigger className="border-2 border-green-200 focus:border-green-400 bg-white">
                         <SelectValue placeholder="Select building" />
                         </SelectTrigger>
                         <SelectContent>
-                        {factories
-                            .find((f) => f.id === formData.factoryId)
-                            ?.buildings?.map((building) => (
+                        {apiBuildings.length > 0 && apiBuildings.map((building) => (
                             <SelectItem key={building.id} value={building.id}>
                                 {building.name}
                             </SelectItem>
@@ -468,16 +513,13 @@ return (
                     ) : (
                     <Select
                         value={formData.floorId}
-                        onValueChange={(value) => setFormData({ ...formData, floorId: value, lineId: "" })}
+                        onValueChange={(value) => [setSelectedFloorId(value), , setFormData({ ...formData, floorId: value, lineId: "" })]}
                     >
                         <SelectTrigger className="border-2 border-green-200 focus:border-green-400 bg-white">
                         <SelectValue placeholder="Select floor" />
                         </SelectTrigger>
                         <SelectContent>
-                        {factories
-                            .find((f) => f.id === formData.factoryId)
-                            ?.buildings?.find((b) => b.id === formData.buildingId)
-                            ?.floors?.map((floor) => (
+                        {apiFloors.length > 0 && apiFloors.map((floor) => (
                             <SelectItem key={floor.id} value={floor.id}>
                                 {floor.name}
                             </SelectItem>
@@ -511,11 +553,7 @@ return (
                         <SelectValue placeholder="Select line" />
                         </SelectTrigger>
                         <SelectContent>
-                        {factories
-                            .find((f) => f.id === formData.factoryId)
-                            ?.buildings?.find((b) => b.id === formData.buildingId)
-                            ?.floors?.find((f) => f.id === formData.floorId)
-                            ?.lines?.map((line) => (
+                        {apiLines.length > 0 && apiLines.map((line) => (
                             <SelectItem key={line.id} value={line.id}>
                                 {line.name}
                             </SelectItem>

@@ -3,9 +3,10 @@
 import type React from "react"
 
 import { useAppStore } from "@/lib/store"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { Sidebar } from "./sidebar"
+import { useRouter, usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
+import { Sidebar, navigation } from "./sidebar"
+import { authService } from "@/lib/auth"
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -13,27 +14,44 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter()
-  const { isAuthenticated, checkAuthStatus, loadFactories, loadDevices, loadAlerts, loadSettings } = useAppStore()
+  const pathname = usePathname()
+  const { isAuthenticated, checkAuthStatus, isCheckingAuth } = useAppStore()
+    const [isCheckingAccess, setIsCheckingAccess] = useState(true)
+  const [hasAccess, setHasAccess] = useState(true)
 
   useEffect(() => {
-    // Check if user is already logged in from localStorage
-    checkAuthStatus()
+    if (typeof window !== "undefined") {
+      checkAuthStatus()
+    }
   }, [checkAuthStatus])
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isCheckingAuth && !isAuthenticated) {
       router.push("/login")
       return
     }
 
-    // Load initial data
-    loadFactories()
-    loadDevices()
-    loadAlerts()
-    loadSettings()
-  }, [isAuthenticated, router, loadFactories, loadDevices, loadAlerts, loadSettings])
+    if (!isCheckingAuth && isAuthenticated) {
+      const currentRoute = navigation.find(item => item.href === pathname)
+      if (currentRoute && currentRoute.permission) {
+        const access = authService.hasPermission(currentRoute.permission)
+        setHasAccess(access)
+        if (!access) {
+          router.push("/dashboard")
+        }
+      }
+      setIsCheckingAccess(false)
+    }
+  }, [isAuthenticated, isCheckingAuth, pathname, router])
 
-  if (!isAuthenticated) {
+  if (isCheckingAuth || isCheckingAccess) {
+    return <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">Checking authentication...</div>
+        <div className="w-10 h-10 border-4 border-blue-500 border-dashed rounded-full animate-spin ml-4"></div>
+    </div>
+  }
+
+  if (!isAuthenticated || !hasAccess) {
     return null
   }
 

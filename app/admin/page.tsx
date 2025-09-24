@@ -16,6 +16,7 @@ import NotificationSettings from "./layouts/NotificationSettings"
 import RolePermissionManager from "./layouts/RolePermissionManager"
 import ShiftManagement from "./layouts/ShiftManagement"
 import UserManagement from "./layouts/UserManagement"
+import { PermissionGuard } from "@/components/PermissionGuard"
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("users")
@@ -93,15 +94,21 @@ export default function AdminPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="users">Người Dùng</TabsTrigger>
-            <TabsTrigger value="roles">Vai Trò</TabsTrigger>
-            <TabsTrigger value="database">Cơ Sở Dữ Liệu</TabsTrigger>
-            <TabsTrigger value="notifications">Thông Báo</TabsTrigger>
-            <TabsTrigger value="energy">Năng Lượng</TabsTrigger>
-            <TabsTrigger value="shifts">Ca Làm Việc</TabsTrigger>
-            <TabsTrigger value="backup">Sao Lưu</TabsTrigger>
-            <TabsTrigger value="logs">Nhật Ký</TabsTrigger>
+          <TabsList className="flex space-x-2 *:w-full">
+            <PermissionGuard permission="user.view">
+              <TabsTrigger value="users">Người Dùng</TabsTrigger>
+            </PermissionGuard>
+            <PermissionGuard permission="role.view">
+              <TabsTrigger value="roles">Vai Trò</TabsTrigger>
+            </PermissionGuard>
+              <TabsTrigger value="database">Cơ Sở Dữ Liệu</TabsTrigger>
+              <TabsTrigger value="notifications">Thông Báo</TabsTrigger>
+              <TabsTrigger value="energy">Năng Lượng</TabsTrigger>
+              <TabsTrigger value="shifts">Ca Làm Việc</TabsTrigger>
+              <TabsTrigger value="backup">Sao Lưu</TabsTrigger>
+            <PermissionGuard permission="log.view">
+              <TabsTrigger value="logs">Nhật Ký</TabsTrigger>
+            </PermissionGuard>
           </TabsList>
 
           {/* User Management */}

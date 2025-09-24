@@ -1,6 +1,7 @@
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -226,10 +227,12 @@ export default function ReportsPage() {
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Tạo Báo Cáo
-              </Button>
+                <PermissionGuard permission="report.generate">
+                    <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tạo Báo Cáo
+                    </Button>
+                </PermissionGuard>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>

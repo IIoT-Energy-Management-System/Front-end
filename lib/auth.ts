@@ -1,5 +1,6 @@
-import { db } from "./database"
+import { jwtDecode } from 'jwt-decode'
 import type { User } from "./types"
+import { UserApiService } from './api'
 
 interface AuthState {
   user: User | null
@@ -17,9 +18,22 @@ class AuthService {
   private loadUserFromStorage(): void {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("currentUser")
-      if (savedUser) {
+      const accessToken = localStorage.getItem("accessToken")
+      if (savedUser && accessToken) {
         try {
           this.currentUser = JSON.parse(savedUser)
+          // Decode token to get permissions
+          try {
+            const decoded: any = jwtDecode(accessToken)
+            if (this.currentUser) {
+              this.currentUser.permissions = decoded.permissions || []
+            }
+          } catch (error) {
+            console.error("Failed to decode token:", error)
+            if (this.currentUser) {
+              this.currentUser.permissions = []
+            }
+          }
         } catch (error) {
           console.error("Failed to parse saved user:", error)
           localStorage.removeItem("currentUser")
@@ -42,57 +56,76 @@ class AuthService {
 
   async login(username: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
-      // Simulate authentication - in real app, this would validate against database
-      const users = await db.getUsers()
-      const user = users.find((u) => u.username === username && u.isActive)
+      const response = await fetch('http://localhost:5000/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-      if (!user) {
-        return { success: false, error: "Invalid credentials" }
+      const data = await response.json();
+
+      if (!response.ok || !data.success || data.error) {
+        return { success: false, error: data.error || 'Login failed' };
       }
 
-      // In real app, verify password hash
-      if (password !== "admin123") {
-        return { success: false, error: "Invalid credentials" }
+      // Decode JWT to get permissions
+      let permissions: string[] = [];
+      try {
+        const decoded: any = jwtDecode(data.data.accessToken);
+        permissions = decoded.permissions || [];
+      } catch (error) {
+        console.error('Failed to decode JWT:', error);
       }
 
-      this.currentUser = user
+      const dataUser = await UserApiService.getUserById(data.data.id);
+      // Assuming the API returns user data without role, etc. We can set defaults or fetch more later
+      const user: User = {
+        id: dataUser.id,
+        username: dataUser.username,
+        email: dataUser.email,
+        roleId: dataUser.roleId, // Need to adjust based on API
+        role: dataUser.role, // Default or from API if provided
+        permissions: permissions,
+        factoryAccess: dataUser.factoryAccess || [],
+        buildingAccess: dataUser.buildingAccess || [],
+        floorAccess: dataUser.floorAccess || [],
+        lineAccess: dataUser.lineAccess || [],
+        language: dataUser.language || 'vi',
+        timezone: dataUser.timezone || 'UTC',
+        isActive: dataUser.isActive || true,
+      };
 
-      // Save to localStorage if rememberMe is true
+      this.currentUser = user;
+
+      // Store tokens
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', data.data.accessToken);
+        localStorage.setItem('refreshToken', data.data.refreshToken);
+      }
+
+      // Save user to localStorage if rememberMe
       if (rememberMe) {
-        this.saveUserToStorage(user)
+        this.saveUserToStorage(user);
       }
 
-      // Log authentication
-      await db.addAuditLog({
-        userId: user.id,
-        username: user.username,
-        action: "LOGIN",
-        resource: "AUTH",
-        timestamp: new Date().toISOString(),
-        ipAddress: "127.0.0.1",
-        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
-      })
-
-      return { success: true, user }
+      return { success: true, user };
     } catch (error) {
-      return { success: false, error: "Authentication failed" }
+      return { success: false, error: 'Network error or server unavailable' };
     }
   }
 
   async logout(): Promise<void> {
     if (this.currentUser) {
-      await db.addAuditLog({
-        userId: this.currentUser.id,
-        username: this.currentUser.username,
-        action: "LOGOUT",
-        resource: "AUTH",
-        timestamp: new Date().toISOString(),
-        ipAddress: "127.0.0.1",
-        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
-      })
+      // Optionally log logout to API if needed
     }
-    this.currentUser = null
-    this.removeUserFromStorage()
+    this.currentUser = null;
+    this.removeUserFromStorage();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
   }
 
   getCurrentUser(): User | null {
@@ -103,18 +136,13 @@ class AuthService {
     return this.currentUser !== null
   }
 
-  hasPermission(resource: string, action: string): boolean {
+  hasPermission(permission: string): boolean {
+    // console.log("check permission: ", this.currentUser?.permissions, permission);
     if (!this.currentUser) return false
     if (this.currentUser.role === "Admin") return true
 
-    // Implement role-based permissions
-    const permissions = {
-      Supervisor: ["read", "update"],
-      Operator: ["read"],
-      Viewer: ["read"],
-    }
-
-    return permissions[this.currentUser.role]?.includes(action) || false
+    // Check permissions from JWT
+    return this.currentUser.permissions?.includes(permission) || false
   }
 }
 

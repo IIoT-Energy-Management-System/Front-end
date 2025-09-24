@@ -1,8 +1,8 @@
 import { create } from "zustand"
 import { authService } from "./auth"
-import { db } from "./database"
+// import { db } from "./database"
 import type { Alert, Device, DeviceData, Factory, SystemSettings, User } from "./types"
-import { Languages } from "lucide-react"
+// import { User } from "lucide-react"
 
 interface AppState {
   // Auth
@@ -26,15 +26,12 @@ interface AppState {
   // Loading states
   isLoading: boolean
 
+  isCheckingAuth: boolean // Thêm trạng thái để theo dõi việc kiểm tra xác thực
   // Actions
   login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>
   logout: () => void
   setUser: (user: User | null) => void
   checkAuthStatus: () => void
-  loadFactories: () => Promise<void>
-  loadDevices: () => Promise<void>
-  loadAlerts: () => Promise<void>
-  loadSettings: () => Promise<void>
   setSelectedFactory: (id: string | null) => void
   setSelectedBuilding: (id: string | null) => void
   setSelectedFloor: (id: string | null) => void
@@ -42,6 +39,7 @@ interface AppState {
   setLanguage: (lang: "en" | "vi") => void
   updateDeviceData: (deviceId: string, data: DeviceData) => void
   addAlert: (alert: Alert) => void
+  setIsCheckingAuth: (checking: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -57,8 +55,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedBuilding: null,
   selectedFloor: null,
   selectedLine: null,
-  language: "en",
+  language: "vi",
   isLoading: false,
+  isCheckingAuth: true,
 
   // Actions
   login: async (username: string, password: string, rememberMe: boolean = false) => {
@@ -86,6 +85,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedBuilding: null,
       selectedFloor: null,
       selectedLine: null,
+      isCheckingAuth: false,
     })
   },
 
@@ -94,53 +94,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   checkAuthStatus: () => {
+    set({ isCheckingAuth: true })
     const currentUser = authService.getCurrentUser()
+    console.log("checkAuthStatus: currentUser =", currentUser)
     if (currentUser) {
       set({
         user: currentUser,
         isAuthenticated: true,
         language: currentUser.language,
+        isCheckingAuth: false,
+      })
+    } else {
+      set({
+        user: null,
+        isAuthenticated: false,
+        isCheckingAuth: false,
       })
     }
   },
 
-  loadFactories: async () => {
-    set({ isLoading: true })
-    try {
-      const factories = await db.getFactories()
-      set({ factories, isLoading: false })
-    } catch (error) {
-      set({ isLoading: false })
-    }
-  },
-
-  loadDevices: async () => {
-    set({ isLoading: true })
-    try {
-      const devices = await db.getDevices()
-      set({ devices, isLoading: false })
-    } catch (error) {
-      set({ isLoading: false })
-    }
-  },
-
-  loadAlerts: async () => {
-    try {
-      const alerts = await db.getAlerts()
-      set({ alerts })
-    } catch (error) {
-      console.error("Failed to load alerts:", error)
-    }
-  },
-
-  loadSettings: async () => {
-    try {
-      const settings = await db.getSettings()
-      set({ settings })
-    } catch (error) {
-      console.error("Failed to load settings:", error)
-    }
-  },
+    setIsCheckingAuth: (checking: boolean) => {
+        set({ isCheckingAuth: checking })
+    },
 
   setSelectedFactory: (id: string | null) => {
     set({

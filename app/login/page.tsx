@@ -14,8 +14,8 @@ import { useEffect, useState } from "react"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("admin")
-  const [password, setPassword] = useState("admin123")
-  const [rememberMe, setRememberMe] = useState(false)
+  const [password, setPassword] = useState("123456")
+  const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -116,7 +116,7 @@ export default function LoginPage() {
               {isLoading ? t("common.loading") : t("auth.loginButton")}
             </Button>
           </form>
-          <div className="mt-4 text-xs text-center text-gray-500">Demo credentials: admin / admin123</div>
+          <div className="mt-4 text-xs text-center text-gray-500">Demo credentials: admin / 123456</div>
         </CardContent>
       </Card>
     </div>

@@ -21,7 +21,7 @@ export default function RootLayout({
     <html className="mdl-js">
       <body className={inter.className}>
         {children}
-        <Toaster richColors/>
+        <Toaster richColors position="top-right"/>
       </body>
     </html>
   )

@@ -8,18 +8,20 @@ export default function HomePage() {
   const router = useRouter()
   const { isAuthenticated, checkAuthStatus } = useAppStore()
 
-  useEffect(() => {
-    // Check authentication status first
-    checkAuthStatus()
-  }, [checkAuthStatus])
+//   useEffect(() => {
+//     // Check authentication status first
+//     checkAuthStatus()
+//     console.log("Checking authentication status...");
+//   }, [checkAuthStatus])
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard")
-    } else {
-      router.push("/login")
-    }
-  }, [isAuthenticated, router])
+//   useEffect(() => {
+//     console.log("isAuthenticated: ", isAuthenticated);
+//     if (isAuthenticated) {
+//       router.push("/dashboard")
+//     } else {
+//       router.push("/login")
+//     }
+//   }, [isAuthenticated, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center">

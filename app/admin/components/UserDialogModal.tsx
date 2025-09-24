@@ -222,9 +222,10 @@ export default function UserDialogModal({
                 if (mode === 'add') {
                     savedUser = await UserApiService.createUser(userData);
                 } else if (mode === 'edit') {
-                    // Placeholder vì chưa có API update
-                    throw new Error('API cập nhật người dùng chưa được implement');
-                    // savedUser = await UserApiService.updateUser(user?.id, userData);
+                    if (!user?.id) throw new Error('User ID is required for update');
+                    console.log("user",userData)
+                    const updatedUsers = await UserApiService.updateUser(user.id, userData);
+                    savedUser = updatedUsers[0];
                 } else {
                     return; // Không xử lý mode 'view'
                 }
@@ -304,6 +305,7 @@ export default function UserDialogModal({
   };
 
   const isReadOnly = mode === "view";
+  const isAdminReadOnly = mode === "view" || mode === "edit";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -320,7 +322,7 @@ export default function UserDialogModal({
                 id="username"
                 value={userData.username}
                 onChange={(e) => setUserData({ ...userData, username: e.target.value })}
-                readOnly={isReadOnly}
+                readOnly={isAdminReadOnly}
                 className={errors.username ? 'border-red-500' : ''}
               />
                 {errors.username && <p className="text-sm text-red-500">{errors.username}</p>}
@@ -332,7 +334,7 @@ export default function UserDialogModal({
                 type="email"
                 value={userData.email}
                 onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                readOnly={isReadOnly}
+                readOnly={isAdminReadOnly}
                 className={errors.email ? 'border-red-500' : ''}
                 // style={{ color: errors.email ? 'red' : 'gray' }}
               />

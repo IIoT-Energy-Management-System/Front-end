@@ -1,6 +1,7 @@
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -510,10 +511,12 @@ export default function AnalyticsPage() {
                     <SelectItem value="year">{t("analytics.yearly")}</SelectItem>
                     </SelectContent>
                 </Select>
-                <Button variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    {t("analytics.export")}
-                </Button>
+                <PermissionGuard permission="analytic.export">
+                    <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        {t("analytics.export")}
+                    </Button>
+                </PermissionGuard>
                 </div>
             </div>
 

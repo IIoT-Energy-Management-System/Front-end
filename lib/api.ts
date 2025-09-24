@@ -1,4 +1,4 @@
-import type { Alert, AnalyticsData, Building, DashboardStats, Device, Factory, Floor, Line, RankingData, ReportData, Role, User } from './types'
+import type { Alert, AnalyticsData, ApiPermission, Building, DashboardStats, Device, Factory, Floor, Line, RankingData, ReportData, Role, User } from './types';
 
 const API_BASE_URL = 'http://localhost:5000'
 
@@ -460,15 +460,42 @@ export class LineApiService {
 }
 
 export class AlertApiService {
-  static async getAlerts(): Promise<Alert[]>{
-    const response = await fetch(`${API_BASE_URL}/api/alerts`)
-    return handleResponse(response)
-  }
+    static async getAlerts(): Promise<Alert[]>{
+        const response = await fetch(`${API_BASE_URL}/api/alerts`)
+        return handleResponse(response)
+    }
 
-  static async getAlertsActive(): Promise<Alert[]>{
-    const response = await fetch(`${API_BASE_URL}/api/alerts/active`)
-    return handleResponse(response)
-  }
+    static async getAlertsActive(): Promise<Alert[]>{
+        const response = await fetch(`${API_BASE_URL}/api/alerts/active`)
+        return handleResponse(response)
+    }
+
+    static async confirmAcknowledgeAlert(alertId: string, user: { userId: string, acknowledgmentNote: string}): Promise<void>{
+        const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(user),
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Acknowledge alert failed: ${errorText}`)
+        }
+        // console.log("UserL",user)
+    }
+
+    static async confirmResolveAlert(alertId: string): Promise<void>{
+        const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/resolve`, {
+            method: 'PUT',
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Resolve alert failed: ${errorText}`)
+        }
+    }
 }
 
 export class AnalyticApiService {
@@ -532,9 +559,9 @@ export class UserApiService {
   }
 
   // GET /api/users/:id - Lấy chi tiết người dùng
-  static async getUserById(id: string): Promise<User[]> {
+  static async getUserById(id: string): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/api/users/${id}`)
-    const result = await handleResponse<{ success: boolean; data: User[] }>(response)
+    const result = await handleResponse<{ success: boolean; data: User }>(response)
     return result.data
   }
 
@@ -563,10 +590,15 @@ export class UserApiService {
 
   // PUT /api/users/:id - Cập nhật người dùng
   static async updateUser(id: string, userData: {
-    username?: string
-    email?: string
-    password?: string
-    role?: string
+    username: string
+    email: string
+    roleId: string
+    factoryAccess?: string[]
+    buildingAccess?: string[]
+    floorAccess?: string[]
+    lineAccess?: string[]
+    language?: "en" | "vi"
+    timezone?: string
   }): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
       method: 'PUT',
@@ -625,8 +657,7 @@ export class RoleApiService {
 
   // PUT /api/roles/:id - Cập nhật vai trò
   static async updateRole(id: string, roleData: {
-    name?: string
-    permissions?: string[]
+    description: string
   }): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/api/roles/${id}`, {
       method: 'PUT',
@@ -640,16 +671,41 @@ export class RoleApiService {
   }
 
   // DELETE /api/roles/:id - Xóa vai trò
-  static async deleteRole(id: string): Promise<void> {
+  static async deleteRole(id: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/api/roles/${id}`, {
       method: 'DELETE',
     })
     
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Delete role failed: ${errorText}`)
-    }
+    const result = await handleResponse<{ success: boolean; data: Role[] }>(response)
+    return result.data
   }
+}
+
+
+export class PermissionApiService {
+    // GET /api/permissions - Lấy danh sách permission
+    static async getPermissions(): Promise<ApiPermission[]> {
+        const response = await fetch(`${API_BASE_URL}/api/permissions`);
+        const result = await handleResponse<{ success: boolean; data: ApiPermission[] }>(response);
+        return result.data;
+    }
+
+    static async updateRolePermissions(roleId: string, permissions: string[]): Promise<any> {
+        const response = await fetch(`${API_BASE_URL}/api/permissions/${roleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ permissions }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Update permissions failed: ${errorText}`);
+        }
+        return await handleResponse<{ success: boolean; data: any }>(response)
+        // return result.data
+    }
 }
 // Hook để sử dụng trong React components
 export function useDeviceApi() {
@@ -720,9 +776,11 @@ export function useLineApi() {
 }
 
 export function useAlertApi() {
-  return{
+  return {
     getAlerts: AlertApiService.getAlerts,
     getAlertsActive: AlertApiService.getAlertsActive,
+    confirmAcknowledgeAlert: AlertApiService.confirmAcknowledgeAlert,
+    confirmResolveAlert: AlertApiService.confirmResolveAlert,
   }
 }
 
@@ -752,4 +810,11 @@ export function useRoleApi() {
     updateRole: RoleApiService.updateRole,
     deleteRole: RoleApiService.deleteRole,
   }
+}
+
+export function usePermissionApi() {
+    return {
+        getPermissions: PermissionApiService.getPermissions,
+        updateRolePermissions: PermissionApiService.updateRolePermissions,
+    }
 }

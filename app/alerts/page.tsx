@@ -1,6 +1,7 @@
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,11 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { useAlertApi } from "@/lib/api"
-import { db } from "@/lib/database"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
 import type { Alert } from "@/lib/types"
-import { AlertTriangle, Bell, CheckCircle, Clock, Filter, Search, Shield } from "lucide-react"
+import { AlertTriangle, Bell, CheckCircle, Clock, Eye, Filter, Search, Shield } from "lucide-react"
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from "react"
 
@@ -32,17 +32,17 @@ export default function AlertsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [isAcknowledgeDialogOpen, setIsAcknowledgeDialogOpen] = useState(false)
+  const [isSolveDialogOpen, setIsSolveDialogOpen] = useState(false)
   const [acknowledgmentNote, setAcknowledgmentNote] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const { user } = useAppStore()
   const { t } = useTranslation()
   const itemsPerPage = 10
 
-  const {getAlerts} = useAlertApi()
+  const {getAlerts, confirmAcknowledgeAlert, confirmResolveAlert} = useAlertApi()
   const searchParams = useSearchParams()
   const router = useRouter()
   // Generate sample alerts
-  useEffect(() => {
     const fetchAlerts = async () => {
       try {
         const response = await getAlerts();
@@ -64,6 +64,7 @@ export default function AlertsPage() {
         console.error("Failed to fetch alerts:", error);
       }
     };
+  useEffect(() => {
     fetchAlerts();
     // Simulate new alerts
     // const interval = setInterval(() => {
@@ -119,7 +120,7 @@ export default function AlertsPage() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedAlerts = filteredAlerts.slice(startIndex, startIndex + itemsPerPage)
 
-  const handleAcknowledgeAlert = async (alert: Alert) => {
+  const handleAcknowledgeAlert = (alert: Alert) => {
     setSelectedAlert(alert)
     setIsAcknowledgeDialogOpen(true)
   }
@@ -127,53 +128,42 @@ export default function AlertsPage() {
   const confirmAcknowledge = async () => {
     if (!selectedAlert || !user) return
     
-    const updatedAlert = {
-      ...selectedAlert,
-      acknowledged: true,
-      acknowledgedBy: user.username,
-      acknowledgedAt: new Date().toISOString(),
+    try {
+        console.log("Acknowledging alert:", selectedAlert.id, "by user:", user.id ?? "", "with note:", acknowledgmentNote)
+        await confirmAcknowledgeAlert(selectedAlert.id, { userId: user.id ?? "", acknowledgmentNote })
+    } catch (error) {
+        console.error("Failed to acknowledge alert:", error)
     }
-
-    setAlerts((prev) => prev.map((a) => (a.id === selectedAlert.id ? updatedAlert : a)))
-
-    // Log the action
-    await db.addAuditLog({
-      userId: user.id,
-      username: user.username,
-      action: "ACKNOWLEDGE_ALERT",
-      resource: `ALERT:${selectedAlert.id}`,
-      timestamp: new Date().toISOString(),
-      ipAddress: "127.0.0.1",
-      userAgent: navigator.userAgent,
-      details: { alertId: selectedAlert.id, note: acknowledgmentNote },
-    })
+    fetchAlerts()
 
     setIsAcknowledgeDialogOpen(false)
     setSelectedAlert(null)
     setAcknowledgmentNote("")
   }
 
-  const handleResolveAlert = async (alert: Alert) => {
-    if (!user) return
+  const handleResolveAlert = (alert: Alert) => {
+    setSelectedAlert(alert)
+    setIsSolveDialogOpen(true)
+  }
 
-    const updatedAlert = {
-      ...alert,
-      resolved: true,
-      resolvedAt: new Date().toISOString(),
+    const confirmResolve = async () => {
+    if (!selectedAlert || !user) return
+    try {
+        console.log("Resolving alert:", selectedAlert.id, "by user:", user.id ?? "")
+        await confirmResolveAlert(selectedAlert.id)
+    } catch (error) {
+        console.error("Failed to resolve alert:", error)
+
+    }
+    fetchAlerts()
+    setIsSolveDialogOpen(false)
+    setSelectedAlert(null)
     }
 
-    setAlerts((prev) => prev.map((a) => (a.id === alert.id ? updatedAlert : a)))
-
-    await db.addAuditLog({
-      userId: user.id,
-      username: user.username,
-      action: "RESOLVE_ALERT",
-      resource: `ALERT:${alert.id}`,
-      timestamp: new Date().toISOString(),
-      ipAddress: "127.0.0.1",
-      userAgent: navigator.userAgent,
-    })
-  }
+    const handleOpen = (alert: Alert) => {
+      setIsSolveDialogOpen(true)
+      setSelectedAlert(alert)
+    }
 
   const getSeverityColor = (severity: Alert["severity"]) => {
     switch (severity) {
@@ -372,27 +362,41 @@ export default function AlertsPage() {
                         <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0">Mới</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2 flex items-center justify-center">
                       <div className="flex items-center gap-2">
-                        {!alert.acknowledged && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAcknowledgeAlert(alert)}
-                            className="border-2 border-yellow-200 hover:bg-yellow-50"
-                          >
-                            Xác Nhận
-                          </Button>
-                        )}
-                        {alert.acknowledged && !alert.resolved && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResolveAlert(alert)}
-                            className="border-2 border-green-200 hover:bg-green-50"
-                          >
-                            Giải Quyết
-                          </Button>
+                        <PermissionGuard permission="alert.acknowledge">
+                            {!alert.acknowledged && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAcknowledgeAlert(alert)}
+                                className="border-2 border-yellow-200 hover:bg-yellow-50"
+                            >
+                                Xác Nhận
+                            </Button>
+                            )}
+                        </PermissionGuard>
+                        <PermissionGuard permission="alert.resolve">
+                            {alert.acknowledged && !alert.resolved && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResolveAlert(alert)}
+                                className="border-2 border-green-200 hover:bg-green-50"
+                            >
+                                Giải Quyết
+                            </Button>
+                            )}
+                        </PermissionGuard>
+                        {alert.acknowledged && alert.resolved && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="hover:bg-blue-100 cursor-pointer"
+                                onClick={() => handleOpen(alert)}
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
                         )}
                       </div>
                     </TableCell>
@@ -482,6 +486,70 @@ export default function AlertsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Resolve Dialog */}
+        <Dialog open={isSolveDialogOpen} onOpenChange={setIsSolveDialogOpen}>
+          <DialogContent className="bg-white/95 backdrop-blur-sm">
+            <DialogHeader>
+              <DialogTitle>Xác Nhận Giải Quyết Cảnh Báo</DialogTitle>
+              <DialogDescription>
+                Xác nhận rằng bạn đã giải quyết cảnh báo này.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedAlert && (
+                <div className="p-4 border rounded-lg bg-gradient-to-r from-red-50 to-orange-50">
+                  <div className="flex items-center gap-2 mb-2">
+                    {getSeverityIcon(selectedAlert.severity)}
+                    <Badge className={getSeverityColor(selectedAlert.severity)}>{selectedAlert.severity}</Badge>
+                    <span className="font-medium">{selectedAlert.deviceName}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{selectedAlert.message}</p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-red-700">
+                  Đã xác nhận:
+                </label>
+                <div className="p-4 border rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 shadow-sm flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">Xác nhận bởi</span>
+                      <span className="font-medium text-red-700">{selectedAlert?.acknowledgedBy || "Chưa rõ"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500">Thời gian</span>
+                      <span className="text-sm text-gray-700">
+                        {selectedAlert?.acknowledgedAt ? new Date(selectedAlert.acknowledgedAt).toLocaleString() : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-white/80 rounded-lg p-3 border border-red-100">
+                    <span className="text-xs text-gray-500">Ghi chú xác nhận</span>
+                    <p className="italic text-gray-700 mt-1">
+                      {selectedAlert?.acknowledgmentNote ? `"${selectedAlert.acknowledgmentNote}"` : <span className="text-gray-400">Không có ghi chú</span>}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsSolveDialogOpen(false)}>
+                Hủy
+              </Button>
+              {selectedAlert?.acknowledged && !selectedAlert?.resolved && (
+              <Button
+                onClick={confirmResolve}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+              >
+                Xác Nhận Cảnh Báo
+              </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        
       </div>
     </MainLayout>
   )

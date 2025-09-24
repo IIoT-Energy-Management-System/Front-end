@@ -9,6 +9,7 @@ import type { User } from "@/lib/types"
 import { Edit, Eye, Plus, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import UserDialogModal from "../components/UserDialogModal"
+import { PermissionGuard } from "@/components/PermissionGuard"
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
@@ -36,31 +37,6 @@ export default function UserManagement() {
   useEffect(() => {
     loadData()
   }, [])
-
-  const handleAddUser = async (userData: User) => {
-    try {
-        await UserApiService.createUser(userData)
-        loadData()
-        // Chỉ hiện alert khi tạo thành công
-        alert("Thêm người dùng thành công!")
-        console.log("Add user data:", userData)
-    } catch (error) {
-      console.error("Failed to add user:", error)
-    }
-  }
-
-//   const handleEditUser = async (userData: User) => {
-//     if (!dialogState.user) return
-
-//     try {
-//       await db.updateUser(dialogState.user.id, {
-//         ...userData,
-//       } as User)
-//       loadData()
-//     } catch (error) {
-//       console.error("Failed to update user:", error)
-//     }
-//   }
 
   const openAddDialog = () => {
     setDialogState({
@@ -109,10 +85,12 @@ export default function UserManagement() {
             </CardTitle>
             <CardDescription>Quản lý tài khoản người dùng và quyền truy cập</CardDescription>
           </div>
-          <Button onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Thêm Người Dùng
-          </Button>
+            <PermissionGuard permission="user.create" >
+                <Button onClick={openAddDialog}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm Người Dùng
+                </Button>
+            </PermissionGuard>
         </CardHeader>
         <CardContent>
           <Table>
@@ -133,7 +111,7 @@ export default function UserManagement() {
                   <TableCell className="font-medium">{user.username}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant={user.role === "Administrator" ? "default" : "secondary"}>{user.role}</Badge>
+                    <Badge variant={user.role === "Admin" ? "default" : "secondary"}>{user.role}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="text-xs">
@@ -154,12 +132,20 @@ export default function UserManagement() {
                       <Button variant="ghost" size="sm" onClick={() => openViewDialog(user)}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <PermissionGuard permission="user.edit"
+                      fallback={<Button variant="ghost" size="sm" disabled><Edit className="h-4 w-4" /></Button>}
+                      >
                       <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
                         <Edit className="h-4 w-4" />
                       </Button>
+                        </PermissionGuard>
+                        <PermissionGuard permission="user.delete"
+                        fallback={<Button variant="ghost" size="sm" disabled><Trash2 className="h-4 w-4" /></Button>}
+                      >
                       <Button variant="ghost" size="sm">
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                        </PermissionGuard>
                     </div>
                   </TableCell>
                 </TableRow>

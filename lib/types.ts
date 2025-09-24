@@ -63,6 +63,7 @@ export interface User {
     password?: string
     roleId: string
     role?: string
+    permissions?: string[]
     factoryAccess: string[]
     buildingAccess: string[]
     floorAccess: string[]
@@ -215,6 +216,7 @@ export interface Alert {
     acknowledged: boolean
     acknowledgedBy?: string
     acknowledgedAt?: string
+    acknowledgmentNote?: string
     resolved: boolean
     resolvedAt?: string
 }
@@ -291,25 +293,25 @@ export interface ConnectionLog {
     timestamp: string
 }
 
-export interface RolePermissions {
-    canViewDashboard: boolean
-    canViewDevices: boolean
-    canEditDevices: boolean
-    canViewLayouts: boolean
-    canEditLayouts: boolean
-    canViewAnalytics: boolean
-    canViewReports: boolean
-    canCreateReports: boolean
-    canViewAlerts: boolean
-    canManageAlerts: boolean
-    canAccessAdmin: boolean
-    canManageUsers: boolean
-    canEditSystemSettings: boolean
-    factoryAccess: string[]
-    buildingAccess: string[]
-    floorAccess: string[]
-    lineAccess: string[]
-}
+// export interface RolePermissions {
+//     canViewDashboard: boolean
+//     canViewDevices: boolean
+//     canEditDevices: boolean
+//     canViewLayouts: boolean
+//     canEditLayouts: boolean
+//     canViewAnalytics: boolean
+//     canViewReports: boolean
+//     canCreateReports: boolean
+//     canViewAlerts: boolean
+//     canManageAlerts: boolean
+//     canAccessAdmin: boolean
+//     canManageUsers: boolean
+//     canEditSystemSettings: boolean
+//     factoryAccess: string[]
+//     buildingAccess: string[]
+//     floorAccess: string[]
+//     lineAccess: string[]
+// }
 
 export interface AnalyticsData {
   totalEnergyConsumption: number
@@ -384,11 +386,34 @@ export interface ReportData {
   downtime: Array<{ date: string; value: number }>
 }
 
+// export interface Role {
+//   id: string
+//   name: string
+//   description?: string
+//   permissions: RolePermissions
+//   createdAt: string
+//   updatedAt?: string
+// }
+
+
+export interface Permission {
+    key: string;
+    label: string;
+    description: string;
+    category: 'Devices' | 'Layouts' | 'Analytics' | 'Reports' | 'Alerts' | 'Admin' | 'Users' | 'Settings';
+    critical?: boolean;
+}
+
 export interface Role {
-  id: string
-  name: string
-  description?: string
-  permissions: RolePermissions
-  createdAt: string
-  updatedAt?: string
+    id: string;
+    name: string;
+    description: string;
+    permissions?: string[];
+    permissionCount?: number;
+    userCount?: number;
+}
+
+export interface ApiPermission {
+    key: string;
+    name: string;
 }

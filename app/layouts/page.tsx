@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBuildingApi, useDeviceApi, useFactoryApi, useFloorApi, useLineApi } from "@/lib/api"
+import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
 import type { Building, Device, Factory, Floor, Line } from "@/lib/types"
 import {
@@ -44,6 +46,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import TimezoneCombobox from "@/components/ui/combobox"
 
 interface LayoutStats {
 uptime: number
@@ -98,6 +101,8 @@ const [isAddBuildingOpen, setIsAddBuildingOpen] = useState(false)
 const [isAddFloorOpen, setIsAddFloorOpen] = useState(false)
 const [isAddLineOpen, setIsAddLineOpen] = useState(false)
 const [newFactoryName, setNewFactoryName] = useState("")
+const [newLocation, setNewLocation] = useState("")
+const [newTimezone, setNewTimezone] = useState("")
 const [newBuildingName, setNewBuildingName] = useState("")
 const [newFloorName, setNewFloorName] = useState("")
 const [newLineName, setNewLineName] = useState("")
@@ -123,16 +128,6 @@ const { getBuildingsByFactory, createBuilding } = useBuildingApi()
 const { getFloorsByBuilding, createFloor } = useFloorApi()
 const { getLinesByFloor, createLine } = useLineApi()
 const { getDevices, updateDevice} = useDeviceApi()
-
-// Load user info (you can replace this with auth context or API call)
-useEffect(() => {
-    // Mock user for now - replace with actual auth
-    setCurrentUser({
-    id: "user-1",
-    username: "admin",
-    name: "Administrator"
-    })
-}, [])
 
 // Calculate operational time for devices
 const calculateOperationalTime = (device: Device) => {
@@ -201,7 +196,6 @@ const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
 const loadDataFromApi = async (
     apiCall: () => Promise<any>,
     setState: (data: any[]) => void,
-    successMessage: string,
     errorMessage: string,
     setEmptyOnError: boolean = true
 ) => {
@@ -209,7 +203,6 @@ const loadDataFromApi = async (
         setLoading(true)
         const response = await apiCall()
         setState(response)
-        toast.success(`${successMessage} ${response.length} mục`)
     } catch (error) {
         console.error('Error loading data:', error)
         toast.error(errorMessage)
@@ -225,7 +218,6 @@ const loadFactoriesFromApi = async () => {
     await loadDataFromApi(
         getFactories,
         setApiFactories,
-        'Đã tải',
         'Không thể tải danh sách nhà máy từ API',
         false // Don't set empty on error for factories
     )
@@ -235,7 +227,6 @@ const loadBuildingsFromApi = async (factoryId: string) => {
     await loadDataFromApi(
         () => getBuildingsByFactory(factoryId),
         setApiBuildings,
-        'Đã tải',
         'Không thể tải danh sách tòa nhà'
     )
 }
@@ -244,7 +235,6 @@ const loadFloorsFromApi = async (buildingId: string) => {
     await loadDataFromApi(
         () => getFloorsByBuilding(buildingId),
         setApiFloors,
-        'Đã tải',
         'Không thể tải danh sách tầng'
     )
 }
@@ -253,7 +243,6 @@ const loadLinesFromApi = async (floorId: string) => {
     await loadDataFromApi(
         () => getLinesByFloor(floorId),
         setApiLines,
-        'Đã tải',
         'Không thể tải danh sách dây chuyền'
     )
 }
@@ -279,9 +268,6 @@ const loadDevicesFromApi = async () => {
         }
         
         setApiDevices(deviceArray)
-        if (deviceArray.length > 0) {
-            toast.success(`Đã tải ${deviceArray.length} thiết bị`)
-        }
     } catch (error) {
         console.error('Error loading devices:', error)
         toast.error('Không thể tải danh sách thiết bị')
@@ -607,8 +593,8 @@ const handleAddFactory = async () => {
     try {
     await createFactory({
         name: newFactoryName.trim(),
-        location: "HCM",
-        timezone: "test"
+        location: newLocation.trim() || "Unknown",
+        timezone: newTimezone || "UTC"
     })
     toast.success("Đã thêm nhà máy thành công")
     setNewFactoryName("")
@@ -729,17 +715,19 @@ const renderFactoryView = () => {
                     >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-lg font-medium text-white">{factory.name}</CardTitle>
-                        <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-white hover:bg-white/20"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            handleEdit(factory.id, factory.name, "nhà máy")
-                        }}
-                        >
-                        <Edit2 className="h-4 w-4" />
-                        </Button>
+                        <PermissionGuard permission="layout.edit">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-white hover:bg-white/20"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEdit(factory.id, factory.name, "nhà máy")
+                                }}
+                                >
+                                <Edit2 className="h-4 w-4" />
+                            </Button>
+                        </PermissionGuard>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
@@ -858,17 +846,19 @@ const renderBuildingView = () => {
             >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium text-white">{building.name}</CardTitle>
-                <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20"
-                onClick={(e) => {
-                    e.stopPropagation()
-                    handleEdit(building.id, building.name, "tòa nhà")
-                }}
-                >
-                <Edit2 className="h-4 w-4" />
-                </Button>
+                <PermissionGuard permission="layout.edit">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-white/20"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(building.id, building.name, "tòa nhà")
+                        }}
+                        >
+                        <Edit2 className="h-4 w-4" />
+                    </Button>
+                </PermissionGuard>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
@@ -986,17 +976,19 @@ const renderFloorView = () => {
             >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium text-white">{floor.name}</CardTitle>
-                <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20"
-                onClick={(e) => {
-                    e.stopPropagation()
-                    handleEdit(floor.id, floor.name, "tầng")
-                }}
-                >
-                <Edit2 className="h-4 w-4" />
-                </Button>
+                <PermissionGuard permission="layout.edit">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-white/20"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(floor.id, floor.name, "tầng")
+                        }}
+                    >
+                        <Edit2 className="h-4 w-4" />
+                    </Button>
+                </PermissionGuard>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
@@ -1177,9 +1169,11 @@ const renderLineView = () => {
                         >
                             <Users className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(line.id, line.name, "dây chuyền")}>
-                            <Edit2 className="h-4 w-4" />
-                        </Button>
+                        <PermissionGuard permission="layout.edit">
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(line.id, line.name, "dây chuyền")}>
+                                <Edit2 className="h-4 w-4" />
+                            </Button>
+                        </PermissionGuard>
                         </div>
                     </div>
                     </CardHeader>
@@ -1194,13 +1188,13 @@ const renderLineView = () => {
                         return (
                             <div
                             key={device.id}
-                            draggable
+                            draggable={authService.hasPermission("layout.edit")}
                             onDragStart={(e) => handleDragStart(e, device)}
                             onDragEnd={(e) => {
                                 e.stopPropagation();
                                 e.currentTarget.classList.remove("opacity-50", "scale-95");
                             }}
-                            className="p-3 border rounded-lg cursor-move hover:shadow-md transition-all duration-200 bg-gradient-to-br from-white to-blue-50 select-none border-l-4 border-l-blue-500"
+                            className={`p-3 border rounded-lg ${authService.hasPermission("layout.edit") ? "cursor-move" : "cursor-default"} hover:shadow-md transition-all duration-200 bg-gradient-to-br from-white to-blue-50 select-none border-l-4 border-l-blue-500`}
                             >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="font-medium text-sm truncate">{device.name}</span>
@@ -1260,28 +1254,52 @@ const renderLineView = () => {
                             <div className="flex justify-between items-center">
                                 <span className="text-xs text-muted-foreground">{device.type}</span>
                                 <div className="flex gap-1">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedDeviceConnection(device);
-                                    }}
-                                >
-                                    <Settings className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeviceMove(device);
-                                    }}
-                                >
-                                    <Move className="h-3 w-3" />
-                                </Button>
+                                    <PermissionGuard permission="layout.edit"
+                                    fallback={
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 cursor-not-allowed opacity-50"
+                                        >
+                                            <Settings className="h-3 w-3" />
+                                        </Button>
+                                    }
+                                    >
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedDeviceConnection(device);
+                                            }}
+                                        >
+                                            <Settings className="h-3 w-3" />
+                                        </Button>
+                                    </PermissionGuard>
+                                    <PermissionGuard permission="layout.edit"
+                                    fallback={
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 cursor-not-allowed opacity-50"
+                                        >
+                                            <Move className="h-3 w-3" />
+                                        </Button>
+                                    }
+                                    >
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeviceMove(device);
+                                            }}
+                                        >
+                                            <Move className="h-3 w-3" />
+                                        </Button>
+                                    </PermissionGuard>
                                 </div>
                             </div>
                             </div>
@@ -1348,12 +1366,12 @@ const renderLineView = () => {
                     return (
                     <div
                         key={device.id}
-                        draggable
+                        draggable={authService.hasPermission("layout.edit")}
                         onDragStart={(e) => handleDragStart(e, device)}
                         onDragEnd={(e) => {
                         e.currentTarget.classList.remove("opacity-50", "scale-95")
                         }}
-                        className="p-3 border rounded cursor-move hover:bg-gray-50 transition-all duration-200 select-none"
+                        className={`p-3 border rounded ${authService.hasPermission("layout.edit") ? "cursor-move" : "cursor-default"} hover:bg-gray-50 transition-all duration-200 select-none`}
                     >
                         <div className="flex items-center justify-between mb-1">
                         <span className="font-medium text-sm truncate">{device.name}</span>
@@ -1388,17 +1406,28 @@ const renderLineView = () => {
                         <span className="text-xs text-muted-foreground">
                             Định mức: {device.ratedPower.toFixed(2)} kW
                         </span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeviceMove(device)
-                            }}
-                        >
-                            <Move className="h-3 w-3" />
-                        </Button>
+                        <PermissionGuard permission="layout.edit"
+                        fallback={
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 cursor-not-allowed opacity-50"
+                            >
+                                <Move className="h-3 w-3" />
+                            </Button>
+                        }>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeviceMove(device)
+                                }}
+                            >
+                                <Move className="h-3 w-3" />
+                            </Button>
+                        </PermissionGuard>
                         </div>
                     </div>
                     )
@@ -1483,15 +1512,22 @@ const renderDeviceView = () => {
                     </span>
                 </div>
                 <Separator />
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full bg-transparent"
-                    onClick={() => handleDeviceMove(device)}
-                >
-                    <Move className="h-4 w-4 mr-2" />
-                    Di chuyển thiết bị
-                </Button>
+                <PermissionGuard permission="layout.edit"
+                fallback={
+                    <div className="text-center text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+                        Bạn không có quyền chỉnh sửa thiết bị này
+                    </div>
+                }>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full bg-transparent"
+                        onClick={() => handleDeviceMove(device)}
+                    >
+                        <Move className="h-4 w-4 mr-2" />
+                        Di chuyển thiết bị
+                    </Button>
+                </PermissionGuard>
                 </div>
             </CardContent>
             </Card>
@@ -1639,33 +1675,38 @@ return (
         </div>
 
         {/* Add Buttons */}
-        <div className="flex items-center gap-2">
-            {currentLevel === "factory" && (
-            <Button onClick={() => setIsAddFactoryOpen(true)} className="bg-green-600 hover:bg-green-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm Nhà Máy
-            </Button>
-            )}
-            {currentLevel === "building" && (
-            <Button onClick={() => setIsAddBuildingOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm Tòa Nhà
-            </Button>
-            )}
-            {currentLevel === "floor" && (
-            <Button onClick={() => setIsAddFloorOpen(true)} className="bg-purple-600 hover:bg-purple-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm Tầng
-            </Button>
-            )}
-            {currentLevel === "line" && (
-            <Button onClick={() => setIsAddLineOpen(true)} className="bg-orange-600 hover:bg-orange-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm Dây Chuyền
-            </Button>
-            )}
+        <PermissionGuard
+            permission="layout.create"
+        >
+            <div className="flex items-center gap-2">
+                {currentLevel === "factory" && (
+                <Button onClick={() => setIsAddFactoryOpen(true)} className="bg-green-600 hover:bg-green-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm Nhà Máy
+                </Button>
+                )}
+                {currentLevel === "building" && (
+                <Button onClick={() => setIsAddBuildingOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm Tòa Nhà
+                </Button>
+                )}
+                {currentLevel === "floor" && (
+                <Button onClick={() => setIsAddFloorOpen(true)} className="bg-purple-600 hover:bg-purple-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm Tầng
+                </Button>
+                )}
+                {currentLevel === "line" && (
+                <Button onClick={() => setIsAddLineOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm Dây Chuyền
+                </Button>
+                )}
+            </div>
+        </PermissionGuard>
         </div>
-        </div>        {/* Search */}
+                {/* Search */}
         <Card>
         <CardContent className="pt-6">
             <div className="relative">
@@ -2106,18 +2147,35 @@ return (
         <DialogHeader>
             <DialogTitle>Thêm Nhà Máy Mới</DialogTitle>
             <DialogDescription>
-            Nhập tên cho nhà máy mới
+            Nhập thông tin cho nhà máy mới
             </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
             <div className="space-y-2">
-            <Label htmlFor="factory-name">Tên Nhà Máy</Label>
-            <Input
-                id="factory-name"
-                value={newFactoryName}
-                onChange={(e) => setNewFactoryName(e.target.value)}
-                placeholder="Nhập tên nhà máy..."
-            />
+                <Label htmlFor="factory-name">Tên Nhà Máy</Label>
+                <Input
+                    id="factory-name"
+                    value={newFactoryName}
+                    onChange={(e) => setNewFactoryName(e.target.value)}
+                    placeholder="Nhập tên nhà máy..."
+                />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="factory-location">Địa điểm</Label>
+                <Input
+                    id="factory-location"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                    placeholder="Nhập địa điểm..."
+                />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="timezone">Múi Giờ</Label>
+                <TimezoneCombobox
+                    value={newTimezone}
+                    onValueChange={(value) => setNewTimezone(value)}
+                    placeholder="Chọn múi giờ..."
+                />
             </div>
         </div>
         <DialogFooter>
