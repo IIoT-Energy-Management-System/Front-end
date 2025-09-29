@@ -6,31 +6,39 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useTranslation } from "@/lib/i18n"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
 import { UserApiService } from "@/lib/api"
+import { useTranslation } from "@/lib/i18n"
+import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
 
-export default function ResetPasswordPage() {
+// Component riêng để handle search params với Suspense
+function ResetPasswordForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [token, setToken] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { t } = useTranslation()
 
-  const token = searchParams.get('token')
-  const userId = searchParams.get('userId')
-
-  // Validate token and userId
+  // Get token and userId from URL params
   useEffect(() => {
-    if (!token || !userId) {
-      setError("Invalid reset link. Please request a new password reset.")
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const tokenParam = urlParams.get('token')
+      const userIdParam = urlParams.get('userId')
+
+      setToken(tokenParam)
+      setUserId(userIdParam)
+
+      if (!tokenParam || !userIdParam) {
+        setError("Invalid reset link. Please request a new password reset.")
+      }
     }
-  }, [token, userId])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,10 +59,15 @@ export default function ResetPasswordPage() {
       return
     }
 
+    if (!token || !userId) {
+      setError("Invalid reset link")
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      await UserApiService.resetPassword(token!, userId!, password)
+      await UserApiService.resetPassword(token, userId, password)
 
       setSuccess(true)
       setTimeout(() => {
@@ -140,5 +153,13 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
