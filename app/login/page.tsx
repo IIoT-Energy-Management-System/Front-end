@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
 
-export default function LoginPage() {
+// Component riêng để handle search params với Suspense
+function LoginForm() {
   const [email, setEmail] = useState("admin@email.com")
   const [password, setPassword] = useState("123456")
   const [rememberMe, setRememberMe] = useState(true)
@@ -21,7 +22,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { login, isAuthenticated } = useAppStore()
   const { t } = useTranslation()
 
@@ -32,15 +32,19 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router])
 
-  // Check for success message from reset password
+  // Check for success message from reset password - sử dụng useEffect với window.location
   useEffect(() => {
-    const message = searchParams.get('message')
-    if (message === 'password-reset-success') {
-      setSuccessMessage("Mật khẩu đã được đặt lại thành công! Vui lòng đăng nhập với mật khẩu mới.")
-      // Clear the message from URL
-      router.replace('/login')
+    // Chỉ chạy trên client
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const message = urlParams.get('message')
+      if (message === 'password-reset-success') {
+        setSuccessMessage("Mật khẩu đã được đặt lại thành công! Vui lòng đăng nhập với mật khẩu mới.")
+        // Clear the message from URL
+        router.replace('/login')
+      }
     }
-  }, [searchParams, router])
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,19 +68,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
-        {/*<CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Factory className="h-12 w-12 text-blue-600" />
-          </div>
-          <CardTitle className="text-2xl font-bold">IIoT Energy Platform</CardTitle>
-          <CardDescription>{t("auth.login")} vào hệ thống quản lý điện năng</CardDescription>
-        </CardHeader>*/}
         <CardHeader className="text-center">
           <div style={{ display: "block", margin: "auto", width: "250px" }} className="flex justify-center mb-4 h-30 w-40 overflow-hidden rounded">
             <img
               src="https://new-ocean.com.vn/wp-content/uploads/2021/12/z3070143378207_42659dfb864677b5188fb31a5e889811.jpg.webp"
               alt="IIoT Logo"
-              className="h-full w-full object-cover object-center" 
+              className="h-full w-full object-cover object-center"
               style={{
                     width: "500px",
                     height: "100px",
@@ -85,7 +82,6 @@ export default function LoginPage() {
                 }}
             />
           </div>
-          {/*<CardTitle className="text-2xl font-bold">IIoT Energy Platform</CardTitle>*/}
           <CardDescription>{t("auth.login")} vào hệ thống quản lý điện năng</CardDescription>
         </CardHeader>
         <CardContent>
@@ -112,6 +108,17 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                disabled={isLoading}
+              />
+              <Label htmlFor="rememberMe" className="text-sm font-normal">
+                Ghi nhớ đăng nhập
+              </Label>
+            </div>
             {successMessage && <div className="text-sm text-green-600 text-center bg-green-50 p-2 rounded">{successMessage}</div>}
             {error && <div className="text-sm text-red-600 text-center">{error}</div>}
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -122,5 +129,13 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
