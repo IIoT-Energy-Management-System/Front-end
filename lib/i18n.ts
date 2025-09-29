@@ -12,10 +12,10 @@ export const translations = {
 
     // Authentication
     "auth.login": "Login",
-    "auth.username": "Username",
+    "auth.email": "Email",
     "auth.password": "Password",
     "auth.loginButton": "Login",
-    "auth.invalidCredentials": "Invalid username or password",
+    "auth.invalidCredentials": "Invalid email or password",
 
     // Dashboard
     "dashboard.title": "Energy Monitoring Dashboard",
@@ -288,10 +288,10 @@ export const translations = {
 
     // Authentication
     "auth.login": "Đăng nhập",
-    "auth.username": "Tên đăng nhập",
+    "auth.email": "Email",
     "auth.password": "Mật khẩu",
     "auth.loginButton": "Đăng nhập",
-    "auth.invalidCredentials": "Tên đăng nhập hoặc mật khẩu không đúng",
+    "auth.invalidCredentials": "Email hoặc mật khẩu không đúng",
 
     // Dashboard
     "dashboard.title": "Bảng điều khiển giám sát năng lượng",

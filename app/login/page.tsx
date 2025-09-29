@@ -9,17 +9,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("admin")
+  const [email, setEmail] = useState("admin@email.com")
   const [password, setPassword] = useState("123456")
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login, isAuthenticated } = useAppStore()
   const { t } = useTranslation()
 
@@ -30,13 +32,23 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router])
 
+  // Check for success message from reset password
+  useEffect(() => {
+    const message = searchParams.get('message')
+    if (message === 'password-reset-success') {
+      setSuccessMessage("Mật khẩu đã được đặt lại thành công! Vui lòng đăng nhập với mật khẩu mới.")
+      // Clear the message from URL
+      router.replace('/login')
+    }
+  }, [searchParams, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
     try {
-      const success = await login(username, password, rememberMe)
+      const success = await login(email, password, rememberMe)
       if (success) {
         router.push("/dashboard")
       } else {
@@ -79,12 +91,12 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">{t("auth.username")}</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
-                id="username"
+                id="email"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
               />
@@ -100,23 +112,13 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="rememberMe"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked === true)}
-                disabled={isLoading}
-              />
-              <Label htmlFor="rememberMe" className="text-sm font-normal">
-                Ghi nhớ đăng nhập
-              </Label>
-            </div>
+            {successMessage && <div className="text-sm text-green-600 text-center bg-green-50 p-2 rounded">{successMessage}</div>}
             {error && <div className="text-sm text-red-600 text-center">{error}</div>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t("common.loading") : t("auth.loginButton")}
             </Button>
           </form>
-          <div className="mt-4 text-xs text-center text-gray-500">Demo credentials: admin / 123456</div>
+          <div className="mt-4 text-xs text-center text-gray-500">Demo credentials: admin@email.com / 123456</div>
         </CardContent>
       </Card>
     </div>

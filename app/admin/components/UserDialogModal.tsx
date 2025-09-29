@@ -193,7 +193,7 @@ export default function UserDialogModal({
         let valid = true;
         const newErrors: { username?: string; email?: string; factoryAccess?: string; } = {};
         if (!userData.username) {
-            newErrors.username = 'Tên đăng nhập là bắt buộc.';
+            newErrors.username = 'Tên người dùng là bắt buộc.';
             valid = false;
         }
         if (!userData.email) {
@@ -317,7 +317,7 @@ export default function UserDialogModal({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Tên Đăng Nhập</Label>
+              <Label htmlFor="username">Tên Người Dùng</Label>
               <Input
                 id="username"
                 value={userData.username}

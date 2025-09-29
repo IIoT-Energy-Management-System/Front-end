@@ -1,15 +1,15 @@
 "use client"
 
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserApiService } from "@/lib/api"
 import type { User } from "@/lib/types"
-import { Edit, Eye, Plus, Trash2, Users } from "lucide-react"
+import { ChevronLeft, ChevronRight, Edit, Eye, Plus, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import UserDialogModal from "../components/UserDialogModal"
-import { PermissionGuard } from "@/components/PermissionGuard"
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
@@ -23,12 +23,17 @@ export default function UserManagement() {
     user: null,
   })
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 8
+
 //   const { factories } = useAppStore()
 
     const loadData = async () => {
         try {
         const userList = await UserApiService.getUsers()
         setUsers(userList)
+        setCurrentPage(1) // Reset to first page when loading new data
         } catch (error) {
         console.error("Failed to load users:", error)
         }
@@ -74,6 +79,26 @@ export default function UserManagement() {
     await loadData();
   }
 
+  // Pagination logic
+  const totalPages = Math.ceil(users.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentUsers = users.slice(startIndex, endIndex)
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+
+  const goToPreviousPage = () => {
+    goToPage(currentPage - 1)
+  }
+
+  const goToNextPage = () => {
+    goToPage(currentPage + 1)
+  }
+
   return (
     <>
       <Card>
@@ -96,7 +121,7 @@ export default function UserManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tên Đăng Nhập</TableHead>
+                <TableHead>Tên Người Dùng</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Vai Trò</TableHead>
                 <TableHead>Cấp Độ Truy Cập</TableHead>
@@ -106,52 +131,104 @@ export default function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === "Admin" ? "default" : "secondary"}>{user.role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-xs">
-                      {user.factoryAccess.length > 0 && `${user.factoryAccess.length} Nhà Máy`}
-                      {user.buildingAccess.length > 0 && `, ${user.buildingAccess.length} Tòa Nhà`}
-                      {user.floorAccess.length > 0 && `, ${user.floorAccess.length} Tầng`}
-                      {user.lineAccess.length > 0 && `, ${user.lineAccess.length} Dây Chuyền`}
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.language === "en" ? "Tiếng Anh" : "Tiếng Việt"}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? "default" : "secondary"}>
-                      {user.isActive ? "Hoạt Động" : "Không Hoạt Động"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openViewDialog(user)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <PermissionGuard permission="user.edit"
-                      fallback={<Button variant="ghost" size="sm" disabled><Edit className="h-4 w-4" /></Button>}
-                      >
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                        </PermissionGuard>
-                        <PermissionGuard permission="user.delete"
-                        fallback={<Button variant="ghost" size="sm" disabled><Trash2 className="h-4 w-4" /></Button>}
-                      >
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                        </PermissionGuard>
-                    </div>
+              {currentUsers.length > 0 ? (
+                currentUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.role === "Admin" ? "default" : "secondary"}>{user.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs">
+                        {user.factoryAccess.length > 0 && `${user.factoryAccess.length} Nhà Máy`}
+                        {user.buildingAccess.length > 0 && `, ${user.buildingAccess.length} Tòa Nhà`}
+                        {user.floorAccess.length > 0 && `, ${user.floorAccess.length} Tầng`}
+                        {user.lineAccess.length > 0 && `, ${user.lineAccess.length} Dây Chuyền`}
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.language === "en" ? "Tiếng Anh" : "Tiếng Việt"}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.isActive ? "default" : "secondary"}>
+                        {user.isActive ? "Hoạt Động" : "Không Hoạt Động"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openViewDialog(user)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <PermissionGuard permission="user.edit"
+                        fallback={<Button variant="ghost" size="sm" disabled><Edit className="h-4 w-4" /></Button>}
+                        >
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                          </PermissionGuard>
+                          <PermissionGuard permission="user.delete"
+                          fallback={<Button variant="ghost" size="sm" disabled><Trash2 className="h-4 w-4" /></Button>}
+                        >
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                          </PermissionGuard>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Không có người dùng nào
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Hiển thị {startIndex + 1}-{Math.min(endIndex, users.length)} của {users.length} người dùng
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Trước
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => goToPage(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Sau
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

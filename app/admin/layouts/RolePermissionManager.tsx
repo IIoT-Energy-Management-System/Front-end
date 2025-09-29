@@ -284,7 +284,8 @@ useEffect(() => {
         }
         try {
             await useRoleApi().deleteRole(role.id);
-            setRoles(prev => prev.filter(r => r.id !== role.id));
+            fetchData();
+            setSelectedRole(prev => (prev === role.id ? (roles[0]?.id || '') : prev));
             toast.success('Xóa thành công!');
         } catch (error) {
             toast.error('Xóa thất bại: ' + error.error || (error instanceof Error ? error.message : 'Unknown error'));
@@ -333,7 +334,7 @@ useEffect(() => {
 
   return (
     <div className="inset-0 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg border-2 border-gray-200 w-full max-h-[82vh] overflow-hidden z-20 ">
+      <div className="bg-white rounded-lg border-2 border-gray-200 w-full max-h-[78vh] overflow-hidden z-20 ">
         {/* Header */}
         <CardHeader className="flex flex-row items-center justify-between border-b border-purple-200">
             <div>
@@ -354,7 +355,7 @@ useEffect(() => {
         </CardHeader>
 
         {/* Content */}
-        <div className="flex h-[calc(80vh-140px)]">
+        <div className="flex h-[calc(74vh-140px)]">
           {/* Role List */}
           <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
             <div className="p-4">

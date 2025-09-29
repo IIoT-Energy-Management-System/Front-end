@@ -65,14 +65,9 @@ export default function NotificationPopup() {
 
     socket.on("active-alerts", (message) => {
       if (message.type === 'delta') {
-        const { added, updated, removed } = message.data;
+        const { added } = message.data;
         setAlerts((prevAlerts) => {
-          let newAlerts = prevAlerts.filter(pa => !removed.some(r => r.id === pa.id));
-          newAlerts = newAlerts.map(pa => {
-            const updatedAlert = updated.find(ua => ua.id === pa.id);
-            return updatedAlert || pa;
-          });
-          newAlerts = [...newAlerts, ...added];
+          let newAlerts = [...prevAlerts, ...added];
           notificationsSeen = false; setHasNotifications(true);
           return newAlerts;
         });

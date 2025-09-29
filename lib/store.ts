@@ -60,9 +60,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   isCheckingAuth: true,
 
   // Actions
-  login: async (username: string, password: string, rememberMe: boolean = false) => {
+  login: async (email: string, password: string, rememberMe: boolean = false) => {
     set({ isLoading: true })
-    const result = await authService.login(username, password, rememberMe)
+    const result = await authService.login(email, password, rememberMe)
     if (result.success && result.user) {
       set({
         user: result.user,

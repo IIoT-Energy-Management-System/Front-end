@@ -327,7 +327,7 @@ export default function AlertsPage() {
                   <TableHead className="font-semibold">Thời Gian</TableHead>
                   <TableHead className="font-semibold">Xác nhận bởi</TableHead>
                   <TableHead className="font-semibold">Trạng Thái</TableHead>
-                  <TableHead className="font-semibold">Hành Động</TableHead>
+                  <TableHead className="font-semibold text-center">Hành Động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,8 +362,8 @@ export default function AlertsPage() {
                         <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0">Mới</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="space-x-2 flex items-center justify-center">
-                      <div className="flex items-center gap-2">
+                    <TableCell>
+                      <div className="flex items-center justify-center">
                         <PermissionGuard permission="alert.acknowledge">
                             {!alert.acknowledged && (
                             <Button

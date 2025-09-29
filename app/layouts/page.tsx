@@ -7,6 +7,7 @@ import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import TimezoneCombobox from "@/components/ui/combobox"
 import {
     Dialog,
     DialogContent,
@@ -46,7 +47,6 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import TimezoneCombobox from "@/components/ui/combobox"
 
 interface LayoutStats {
 uptime: number
@@ -203,8 +203,20 @@ const loadDataFromApi = async (
         setLoading(true)
         const response = await apiCall()
         setState(response)
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error loading data:', error)
+        
+        // Import utility function dynamically
+        const { isAuthenticationError } = await import('../../lib/api')
+        
+        // Check if it's an authentication error
+        if (isAuthenticationError(error)) {
+            // Authentication error - user will be redirected to login by api.ts
+            // Don't show error toast as user is being logged out
+            return
+        }
+        
+        // For other errors, show toast
         toast.error(errorMessage)
         if (setEmptyOnError) {
             setState([])

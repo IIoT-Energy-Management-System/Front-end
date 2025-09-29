@@ -237,8 +237,8 @@ export default function DashboardPage() {
 
   // SVG Line Chart Component with Operational Status
   const LineChartSVG = () => {
-    const chartWidth = 2000
-    const chartHeight = 500
+    const chartWidth = 1500
+    const chartHeight = 400
     const padding = 60
 
     if (stats.trendLines.length === 0) return null

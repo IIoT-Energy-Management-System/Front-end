@@ -1,6 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
-import type { User } from "./types"
 import { UserApiService } from './api'
+import type { User } from "./types"
 
 interface AuthState {
   user: User | null
@@ -54,14 +54,14 @@ class AuthService {
     }
   }
 
-  async login(username: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; user?: User; error?: string }> {
+  async login(email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
       const response = await fetch('http://localhost:5000/api/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
@@ -116,6 +116,44 @@ class AuthService {
     }
   }
 
+  async refreshToken(): Promise<boolean> {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (!refreshToken) return false
+
+      const response = await fetch('http://localhost:5000/api/users/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data.accessToken) {
+          localStorage.setItem('accessToken', data.data.accessToken)
+          
+          // Update permissions from new token
+          try {
+            const decoded: any = jwtDecode(data.data.accessToken)
+            if (this.currentUser) {
+              this.currentUser.permissions = decoded.permissions || []
+            }
+          } catch (error) {
+            console.error('Failed to decode refreshed token:', error)
+          }
+          
+          return true
+        }
+      }
+      return false
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return false
+    }
+  }
+
   async logout(): Promise<void> {
     if (this.currentUser) {
       // Optionally log logout to API if needed
@@ -143,6 +181,17 @@ class AuthService {
 
     // Check permissions from JWT
     return this.currentUser.permissions?.includes(permission) || false
+  }
+
+  setPermissionsFromToken(token: string): void {
+    if (!this.currentUser) return
+    try {
+      const decoded: any = jwtDecode(token)
+      this.currentUser.permissions = decoded.permissions || []
+    } catch (error) {
+      console.error("Failed to decode token:", error)
+      this.currentUser.permissions = []
+    }
   }
 }
 
