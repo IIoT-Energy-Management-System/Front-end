@@ -10,6 +10,7 @@ import type { User } from "@/lib/types"
 import { ChevronLeft, ChevronRight, Edit, Eye, Plus, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import UserDialogModal from "../components/UserDialogModal"
+import { toast } from "sonner"
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
@@ -75,8 +76,29 @@ export default function UserManagement() {
     })
   }
 
-  const handleSaveUser = async (userData: User) => {
+  const handleSaveUser = async () => {
     await loadData();
+  }
+
+  const handleDeleteUser = async (user: User) => {
+    // Xác nhận trước khi xóa
+    if (!confirm(`Bạn có chắc chắn muốn xóa người dùng ${user.username} này?`)) {
+      return;
+    }
+
+    try {
+      if (!user.id) {
+        alert("Không thể xóa người dùng: ID không xác định.");
+        return;
+      }
+      await UserApiService.deleteUser(user.id);
+      // Tải lại danh sách người dùng sau khi xóa
+      toast.success("Người dùng đã được xóa thành công.");
+      await loadData();
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+        toast.error("Có lỗi xảy ra khi xóa người dùng. Vui lòng thử lại.");
+    }
   }
 
   // Pagination logic
@@ -141,6 +163,9 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="text-xs">
+                        {user.factoryAccess.length === 0 && user.buildingAccess.length === 0 && user.floorAccess.length === 0 && user.lineAccess.length === 0
+                          ? "Tất cả nhà máy"
+                          : ""}
                         {user.factoryAccess.length > 0 && `${user.factoryAccess.length} Nhà Máy`}
                         {user.buildingAccess.length > 0 && `, ${user.buildingAccess.length} Tòa Nhà`}
                         {user.floorAccess.length > 0 && `, ${user.floorAccess.length} Tầng`}
@@ -168,7 +193,7 @@ export default function UserManagement() {
                           <PermissionGuard permission="user.delete"
                           fallback={<Button variant="ghost" size="sm" disabled><Trash2 className="h-4 w-4" /></Button>}
                         >
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                           </PermissionGuard>

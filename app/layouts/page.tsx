@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useBuildingApi, useDeviceApi, useFactoryApi, useFloorApi, useLineApi } from "@/lib/api"
+import { BuildingApiService, DeviceApiService, FactoryApiService, FloorApiService, LineApiService } from "@/lib/api"
 import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
 import type { Building, Device, Factory, Floor, Line } from "@/lib/types"
@@ -122,12 +122,42 @@ const [currentUser, setCurrentUser] = useState<any>(null)
 
 const { t } = useTranslation()
 
-// API hooks
-const { getFactories, createFactory } = useFactoryApi()
-const { getBuildingsByFactory, createBuilding } = useBuildingApi()
-const { getFloorsByBuilding, createFloor } = useFloorApi()
-const { getLinesByFloor, createLine } = useLineApi()
-const { getDevices, updateDevice} = useDeviceApi()
+// Helper functions for access control
+const filterFactoriesByAccess = (factories: Factory[]) => {
+    if (!currentUser?.factoryAccess || currentUser.factoryAccess.length === 0) {
+        return factories // No restrictions if no access defined
+    }
+    return factories.filter(factory => currentUser.factoryAccess.includes(factory.id))
+}
+
+const filterBuildingsByAccess = (buildings: Building[]) => {
+    if (!currentUser?.buildingAccess || currentUser.buildingAccess.length === 0) {
+        return buildings // No restrictions if no access defined
+    }
+    return buildings.filter(building => currentUser.buildingAccess.includes(building.id))
+}
+
+const filterFloorsByAccess = (floors: Floor[]) => {
+    if (!currentUser?.floorAccess || currentUser.floorAccess.length === 0) {
+        return floors // No restrictions if no access defined
+    }
+    return floors.filter(floor => currentUser.floorAccess.includes(floor.id))
+}
+
+const filterLinesByAccess = (lines: Line[]) => {
+    if (!currentUser?.lineAccess || currentUser.lineAccess.length === 0) {
+        return lines // No restrictions if no access defined
+    }
+    return lines.filter(line => currentUser.lineAccess.includes(line.id))
+}
+
+const filterDevicesByAccess = (devices: Device[]) => {
+    // Devices are filtered based on line access since devices belong to lines
+    if (!currentUser?.lineAccess || currentUser.lineAccess.length === 0) {
+        return devices // No restrictions if no access defined
+    }
+    return devices.filter(device => currentUser.lineAccess.includes(device.lineId))
+}
 
 // Calculate operational time for devices
 const calculateOperationalTime = (device: Device) => {
@@ -193,102 +223,120 @@ const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
 
 // Load data from APIs
 // Generic function to load data from API
-const loadDataFromApi = async (
-    apiCall: () => Promise<any>,
-    setState: (data: any[]) => void,
-    errorMessage: string,
-    setEmptyOnError: boolean = true
-) => {
+// const loadDataFromApi = async (
+//     apiCall: () => Promise<any>,
+//     setState: (data: any[]) => void,
+//     errorMessage: string,
+//     setEmptyOnError: boolean = true
+// ) => {
+//     try {
+//         setLoading(true)
+//         const response = await apiCall()
+//         setState(response)
+//     } catch (error: any) {
+//         console.error('Error loading data:', error)
+        
+//         // Import utility function dynamically
+//         const { isAuthenticationError } = await import('../../lib/api')
+        
+//         // Check if it's an authentication error
+//         if (isAuthenticationError(error)) {
+//             // Authentication error - user will be redirected to login by api.ts
+//             // Don't show error toast as user is being logged out
+//             return
+//         }
+        
+//         // For other errors, show toast
+//         toast.error(errorMessage)
+//         if (setEmptyOnError) {
+//             setState([])
+//         }
+//     } finally {
+//         setLoading(false)
+//     }
+// }
+
+// const loadFactoriesFromApi = async () => {
+//     await loadDataFromApi(
+//         getFactories,
+//         setApiFactories,
+//         'Không thể tải danh sách nhà máy từ API',
+//         false // Don't set empty on error for factories
+//     )
+// }
+
+// const loadBuildingsFromApi = async (factoryId: string) => {
+//     await loadDataFromApi(
+//         () => getBuildingsByFactory(factoryId),
+//         setApiBuildings,
+//         'Không thể tải danh sách tòa nhà'
+//     )
+// }
+
+// const loadFloorsFromApi = async (buildingId: string) => {
+//     await loadDataFromApi(
+//         () => getFloorsByBuilding(buildingId),
+//         setApiFloors,
+//         'Không thể tải danh sách tầng'
+//     )
+// }
+
+// const loadLinesFromApi = async (floorId: string) => {
+//     await loadDataFromApi(
+//         () => getLinesByFloor(floorId),
+//         setApiLines,
+//         'Không thể tải danh sách dây chuyền'
+//     )
+// }
+
+// const loadDevicesFromApi = async () => {
+//     try {
+//         setLoading(true)
+//         const response = await getDevices() as any // Type assertion to handle complex response types
+        
+//         // Handle response format - simplify type handling
+//         let deviceArray: Device[] = []
+        
+//         if (Array.isArray(response)) {
+//             deviceArray = response
+//         } else if (response && typeof response === 'object') {
+//             // Try to extract data property safely
+//             const responseData = response.data
+//             if (responseData) {
+//                 deviceArray = Array.isArray(responseData) ? responseData : [responseData]
+//             } else if (response.success && response.data) {
+//                 deviceArray = Array.isArray(response.data) ? response.data : [response.data]
+//             }
+//         }
+        
+//         setApiDevices(deviceArray)
+//     } catch (error) {
+//         console.error('Error loading devices:', error)
+//         toast.error('Không thể tải danh sách thiết bị')
+//         setApiDevices([])
+//     } finally {
+//         setLoading(false)
+//     }
+// }
+
+const fetchData = async () => {
     try {
-        setLoading(true)
-        const response = await apiCall()
-        setState(response)
-    } catch (error: any) {
-        console.error('Error loading data:', error)
-        
-        // Import utility function dynamically
-        const { isAuthenticationError } = await import('../../lib/api')
-        
-        // Check if it's an authentication error
-        if (isAuthenticationError(error)) {
-            // Authentication error - user will be redirected to login by api.ts
-            // Don't show error toast as user is being logged out
-            return
-        }
-        
-        // For other errors, show toast
-        toast.error(errorMessage)
-        if (setEmptyOnError) {
-            setState([])
-        }
-    } finally {
-        setLoading(false)
-    }
-}
-
-const loadFactoriesFromApi = async () => {
-    await loadDataFromApi(
-        getFactories,
-        setApiFactories,
-        'Không thể tải danh sách nhà máy từ API',
-        false // Don't set empty on error for factories
-    )
-}
-
-const loadBuildingsFromApi = async (factoryId: string) => {
-    await loadDataFromApi(
-        () => getBuildingsByFactory(factoryId),
-        setApiBuildings,
-        'Không thể tải danh sách tòa nhà'
-    )
-}
-
-const loadFloorsFromApi = async (buildingId: string) => {
-    await loadDataFromApi(
-        () => getFloorsByBuilding(buildingId),
-        setApiFloors,
-        'Không thể tải danh sách tầng'
-    )
-}
-
-const loadLinesFromApi = async (floorId: string) => {
-    await loadDataFromApi(
-        () => getLinesByFloor(floorId),
-        setApiLines,
-        'Không thể tải danh sách dây chuyền'
-    )
-}
-
-const loadDevicesFromApi = async () => {
-    try {
-        setLoading(true)
-        const response = await getDevices() as any // Type assertion to handle complex response types
-        
-        // Handle response format - simplify type handling
-        let deviceArray: Device[] = []
-        
-        if (Array.isArray(response)) {
-            deviceArray = response
-        } else if (response && typeof response === 'object') {
-            // Try to extract data property safely
-            const responseData = response.data
-            if (responseData) {
-                deviceArray = Array.isArray(responseData) ? responseData : [responseData]
-            } else if (response.success && response.data) {
-                deviceArray = Array.isArray(response.data) ? response.data : [response.data]
-            }
-        }
-        
-        setApiDevices(deviceArray)
+        const [factories, buildings, floors, lines, devices] = await Promise.all([
+            FactoryApiService.getFactories(),
+            BuildingApiService.getBuildings(),
+            FloorApiService.getFloors(),
+            LineApiService.getLines(),
+            DeviceApiService.getDevices()
+        ])
+        setApiFactories(factories)
+        setApiBuildings(buildings)
+        setApiFloors(floors)
+        setApiLines(lines)
+        setApiDevices(devices)
     } catch (error) {
-        console.error('Error loading devices:', error)
-        toast.error('Không thể tải danh sách thiết bị')
-        setApiDevices([])
-    } finally {
-        setLoading(false)
+        console.error('Error loading data:', error)
     }
 }
-
 const loadStats = async () => {
     const newStats = new Map<string, LayoutStats>()
 
@@ -303,19 +351,19 @@ const loadStats = async () => {
     // For API data, we need to load buildings, floors, lines separately
     if (apiFactories.length > 0) {
         try {
-        const buildingsResponse = await getBuildingsByFactory(factory.id)
+        const buildingsResponse = await BuildingApiService.getBuildingsByFactory(factory.id)
         
         for (const building of buildingsResponse) {
             const buildingDevices = currentDevices.filter((d) => d.buildingId === building.id)
             newStats.set(`building-${building.id}`, await calculateStats(buildingDevices))
 
-            const floorsResponse = await getFloorsByBuilding(building.id)
+            const floorsResponse = await FloorApiService.getFloorsByBuilding(building.id)
             
             for (const floor of floorsResponse) {
             const floorDevices = currentDevices.filter((d) => d.floorId === floor.id)
             newStats.set(`floor-${floor.id}`, await calculateStats(floorDevices))
 
-            const linesResponse = await getLinesByFloor(floor.id)
+            const linesResponse = await LineApiService.getLinesByFloor(floor.id)
             
             for (const line of linesResponse) {
                 const lineDevices = currentDevices.filter((d) => d.lineId === line.id)
@@ -335,9 +383,10 @@ const loadStats = async () => {
 const loadExternalDevices = async () => {
     if (selectedFloorId) {
     // Use API devices instead of database
-    // Get devices that are NOT on the current floor
-    const external = apiDevices.filter((device) => device.floorId !== selectedFloorId)
-    setExternalDevices(external)
+    // Get devices that are NOT on the current floor and user has access to
+        const accessibleDevices = filterDevicesByAccess(apiDevices)
+        const external = accessibleDevices.filter((device) => device.floorId !== selectedFloorId)
+        setExternalDevices(external)
     }
 }
 
@@ -404,8 +453,17 @@ const loadLineDetails = async (lineId: string) => {
 
 useEffect(() => {
     // Load initial data from APIs
-    loadFactoriesFromApi()
-    loadDevicesFromApi()
+    fetchData()
+    // Load current user
+    const loadCurrentUser = async () => {
+        try {
+            const user = await authService.fetchCurrentUser()
+            setCurrentUser(user)
+        } catch (error) {
+            console.error('Error loading current user:', error)
+        }
+    }
+    loadCurrentUser()
 }, [])
 
 useEffect(() => {
@@ -414,31 +472,31 @@ useEffect(() => {
     return () => clearInterval(interval)
 }, [apiDevices, apiFactories]) // Only depend on API data now
 
-useEffect(() => {
-    if (currentLevel === "building" && selectedFactoryId) {
-    loadBuildingsFromApi(selectedFactoryId)
-    }
-}, [currentLevel, selectedFactoryId])
+// useEffect(() => {
+//     if (currentLevel === "building" && selectedFactoryId) {
+//     loadBuildingsFromApi(selectedFactoryId)
+//     }
+// }, [currentLevel, selectedFactoryId])
 
-useEffect(() => {
-    if (currentLevel === "floor" && selectedBuildingId) {
-    loadFloorsFromApi(selectedBuildingId)
-    }
-}, [currentLevel, selectedBuildingId])
+// useEffect(() => {
+//     if (currentLevel === "floor" && selectedBuildingId) {
+//     loadFloorsFromApi(selectedBuildingId)
+//     }
+// }, [currentLevel, selectedBuildingId])
 
 useEffect(() => {
     if (currentLevel === "line" && selectedFloorId) {
-    loadLinesFromApi(selectedFloorId)
+    // loadLinesFromApi(selectedFloorId)
     loadExternalDevices()
     }
 }, [currentLevel, selectedFloorId, apiDevices]) // Add apiDevices dependency
 
 // Separate effect to reload external devices when API data changes
-useEffect(() => {
-    if (currentLevel === "line" && selectedFloorId && apiDevices.length > 0) {
-    loadExternalDevices()
-    }
-}, [apiDevices, apiFactories, apiBuildings, apiFloors, apiLines]) // Reload when any API data changes
+// useEffect(() => {
+//     if (currentLevel === "line" && selectedFloorId && apiDevices.length > 0) {
+//     loadExternalDevices()
+//     }
+// }, [apiDevices, apiFactories, apiBuildings, apiFloors, apiLines]) // Reload when any API data changes
 
 const handleBack = () => {
     switch (currentLevel) {
@@ -461,9 +519,95 @@ const handleBack = () => {
     }
 }
 
-const handleEdit = (id: string, name: string, type: string) => {
+const handleEdit = async (id: string, name: string, type: string) => {
     setEditingItem({ id, name, type })
+    console.log('Editing item:', { id, name, type })
+    // switch (type) {
+    //     case "nhà máy":
+    //         if (!currentUser?.permissions?.includes("layout.edit_factory")) {
+    //             toast.error("Bạn không có quyền chỉnh sửa nhà máy")
+    //             return
+    //         } else await FactoryApiService.updateFactory(id, { name })
+    //         break
+    //     case "tầng":
+    //         if (!currentUser?.permissions?.includes("layout.edit_floor")) {
+    //             toast.error("Bạn không có quyền chỉnh sửa tầng")
+    //             return
+    //         }
+    //         break
+    //     case "dòng":
+    //         if (!currentUser?.permissions?.includes("layout.edit_line")) {
+    //             toast.error("Bạn không có quyền chỉnh sửa dòng")
+    //             return
+    //         }
+    //         break
+    //     case "thiết bị":
+    //         if (!currentUser?.permissions?.includes("layout.edit_device")) {
+    //             toast.error("Bạn không có quyền chỉnh sửa thiết bị")
+    //             return
+    //         }
+    //         break
+    // }
     setIsEditDialogOpen(true)
+}
+
+const handleSave = async () => {
+    if (!editingItem) return
+    try {
+        switch (editingItem.type) {
+            case "nhà máy":
+                if (!currentUser?.permissions?.includes("layout.edit")) {
+                    toast.error("Bạn không có quyền chỉnh sửa nhà máy")
+                    return
+                }
+                await FactoryApiService.updateFactory(editingItem.id, { name: editingItem.name })
+                toast.success("Đã lưu thay đổi nhà máy")
+                // Refresh factories
+                const factories = await FactoryApiService.getFactories()
+                setApiFactories(factories)
+                break
+
+            case "tòa nhà":
+                if (!currentUser?.permissions?.includes("layout.edit")) {
+                    toast.error("Bạn không có quyền chỉnh sửa tòa nhà")
+                    return
+                }
+                await BuildingApiService.updateBuilding(editingItem.id, { name: editingItem.name })
+                toast.success("Đã lưu thay đổi tòa nhà")
+                // Refresh buildings
+                const buildings = await BuildingApiService.getBuildings()
+                setApiBuildings(buildings)
+                break
+
+            case "tầng":
+                if (!currentUser?.permissions?.includes("layout.edit")) {
+                    toast.error("Bạn không có quyền chỉnh sửa tầng")
+                    return
+                }
+                await FloorApiService.updateFloor(editingItem.id, { name: editingItem.name })
+                toast.success("Đã lưu thay đổi tầng")
+                // Refresh floors
+                const floors = await FloorApiService.getFloors()
+                setApiFloors(floors)
+                break
+            case "dây chuyền":
+                if (!currentUser?.permissions?.includes("layout.edit")) {
+                    toast.error("Bạn không có quyền chỉnh sửa dây chuyền")
+                    return
+                }
+                await LineApiService.updateLine(editingItem.id, { name: editingItem.name })
+                toast.success("Đã lưu thay đổi dây chuyền")
+                // Refresh lines
+                const lines = await LineApiService.getLines()
+                setApiLines(lines)
+                break
+        }
+        setIsEditDialogOpen(false)
+        setEditingItem(null)
+    } catch (error) {
+        console.error('Error saving changes:', error)
+        toast.error('Không thể lưu thay đổi')
+    }
 }
 
 const handleDeviceMove = (device: Device) => {
@@ -537,26 +681,52 @@ const confirmDeviceMove = async () => {
 }
 
 const handleDragStart = (e: React.DragEvent, device: Device) => {
+    console.log('Drag started:', {
+        deviceId: device.id,
+        deviceName: device.name,
+        fromLocation: {
+            factoryId: device.factoryId,
+            buildingId: device.buildingId,
+            floorId: device.floorId,
+            lineId: device.lineId
+        }
+    })
     e.dataTransfer.setData("text/plain", device.id)
     setDraggedDevice(device)
 }
 
 const handleDragOver = (e: React.DragEvent) => {
+    console.log('Drag over element')
     e.preventDefault()
     e.stopPropagation()
 }
 
 const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBuildingId: string, targetFloorId: string, targetLineId: string) => {
+    console.log('Drop event:', {
+        targetFactoryId,
+        targetBuildingId,
+        targetFloorId,
+        targetLineId
+    })
     e.preventDefault()
     e.stopPropagation()
 
     const deviceId = e.dataTransfer.getData("text/plain")
+    console.log('Device ID from dataTransfer:', deviceId)
     const device = apiDevices.find((d) => d.id === deviceId) // Use apiDevices instead of devices
+    console.log('Found device:', device)
 
-    if (!device || !currentUser) return
+    if (!device || !currentUser) {
+        console.log('No device found or no current user')
+        return
+    }
 
     const targetLine = apiLines.find((l) => l.id === targetLineId) // Use apiLines instead of complex lookup
-    if (!targetLine) return
+    console.log('Target line:', targetLine)
+    if (!targetLine) {
+        console.log('No target line found')
+        return
+    }
 
     // Mock drag-drop device move operation since we're using API instead of database
     try {
@@ -572,7 +742,8 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     setApiDevices(updatedDevices)
     
     // Update device via API
-    await updateDevice(device.id, { factoryId: targetFactoryId, buildingId: targetBuildingId, floorId: targetFloorId, lineId: targetLineId })
+    await DeviceApiService.updateDevice(device.id, { factoryId: targetFactoryId, buildingId: targetBuildingId, floorId: targetFloorId, lineId: targetLineId })
+    console.log('Device updated via API')
     // Mock audit log (in real implementation, this would be sent to API)
     console.log('Device drag-dropped:', {
         userId: currentUser.id,
@@ -590,6 +761,7 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     })
 
     toast.success('Thiết bị đã được di chuyển thành công')
+    console.log('Reloading stats and external devices')
     await loadStats()
     await loadExternalDevices()
     } catch (error) {
@@ -598,12 +770,13 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     }
 
 setDraggedDevice(null)
+console.log('Drag operation completed')
 }
 const handleAddFactory = async () => {
     if (!newFactoryName.trim()) return
 
     try {
-    await createFactory({
+    await FactoryApiService.createFactory({
         name: newFactoryName.trim(),
         location: newLocation.trim() || "Unknown",
         timezone: newTimezone || "UTC"
@@ -612,7 +785,7 @@ const handleAddFactory = async () => {
     setNewFactoryName("")
     setIsAddFactoryOpen(false)
     // Refresh data
-    const factories = await getFactories()
+    const factories = await FactoryApiService.getFactories()
     setApiFactories(factories)
     } catch (error) {
     toast.error("Không thể thêm nhà máy")
@@ -623,7 +796,7 @@ const handleAddBuilding = async () => {
     if (!newBuildingName.trim() || !selectedFactoryId) return
 
     try {
-    await createBuilding({
+    await BuildingApiService.createBuilding({
         name: newBuildingName.trim(),
         factoryId: selectedFactoryId
     })
@@ -631,7 +804,7 @@ const handleAddBuilding = async () => {
     setNewBuildingName("")
     setIsAddBuildingOpen(false)
     // Refresh data
-    const buildings = await getBuildingsByFactory(selectedFactoryId)
+    const buildings = await BuildingApiService.getBuildingsByFactory(selectedFactoryId)
     setApiBuildings(buildings)
     } catch (error) {
     toast.error("Không thể thêm tòa nhà")
@@ -642,7 +815,7 @@ const handleAddFloor = async () => {
     if (!newFloorName.trim() || !selectedBuildingId) return
 
     try {
-    await createFloor({
+    await FloorApiService.createFloor({
         name: newFloorName.trim(),
         buildingId: selectedBuildingId
     })
@@ -650,7 +823,7 @@ const handleAddFloor = async () => {
     setNewFloorName("")
     setIsAddFloorOpen(false)
     // Refresh data
-    const floors = await getFloorsByBuilding(selectedBuildingId)
+    const floors = await FloorApiService.getFloorsByBuilding(selectedBuildingId)
     setApiFloors(floors)
     } catch (error) {
     toast.error("Không thể thêm tầng")
@@ -661,7 +834,7 @@ const handleAddLine = async () => {
     if (!newLineName.trim() || !selectedFloorId) return
 
     try {
-    await createLine({
+    await LineApiService.createLine({
         name: newLineName.trim(),
         floorId: selectedFloorId
     })
@@ -669,7 +842,7 @@ const handleAddLine = async () => {
     setNewLineName("")
     setIsAddLineOpen(false)
     // Refresh data
-    const lines = await getLinesByFloor(selectedFloorId)
+    const lines = await LineApiService.getLinesByFloor(selectedFloorId)
     setApiLines(lines)
     } catch (error) {
     toast.error("Không thể thêm dây chuyền")
@@ -677,7 +850,7 @@ const handleAddLine = async () => {
 }
 const renderFactoryView = () => {
     // Use only API data now
-    const currentFactories = apiFactories
+    const currentFactories = filterFactoriesByAccess(apiFactories)
     const filteredFactories = currentFactories.filter((factory) =>
     factory.name.toLowerCase().includes(searchTerm.toLowerCase()),
     )
@@ -808,7 +981,7 @@ const renderFactoryView = () => {
 
 const renderBuildingView = () => {
     // Use only API data now
-    const buildings = apiBuildings
+    const buildings = getAvailableBuildings()
 
     const filteredBuildings = buildings.filter((building) =>
     building.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -938,7 +1111,7 @@ const renderBuildingView = () => {
 
 const renderFloorView = () => {
     // Use only API data now
-    const floors = apiFloors
+    const floors = getAvailableFloors()
 
     const filteredFloors = floors.filter((floor) =>
     floor.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -1068,12 +1241,12 @@ const renderFloorView = () => {
 
 const renderLineView = () => {
     // Use only API data now
-    const lines = apiLines
+    const lines = getAvailableLines()
 
     const filteredLines = lines.filter((line) => line.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
     // Use only API devices now
-    const currentDevices = apiDevices
+    const currentDevices = filterDevicesByAccess(apiDevices)
 
     if (loading && filteredLines.length === 0) {
     return (
@@ -1126,22 +1299,22 @@ const renderLineView = () => {
                 return (
                 <Card
                     key={line.id}
-                    className={`transition-all duration-200 bg-white/80 backdrop-blur-sm border-0 shadow-lg ${
-                    draggedDevice ? "border-2 border-dashed border-green-300 bg-green-50/50" : ""
+                        className={`transition-all duration-200 bg-white/80 backdrop-blur-sm border-0 shadow-lg ${
+                        draggedDevice ? "border-2 border-dashed border-green-300 bg-green-50/50" : ""
                     }`}
                     onDragOver={handleDragOver}
                     onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove("border-green-500", "bg-green-100/50");
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove("border-green-500", "bg-green-100/50");
                     }}
                     onDrop={(e) => handleDrop(
-                    e,
-                    // handleDrop expects (e, targetFactoryId, targetBuildingId, targetFloorId, targetLineId)
-                    targetFactory?.id ?? "",
-                    targetBuilding?.id ?? "",
-                    targetFloor?.id ?? "",
-                    line.id,
+                        e,
+                        // handleDrop expects (e, targetFactoryId, targetBuildingId, targetFloorId, targetLineId)
+                        targetFactory?.id ?? "",
+                        targetBuilding?.id ?? "",
+                        targetFloor?.id ?? "",
+                        line.id,
                     )}
                 >
                     <CardHeader className="pb-4">
@@ -1193,9 +1366,9 @@ const renderLineView = () => {
                     {/* Individual Device Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {lineDevices.map((device: Device) => {
-                        const devicePower =
-                            device.status === "Online" ? device.ratedPower * (0.7 + Math.random() * 0.3) : 0;
-                        const operationalTime = calculateOperationalTime(device);
+                        // const devicePower =
+                        //     device.status === "Online" ? device.ratedPower * (0.7 + Math.random() * 0.3) : 0;
+                        // const operationalTime = calculateOperationalTime(device);
 
                         return (
                             <div
@@ -1468,7 +1641,7 @@ const renderLineView = () => {
 }
 
 const renderDeviceView = () => {
-    const lineDevices = apiDevices.filter((d) => d.lineId === selectedLineId) // Use apiDevices instead of devices
+    const lineDevices = filterDevicesByAccess(apiDevices).filter((d) => d.lineId === selectedLineId) // Use apiDevices instead of devices
     const filteredDevices = lineDevices.filter((device) => device.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
     return (
@@ -1634,18 +1807,18 @@ const getLocationString = (device: Device) => {
     return `${factory?.name || "Unknown"} → ${building?.name || "Unknown"} → ${floor?.name || "Unknown"} → ${line?.name || "Unknown"}`
 }
 const getAvailableBuildings = () => {
-    // Use only API data now - return buildings that match the factory
-    return apiBuildings.filter(b => b.factoryId === targetLocation.factoryId)
+    // Use only API data now - return buildings that match the factory and user has access to
+    return filterBuildingsByAccess(apiBuildings).filter(b => b.factoryId === selectedFactoryId)
 }
 
 const getAvailableFloors = () => {
-    // Use only API data now - return floors that match the building
-    return apiFloors.filter(f => f.buildingId === targetLocation.buildingId)
+    // Use only API data now - return floors that match the building and user has access to
+    return filterFloorsByAccess(apiFloors).filter(f => f.buildingId === selectedBuildingId)
 }
 
 const getAvailableLines = () => {
-    // Use only API data now - return lines that match the floor
-    return apiLines.filter(l => l.floorId === targetLocation.floorId)
+    // Use only API data now - return lines that match the floor and user has access to
+    return filterLinesByAccess(apiLines).filter(l => l.floorId === selectedFloorId)
 }
 
 return (
@@ -2022,7 +2195,7 @@ return (
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 {t("common.cancel")}
             </Button>
-            <Button onClick={() => setIsEditDialogOpen(false)}>{t("common.save")}</Button>
+            <Button onClick={() => [setIsEditDialogOpen(false), handleSave()]}>{t("common.save")}</Button>
             </DialogFooter>
         </DialogContent>
         </Dialog>
@@ -2080,7 +2253,9 @@ return (
                     <SelectValue placeholder="Chọn tòa nhà" />
                     </SelectTrigger>
                     <SelectContent>
-                    {getAvailableBuildings().map((building) => (
+                    {apiBuildings
+                    .filter((b) => b.factoryId === targetLocation.factoryId)
+                    .map((building) => (
                         <SelectItem key={building.id} value={building.id}>
                         {building.name}
                         </SelectItem>
@@ -2106,7 +2281,9 @@ return (
                     <SelectValue placeholder="Chọn tầng" />
                     </SelectTrigger>
                     <SelectContent>
-                    {getAvailableFloors().map((floor) => (
+                    {apiFloors
+                    .filter((f) => f.buildingId === targetLocation.buildingId)
+                    .map((floor) => (
                         <SelectItem key={floor.id} value={floor.id}>
                         {floor.name}
                         </SelectItem>
@@ -2131,7 +2308,9 @@ return (
                     <SelectValue placeholder="Chọn dây chuyền" />
                     </SelectTrigger>
                     <SelectContent>
-                    {getAvailableLines().map((line) => (
+                    {apiLines
+                    .filter((l) => l.floorId === targetLocation.floorId)
+                    .map((line) => (
                         <SelectItem key={line.id} value={line.id}>
                         {line.name}
                         </SelectItem>

@@ -11,46 +11,44 @@ class AuthService {
   private currentUser: User | null = null
 
   constructor() {
-    // Load saved user from localStorage on initialization
-    this.loadUserFromStorage()
+    // Load basic user info từ localStorage khi khởi tạo
+    this.loadBasicUserFromStorage()
   }
 
-  private loadUserFromStorage(): void {
+  private loadBasicUserFromStorage(): Partial<User> | null {
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("currentUser")
-      const accessToken = localStorage.getItem("accessToken")
-      if (savedUser && accessToken) {
+      const savedUser = localStorage.getItem("currentUserBasic")
+      if (savedUser) {
         try {
-          this.currentUser = JSON.parse(savedUser)
-          // Decode token to get permissions
-          try {
-            const decoded: any = jwtDecode(accessToken)
-            if (this.currentUser) {
-              this.currentUser.permissions = decoded.permissions || []
-            }
-          } catch (error) {
-            console.error("Failed to decode token:", error)
-            if (this.currentUser) {
-              this.currentUser.permissions = []
-            }
-          }
+          return JSON.parse(savedUser)
         } catch (error) {
-          console.error("Failed to parse saved user:", error)
-          localStorage.removeItem("currentUser")
+          console.error("Failed to parse basic user:", error)
+          localStorage.removeItem("currentUserBasic")
         }
       }
     }
+    return null
   }
 
-  private saveUserToStorage(user: User): void {
+  private saveUserToStorage(basicUser: Partial<User>): void {
     if (typeof window !== "undefined") {
-      localStorage.setItem("currentUser", JSON.stringify(user))
+      // Chỉ lưu các field cơ bản, không lưu permissions/role/access
+      const safeUser = {
+        id: basicUser.id,
+        username: basicUser.username,
+        email: basicUser.email,
+        language: basicUser.language || 'vi',
+        timezone: basicUser.timezone || 'UTC',
+      }
+      localStorage.setItem("currentUserBasic", JSON.stringify(safeUser))
     }
   }
 
   private removeUserFromStorage(): void {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("currentUser")
+      localStorage.removeItem("currentUserBasic")
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("refreshToken")
     }
   }
 
@@ -62,32 +60,32 @@ class AuthService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok || !data.success || data.error) {
-        return { success: false, error: data.error || 'Login failed' };
+        return { success: false, error: data.error || 'Login failed' }
       }
 
-      // Decode JWT to get permissions
-      let permissions: string[] = [];
+      // Decode JWT để lấy permissions
+      let permissions: string[] = []
       try {
-        const decoded: any = jwtDecode(data.data.accessToken);
-        permissions = decoded.permissions || [];
+        const decoded: any = jwtDecode(data.data.accessToken)
+        permissions = decoded.permissions || []
       } catch (error) {
-        console.error('Failed to decode JWT:', error);
+        console.error('Failed to decode JWT:', error)
       }
 
-      const dataUser = await UserApiService.getUserById(data.data.id);
-      // Assuming the API returns user data without role, etc. We can set defaults or fetch more later
+      // Fetch full user từ API
+      const dataUser = await UserApiService.getUserById(data.data.id)
       const user: User = {
         id: dataUser.id,
         username: dataUser.username,
         email: dataUser.email,
-        roleId: dataUser.roleId, // Need to adjust based on API
-        role: dataUser.role, // Default or from API if provided
-        permissions: permissions,
+        roleId: dataUser.roleId,
+        role: dataUser.role,
+        permissions,
         factoryAccess: dataUser.factoryAccess || [],
         buildingAccess: dataUser.buildingAccess || [],
         floorAccess: dataUser.floorAccess || [],
@@ -95,24 +93,52 @@ class AuthService {
         language: dataUser.language || 'vi',
         timezone: dataUser.timezone || 'UTC',
         isActive: dataUser.isActive || true,
-      };
+      }
 
-      this.currentUser = user;
+      this.currentUser = user
 
-      // Store tokens
+      // Lưu tokens
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
+        localStorage.setItem('accessToken', data.data.accessToken)
+        localStorage.setItem('refreshToken', data.data.refreshToken)
       }
 
-      // Save user to localStorage if rememberMe
+      // Lưu basic user nếu rememberMe
       if (rememberMe) {
-        this.saveUserToStorage(user);
+        this.saveUserToStorage(user)
       }
 
-      return { success: true, user };
+      return { success: true, user }
     } catch (error) {
-      return { success: false, error: 'Network error or server unavailable' };
+      return { success: false, error: 'Network error or server unavailable' }
+    }
+  }
+
+  async fetchCurrentUser(): Promise<User | null> {
+    const token = localStorage.getItem('accessToken')
+    if (!token) {
+      await this.logout()
+      return null
+    }
+
+    try {
+      // Decode token để lấy user ID
+      const decoded: any = jwtDecode(token)
+      const userId = decoded.sub || decoded.id // Adjust theo token structure
+
+      if (!userId) {
+        throw new Error('No user ID in token')
+      }
+
+      // Fetch full user từ server
+      const fullUser = await UserApiService.getUserById(userId)
+      fullUser.permissions = decoded.permissions || []
+      this.currentUser = fullUser
+      return fullUser
+    } catch (error) {
+      console.error('Failed to fetch current user:', error)
+      await this.logout()
+      return null
     }
   }
 
@@ -133,8 +159,6 @@ class AuthService {
         const data = await response.json()
         if (data.success && data.data.accessToken) {
           localStorage.setItem('accessToken', data.data.accessToken)
-          
-          // Update permissions from new token
           try {
             const decoded: any = jwtDecode(data.data.accessToken)
             if (this.currentUser) {
@@ -143,7 +167,6 @@ class AuthService {
           } catch (error) {
             console.error('Failed to decode refreshed token:', error)
           }
-          
           return true
         }
       }
@@ -155,15 +178,8 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    if (this.currentUser) {
-      // Optionally log logout to API if needed
-    }
-    this.currentUser = null;
-    this.removeUserFromStorage();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    }
+    this.currentUser = null
+    this.removeUserFromStorage()
   }
 
   getCurrentUser(): User | null {
@@ -175,11 +191,8 @@ class AuthService {
   }
 
   hasPermission(permission: string): boolean {
-    // console.log("check permission: ", this.currentUser?.permissions, permission);
     if (!this.currentUser) return false
     if (this.currentUser.role === "Admin") return true
-
-    // Check permissions from JWT
     return this.currentUser.permissions?.includes(permission) || false
   }
 

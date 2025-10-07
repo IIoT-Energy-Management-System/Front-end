@@ -62,7 +62,7 @@ export default function TimezoneCombobox({
           <CommandInput placeholder="Tìm múi giờ..." />
           <CommandList>
             <CommandEmpty>Không tìm thấy múi giờ.</CommandEmpty>
-            <CommandGroup>
+            <CommandGroup >
               {timezoneOptions.map((tz) => (
                 <CommandItem
                   key={tz.value}

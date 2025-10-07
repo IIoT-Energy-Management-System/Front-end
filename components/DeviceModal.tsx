@@ -32,267 +32,319 @@ import {
     Zap
 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { io, Socket } from 'socket.io-client'; // Import Socket.io client
 import { toast } from 'sonner'
 import ConnectionModal from "./ConnectionModal"
 
 interface DeviceModalProps {
-isOpen: boolean
-onClose: () => void
-mode: "add" | "edit" | "view"
-device?: Device | null
-factories: Factory[]
-onSave: (deviceData: any) => Promise<void>
-language: "vi" | "en"
-loading?: boolean
-onDeviceUpdated?: () => void
+  isOpen: boolean
+  onClose: () => void
+  mode: "add" | "edit" | "view"
+  device?: Device | null
+  factories: Factory[]
+  onSave: (deviceData: any) => Promise<void>
+  language: "vi" | "en"
+  loading?: boolean
+  onDeviceUpdated?: () => void
 }
 
 export default function DeviceModal({
-isOpen,
-onClose,
-mode,
-device,
-factories,
-onSave,
-language,
-loading: externalLoading = false,
-onDeviceUpdated
+  isOpen,
+  onClose,
+  mode,
+  device,
+  factories,
+  onSave,
+  language,
+  loading: externalLoading = false,
+  onDeviceUpdated
 }: DeviceModalProps) {
-const { t } = useTranslation()
-const { createDeviceConnection, deleteDeviceConnection } = useDeviceApi()
+  const { t } = useTranslation()
+  const { createDeviceConnection, updateDeviceConnection, deleteDeviceConnection } = useDeviceApi()
 
-const [formData, setFormData] = useState({
-    name: "",
-    type: "Sewing Machine" as Device["type"],
-    factoryId: "",
-    buildingId: "",
-    floorId: "",
-    lineId: "",
-    ratedPower: 0.75,
-    status: "Offline" as Device["status"],
-})
-const [loading, setLoading] = useState(false)
-const [connectionModalOpen, setConnectionModalOpen] = useState(false)
-const [refreshKey, setRefreshKey] = useState(0)
-const [selectedFactoryId, setSelectedFactoryId] = useState<string | null>(null)
-const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
-const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null)
-const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({
+      name: "",
+      type: "Sewing Machine" as Device["type"],
+      factoryId: "",
+      buildingId: "",
+      floorId: "",
+      lineId: "",
+      ratedPower: 0.75,
+      status: "Offline" as Device["status"],
+  })
+  const [loading, setLoading] = useState(false)
+  const [connectionModalOpen, setConnectionModalOpen] = useState(false)
+  const [connectionModalMode, setConnectionModalMode] = useState<"add" | "edit">("add")
+  const [editingConnection, setEditingConnection] = useState<any>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [selectedFactoryId, setSelectedFactoryId] = useState<string | null>(null)
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
+  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null)
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
 
-// API states
-const [apiBuildings, setApiBuildings] = useState<Building[]>([])
-const [apiFloors, setApiFloors] = useState<Floor[]>([])
-const [apiLines, setApiLines] = useState<Line[]>([])
+  // State cho real-time data (sử dụng Record<string, any> để linh hoạt)
+//   const [latestData, setLatestData] = useState<Record<string, any> | null>(device?.latestData || null);
 
-// API hooks
-const { getBuildingsByFactory } = useBuildingApi()
-const { getFloorsByBuilding } = useFloorApi()
-const { getLinesByFloor } = useLineApi()
+  // API states
+  const [apiBuildings, setApiBuildings] = useState<Building[]>([])
+  const [apiFloors, setApiFloors] = useState<Floor[]>([])
+  const [apiLines, setApiLines] = useState<Line[]>([])
 
-// Initialize form data when modal opens or device changes
-useEffect(() => {
-    if (mode === "add") {
-    setFormData({
-        name: "",
-        type: "Sewing Machine",
-        factoryId: "",
-        buildingId: "",
-        floorId: "",
-        lineId: "",
-        ratedPower: 0.75,
-        status: "Offline",
-    })
-    } else if (device && (mode === "edit" || mode === "view")) {
-    setFormData({
-        name: device.name,
-        type: device.type,
-        factoryId: device.factoryId,
-        buildingId: device.buildingId,
-        floorId: device.floorId,
-        lineId: device.lineId,
-        ratedPower: device.ratedPower,
-        status: device.status,
-    })
-    setSelectedFactoryId(device.factoryId || null)
-    setSelectedBuildingId(device.buildingId || null)
-    setSelectedFloorId(device.floorId || null)
-    setSelectedLineId(device.lineId || null)
-    }
-}, [mode, device, isOpen])
+  // API hooks
+  const { getBuildingsByFactory } = useBuildingApi()
+  const { getFloorsByBuilding } = useFloorApi()
+  const { getLinesByFloor } = useLineApi()
 
-const loadDataFromApi = async (
-    apiCall: () => Promise<any>,
-    setState: (data: any[]) => void,
-    errorMessage: string,
-    setEmptyOnError: boolean = true
-) => {
-    try {
-        setLoading(true)
-        const response = await apiCall()
-        setState(response)
-    } catch (error) {
-        console.error('Error loading data:', error)
-        toast.error(errorMessage)
-        if (setEmptyOnError) {
-            setState([])
-        }
-    } finally {
-        setLoading(false)
-    }
-}
+  // Initialize form data when modal opens or device changes
+  useEffect(() => {
+      if (mode === "add") {
+      setFormData({
+          name: "",
+          type: "Sewing Machine",
+          factoryId: "",
+          buildingId: "",
+          floorId: "",
+          lineId: "",
+          ratedPower: 0.75,
+          status: "Offline",
+      })
+    //   setLatestData(null);  // Reset real-time data
+      } else if (device && (mode === "edit" || mode === "view")) {
+      setFormData({
+          name: device.name,
+          type: device.type,
+          factoryId: device.factoryId,
+          buildingId: device.buildingId,
+          floorId: device.floorId,
+          lineId: device.lineId,
+          ratedPower: device.ratedPower,
+          status: device.status,
+      })
+      setSelectedFactoryId(device.factoryId || null)
+      setSelectedBuildingId(device.buildingId || null)
+      setSelectedFloorId(device.floorId || null)
+      setSelectedLineId(device.lineId || null)
+    //   setLatestData(device.latestData || null);  // Init real-time data từ props
+      }
+  }, [mode, device, isOpen])
 
-const loadBuildingsFromApi = async (factoryId: string) => {
-    await loadDataFromApi(
-        () => getBuildingsByFactory(factoryId),
-        setApiBuildings,
-        'Không thể tải danh sách tòa nhà'
-    )
-}
+  // WebSocket connection
+//   useEffect(() => {
+//     let socket: Socket | null = null;
 
-const loadFloorsFromApi = async (buildingId: string) => {
-    await loadDataFromApi(
-        () => getFloorsByBuilding(buildingId),
-        setApiFloors,
-        'Không thể tải danh sách tầng'
-    )
-}
+//     if (isOpen && device?.id && (mode === 'view' || mode === 'edit')) {
+//       socket = io('http://localhost:5000');  // URL backend của bạn
 
-const loadLinesFromApi = async (floorId: string) => {
-    await loadDataFromApi(
-        () => getLinesByFloor(floorId),
-        setApiLines,
-        'Không thể tải danh sách dây chuyền'
-    )
-}
+//       socket.on('connect', () => {
+//         console.log('WebSocket connected for device:', device.id);
+//       });
 
-useEffect(() => {
-    console.log("Selected Factory ID:", selectedFactoryId)
-    if(selectedFactoryId) {
-    loadBuildingsFromApi(selectedFactoryId)
-    }
-    if(selectedBuildingId) {
-    loadFloorsFromApi(selectedBuildingId)
-    }
-    if(selectedFloorId) {
-    loadLinesFromApi(selectedFloorId)
-    }
-}, [selectedFactoryId, selectedBuildingId, selectedFloorId])
+//       socket.on('device-data', ({ deviceId: receivedDeviceId, data }) => {
+//         // console.log('New data received for device:', receivedDeviceId, data);
+//         if (receivedDeviceId === device.id) {
+//           setLatestData(data);  // Update real-time data
+//           toast.info(`New data received for device ${device.id}`);
+//           console.log("Latest Data Updated:", latestData, data);
+//         }
+//       });
 
-const isReadOnly = mode === "view"
-const isEdit = mode === "edit"
-const isAdd = mode === "add"
+//       socket.on('disconnect', () => {
+//         console.log('WebSocket disconnected for device:', device.id);
+//       });
+//     }
 
-const getModalTitle = () => {
-    switch (mode) {
-    case "add":
-        return t("devices.addDevice") || "Add Device"
-    case "edit":
-        return t("devices.editDevice") || "Edit Device"
-    case "view":
-        return t("devices.viewDevice") || "View Device Details"
-    default:
-        return ""
-    }
-}
+//     return () => {
+//       if (socket) {
+//         socket.disconnect();
+//       }
+//     };
+//   }, [isOpen, mode, device?.id]);
 
-const getModalDescription = () => {
-    switch (mode) {
-    case "add":
-        return t("devices.addDeviceDescription") || "Add a new device to the system"
-    case "edit":
-        return t("devices.editDeviceDescription") || "Edit device configuration and connection settings"
-    case "view":
-        return t("devices.viewDeviceDescription") || "View device details, connection status, and real-time data"
-    default:
-        return ""
-    }
-}
+  const loadDataFromApi = async (
+      apiCall: () => Promise<any>,
+      setState: (data: any[]) => void,
+      errorMessage: string,
+      setEmptyOnError: boolean = true
+  ) => {
+      try {
+          setLoading(true)
+          const response = await apiCall()
+          setState(response)
+      } catch (error) {
+          console.error('Error loading data:', error)
+          toast.error(errorMessage)
+          if (setEmptyOnError) {
+              setState([])
+          }
+      } finally {
+          setLoading(false)
+      }
+  }
 
-const handleSave = async () => {
-    if (isReadOnly) return
+  const loadBuildingsFromApi = async (factoryId: string) => {
+      await loadDataFromApi(
+          () => getBuildingsByFactory(factoryId),
+          setApiBuildings,
+          'Không thể tải danh sách tòa nhà'
+      )
+  }
 
-    setLoading(true)
-    console.log(formData)
-    try {
-        await onSave(formData)
-        
-        // Hiển thị toast thành công
-        toast.success("Lưu thiết bị thành công!")
-        
-        onClose()
-    } catch (error) {
-        console.error("Failed to save device:", error)
-        
-        // Hiển thị toast lỗi
-        toast.error("Lưu thiết bị thất bại. Vui lòng thử lại.", { description: (error as any).error || "Có lỗi xảy ra" })
-    } finally {
-        setLoading(false)
-    }
-}
+  const loadFloorsFromApi = async (buildingId: string) => {
+      await loadDataFromApi(
+          () => getFloorsByBuilding(buildingId),
+          setApiFloors,
+          'Không thể tải danh sách tầng'
+      )
+  }
 
-const getStatusColor = (status: Device["status"]) => {
-    switch (status) {
-    case "Online":
-        return "bg-gradient-to-r from-green-500 to-green-600 text-white border-0"
-    case "Offline":
-        return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
-    case "Maintenance":
-        return "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0"
-    case "Error":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-0"
-    default:
-        return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
-    }
-}
+  const loadLinesFromApi = async (floorId: string) => {
+      await loadDataFromApi(
+          () => getLinesByFloor(floorId),
+          setApiLines,
+          'Không thể tải danh sách dây chuyền'
+      )
+  }
 
-const getTypeColor = (type: Device["type"]) => {
-    const colors = {
-    "Sewing Machine": "from-blue-500 to-blue-600",
-    "Cutting Machine": "from-purple-500 to-purple-600",
-    Press: "from-orange-500 to-orange-600",
-    Conveyor: "from-green-500 to-green-600",
-    Other: "from-gray-500 to-gray-600",
-    }
-    return colors[type] || colors["Other"]
-}
+  useEffect(() => {
+      console.log("Selected Factory ID:", selectedFactoryId)
+      if(selectedFactoryId) {
+      loadBuildingsFromApi(selectedFactoryId)
+      }
+      if(selectedBuildingId) {
+      loadFloorsFromApi(selectedBuildingId)
+      }
+      if(selectedFloorId) {
+      loadLinesFromApi(selectedFloorId)
+      }
+  }, [selectedFactoryId, selectedBuildingId, selectedFloorId])
 
-const handleAddConnection = () => {
-    if (!device?.id) {
-    toast.error("Please save the device before adding connections.")
-    return
-    }
-    setConnectionModalOpen(true)
-}
+  const isReadOnly = mode === "view"
+  const isEdit = mode === "edit"
+  const isAdd = mode === "add"
 
-const handleConnectionSave = async (connectionData: any) => {
-    try {
-        await createDeviceConnection(connectionData)
-        setRefreshKey(prev => prev + 1)
-        if (onDeviceUpdated) {
-            onDeviceUpdated()
-        }
-        toast.success("Connection created successfully!")
-    } catch (error) {
-        console.error("Failed to create connection:", error)
-        throw error
-    }
-}
+  const getModalTitle = () => {
+      switch (mode) {
+      case "add":
+          return t("devices.addDevice") || "Add Device"
+      case "edit":
+          return t("devices.editDevice") || "Edit Device"
+      case "view":
+          return t("devices.viewDevice") || "View Device Details"
+      default:
+          return ""
+      }
+  }
 
-const handleDeleteConnection = async (connectionId: string) => {
-    if (confirm("Are you sure you want to delete this connection?")) {
-    try {
-        await deleteDeviceConnection(connectionId)
-        setRefreshKey(prev => prev + 1)
-        if (onDeviceUpdated) {
-        onDeviceUpdated()
-        }
-        toast.success("Connection deleted successfully!")
-    } catch (error) {
-        console.error("Failed to delete connection:", error)
-        toast.error("Failed to delete connection. Please try again.")
-    }
-    }
-}
+  const getModalDescription = () => {
+      switch (mode) {
+      case "add":
+          return t("devices.addDeviceDescription") || "Add a new device to the system"
+      case "edit":
+          return t("devices.editDeviceDescription") || "Edit device configuration and connection settings"
+      case "view":
+          return t("devices.viewDeviceDescription") || "View device details, connection status, and real-time data"
+      default:
+          return ""
+      }
+  }
+
+  const handleSave = async () => {
+      if (isReadOnly) return
+
+      setLoading(true)
+      console.log(formData)
+      try {
+          await onSave(formData)
+          
+          // Hiển thị toast thành công
+          toast.success("Lưu thiết bị thành công!")
+          
+          onClose()
+      } catch (error) {
+          console.error("Failed to save device:", error)
+          
+          // Hiển thị toast lỗi
+          toast.error("Lưu thiết bị thất bại. Vui lòng thử lại.", { description: (error as any).error || "Có lỗi xảy ra" })
+      } finally {
+          setLoading(false)
+      }
+  }
+
+  const getStatusColor = (status: Device["status"]) => {
+      switch (status) {
+      case "Online":
+          return "bg-gradient-to-r from-green-500 to-green-600 text-white border-0"
+      case "Offline":
+          return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
+      case "Maintenance":
+          return "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0"
+      case "Error":
+          return "bg-gradient-to-r from-red-500 to-red-600 text-white border-0"
+      default:
+          return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
+      }
+  }
+
+  const getTypeColor = (type: Device["type"]) => {
+      const colors = {
+      "Sewing Machine": "from-blue-500 to-blue-600",
+      "Cutting Machine": "from-purple-500 to-purple-600",
+      Press: "from-orange-500 to-orange-600",
+      Conveyor: "from-green-500 to-green-600",
+      Other: "from-gray-500 to-gray-600",
+      }
+      return colors[type] || colors["Other"]
+  }
+
+  const handleAddConnection = () => {
+      if (!device?.id) {
+        toast.error("Please save the device before adding connections.");
+        return;
+      }
+      setConnectionModalMode("add")
+      setEditingConnection(null)
+      setConnectionModalOpen(true)
+  }
+
+  const handleEditConnection = (connection: any) => {
+      setConnectionModalMode("edit")
+      setEditingConnection(connection)
+      setConnectionModalOpen(true)
+  }
+  const handleConnectionSave = async (connectionData: any) => {
+      try {
+          if (connectionModalMode === "edit" && editingConnection) {
+              await updateDeviceConnection(editingConnection.id, connectionData)
+              toast.success("Connection updated successfully!")
+          } else {
+              await createDeviceConnection(connectionData)
+              toast.success("Connection created successfully!")
+          }
+          setRefreshKey(prev => prev + 1)
+          if (onDeviceUpdated) {
+              onDeviceUpdated()
+          }
+      } catch (error) {
+          console.error("Failed to save connection:", error)
+          throw error
+      }
+  }
+
+  const handleDeleteConnection = async (connectionId: string) => {
+      if (confirm("Are you sure you want to delete this connection?")) {
+      try {
+          await deleteDeviceConnection(connectionId)
+          setRefreshKey(prev => prev + 1)
+          if (onDeviceUpdated) {
+              onDeviceUpdated()
+          }
+          toast.success("Connection deleted successfully!")
+      } catch (error) {
+          console.error("Failed to delete connection:", error)
+          toast.error("Failed to delete connection.")
+      }
+      }
+  }
 
 return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -627,7 +679,7 @@ return (
                             </Badge>
                             {mode === "edit" && (
                             <>
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditConnection(connection)}>
                                 <Edit2 className="h-4 w-4" />
                                 </Button>
                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600" onClick={() => handleDeleteConnection(connection.id)}>
@@ -736,97 +788,97 @@ return (
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {device.latestData ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* Power */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Zap className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm font-medium text-gray-600">Power</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.power?.toFixed(2) || '0'} kW
-                    </div>
-                    </div>
-                    
-                    {/* Voltage */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-gray-600">Voltage</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.voltage?.toFixed(1) || '0'} V
-                    </div>
-                    </div>
-                    
-                    {/* Current */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Waves className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-gray-600">Current</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.current?.toFixed(2) || '0'} A
-                    </div>
-                    </div>
-                    
-                    {/* Energy */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Gauge className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-gray-600">Energy</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.energy?.toFixed(2) || '0'} kWh
-                    </div>
-                    </div>
-                    
-                    {/* Frequency */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Activity className="h-4 w-4 text-indigo-600" />
-                        <span className="text-sm font-medium text-gray-600">Frequency</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.frequency?.toFixed(1) || '0'} Hz
-                    </div>
-                    </div>
-                    
-                    {/* Temperature */}
-                    {device.latestData.temperature && (
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                        <div className="flex items-center gap-2 mb-1">
-                        <Thermometer className="h-4 w-4 text-red-600" />
-                        <span className="text-sm font-medium text-gray-600">Temperature</span>
-                        </div>
-                        <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.temperature.toFixed(1)}°C
-                        </div>
-                    </div>
-                    )}
-                    
-                    {/* Humidity */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Activity className="h-4 w-4 text-cyan-600" />
-                        <span className="text-sm font-medium text-gray-600">Humidity</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.humidity?.toFixed(1) || '0'}%
-                    </div>
-                    </div>
-                    
-                    {/* Pressure */}
-                    <div className="bg-white rounded-lg p-3 shadow-sm border">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Gauge className="h-4 w-4 text-orange-600" />
-                        <span className="text-sm font-medium text-gray-600">Pressure</span>
-                    </div>
-                    <div className="text-xl font-bold text-gray-900">
-                        {device.latestData.pressure?.toFixed(2) || '0'} bar
-                    </div>
-                    </div>
+                {device.latestData ? (  // Sử dụng state device.latestData để render
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Power */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Zap className="h-4 w-4 text-yellow-600" />
+                          <span className="text-sm font-medium text-gray-600">Power</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.power?.toFixed(2) || '0'} kW
+                      </div>
+                      </div>
+                      
+                      {/* Voltage */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <TrendingUp className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-gray-600">Voltage</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.voltage?.toFixed(1) || '0'} V
+                      </div>
+                      </div>
+                      
+                      {/* Current */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Waves className="h-4 w-4 text-purple-600" />
+                          <span className="text-sm font-medium text-gray-600">Current</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.current?.toFixed(2) || '0'} A
+                      </div>
+                      </div>
+                      
+                      {/* Energy */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Gauge className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-gray-600">Energy</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.energy?.toFixed(2) || '0'} kWh
+                      </div>
+                      </div>
+                      
+                      {/* Frequency */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Activity className="h-4 w-4 text-indigo-600" />
+                          <span className="text-sm font-medium text-gray-600">Frequency</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.frequency?.toFixed(1) || '0'} Hz
+                      </div>
+                      </div>
+                      
+                      {/* Temperature */}
+                      {device.latestData.temperature && (
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                          <div className="flex items-center gap-2 mb-1">
+                          <Thermometer className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-medium text-gray-600">Temperature</span>
+                          </div>
+                          <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.temperature.toFixed(1)}°C
+                          </div>
+                      </div>
+                      )}
+                      
+                      {/* Humidity */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Activity className="h-4 w-4 text-cyan-600" />
+                          <span className="text-sm font-medium text-gray-600">Humidity</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.humidity?.toFixed(1) || '0'}%
+                      </div>
+                      </div>
+                      
+                      {/* Pressure */}
+                      <div className="bg-white rounded-lg p-3 shadow-sm border">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Gauge className="h-4 w-4 text-orange-600" />
+                          <span className="text-sm font-medium text-gray-600">Pressure</span>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                          {device.latestData.pressure?.toFixed(2) || '0'} bar
+                      </div>
+                      </div>
                 </div>
                 ) : (
                 <div className="bg-white rounded-lg p-6 shadow-sm border text-center">
@@ -894,16 +946,18 @@ return (
         </DialogFooter>
     </DialogContent>
 
-    {/* Connection Modal */}
-    {device?.id && (
-        <ConnectionModal
-        isOpen={connectionModalOpen}
-        onClose={() => setConnectionModalOpen(false)}
-        deviceId={device.id}
-        onSave={handleConnectionSave}
-        language={language}
-        />
-    )}
-    </Dialog>
-)
+      {/* Connection Modal */}
+      {device?.id && (
+          <ConnectionModal
+            isOpen={connectionModalOpen}
+            onClose={() => setConnectionModalOpen(false)}
+            deviceId={device.id}
+            mode={connectionModalMode}
+            connection={editingConnection}
+            onSave={handleConnectionSave}
+            language={language}
+          />
+      )}
+      </Dialog>
+  )
 }

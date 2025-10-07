@@ -1,9 +1,91 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Activity } from "lucide-react"
+import { getAuditLogs, getConnectionLogs } from "@/lib/api"
+import type { AuditLogEntry, ConnectionLogEntry } from "@/lib/types"
+import { Activity, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export default function Logs() {
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
+  const [connectionLogs, setConnectionLogs] = useState<ConnectionLogEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const [auditData, connectionData] = await Promise.all([
+          getAuditLogs(),
+          getConnectionLogs()
+        ])
+        
+        setAuditLogs(auditData)
+        setConnectionLogs(connectionData)
+      } catch (err) {
+        console.error('Error fetching logs:', err)
+        setError('Không thể tải nhật ký hệ thống')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLogs()
+  }, [])
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return date.toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Nhật Ký Hệ Thống
+          </CardTitle>
+          <CardDescription>Đang tải nhật ký hệ thống...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Nhật Ký Hệ Thống
+          </CardTitle>
+          <CardDescription>Có lỗi xảy ra khi tải nhật ký</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-red-500">
+            {error}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -23,21 +105,17 @@ export default function Logs() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between p-2 border-b">
-                    <span>1. admin - 2024-01-15 10:30:00 - LOGIN</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>2. admin - 2024-01-15 10:32:15 - CREATE_DEVICE</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>3. admin - 2024-01-15 10:35:22 - UPDATE_SETTINGS</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>4. supervisor1 - 2024-01-15 10:40:10 - MOVE_DEVICE</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>5. operator1 - 2024-01-15 10:45:33 - VIEW_DASHBOARD</span>
-                  </div>
+                  {auditLogs.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      Chưa có nhật ký kiểm toán nào
+                    </div>
+                  ) : (
+                    auditLogs.map((log, index) => (
+                      <div key={log.id} className="flex justify-between p-2 border-b">
+                        <span>{index + 1}. {log.username} - {formatTimestamp(log.timestamp)} - {log.action}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -49,21 +127,17 @@ export default function Logs() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between p-2 border-b">
-                    <span>1. Device-001 - Connected - 127.0.0.1 - 10:30:00</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>2. Device-002 - Disconnected - 192.168.1.100 - 10:28:15</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>3. Device-003 - Connected - 192.168.1.101 - 10:25:30</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>4. Device-050 - Error - 192.168.1.150 - 10:20:45</span>
-                  </div>
-                  <div className="flex justify-between p-2 border-b">
-                    <span>5. Device-025 - Connected - 192.168.1.125 - 10:15:12</span>
-                  </div>
+                  {connectionLogs.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      Chưa có nhật ký kết nối nào
+                    </div>
+                  ) : (
+                    connectionLogs.map((log, index) => (
+                      <div key={log.id} className="flex justify-between p-2 border-b">
+                        <span>{index + 1}. {log.deviceName} - {log.connectionType} ({log.status}) - {log.ipAddress || 'N/A'} - {formatTimestamp(log.timestamp).split(' ')[1]}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

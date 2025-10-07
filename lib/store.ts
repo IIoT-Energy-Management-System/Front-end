@@ -1,37 +1,27 @@
 import { create } from "zustand"
 import { authService } from "./auth"
-// import { db } from "./database"
 import type { Alert, Device, DeviceData, Factory, SystemSettings, User } from "./types"
-// import { User } from "lucide-react"
+import { UserApiService } from "./api"
 
 interface AppState {
-  // Auth
   user: User | null
   isAuthenticated: boolean
-
-  // Data
   factories: Factory[]
   devices: Device[]
   deviceData: Map<string, DeviceData[]>
   alerts: Alert[]
   settings: SystemSettings | null
-
-  // UI State
   selectedFactory: string | null
   selectedBuilding: string | null
   selectedFloor: string | null
   selectedLine: string | null
   language: "en" | "vi"
-
-  // Loading states
   isLoading: boolean
-
-  isCheckingAuth: boolean // Thêm trạng thái để theo dõi việc kiểm tra xác thực
-  // Actions
+  isCheckingAuth: boolean
   login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>
   logout: () => void
   setUser: (user: User | null) => void
-  checkAuthStatus: () => void
+  checkAuthStatus: () => Promise<void>
   setSelectedFactory: (id: string | null) => void
   setSelectedBuilding: (id: string | null) => void
   setSelectedFloor: (id: string | null) => void
@@ -43,7 +33,6 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  // Initial state
   user: null,
   isAuthenticated: false,
   factories: [],
@@ -59,7 +48,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   isCheckingAuth: true,
 
-  // Actions
   login: async (email: string, password: string, rememberMe: boolean = false) => {
     set({ isLoading: true })
     const result = await authService.login(email, password, rememberMe)
@@ -93,15 +81,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ user, isAuthenticated: !!user })
   },
 
-  checkAuthStatus: () => {
+  checkAuthStatus: async () => {
     set({ isCheckingAuth: true })
-    const currentUser = authService.getCurrentUser()
-    console.log("checkAuthStatus: currentUser =", currentUser)
-    if (currentUser) {
+    const fullUser = await authService.fetchCurrentUser()
+    if (fullUser) {
       set({
-        user: currentUser,
+        user: fullUser,
         isAuthenticated: true,
-        language: currentUser.language,
+        language: fullUser.language || 'vi',
         isCheckingAuth: false,
       })
     } else {
@@ -113,9 +100,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-    setIsCheckingAuth: (checking: boolean) => {
-        set({ isCheckingAuth: checking })
-    },
+  setIsCheckingAuth: (checking: boolean) => {
+    set({ isCheckingAuth: checking })
+  },
 
   setSelectedFactory: (id: string | null) => {
     set({
@@ -145,9 +132,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ selectedLine: id })
   },
 
-  setLanguage: (lang: "en" | "vi") => {
+  setLanguage: async (lang: "en" | "vi") => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("language", lang)
+      try {
+        const user = authService.getCurrentUser()
+        if (!user || !user.id) return
+        await UserApiService.updateUser(user.id, { username: user.username, email: user.email, roleId: user.roleId, language: lang })
+      } catch (error) {
+        console.error("Error saving language to localStorage:", error)
+      }
     }
     set({ language: lang })
   },
@@ -157,7 +150,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newDeviceData = new Map(deviceData)
     const existing = newDeviceData.get(deviceId) || []
     existing.push(data)
-    // Keep only last 100 data points per device
     if (existing.length > 100) {
       existing.splice(0, existing.length - 100)
     }

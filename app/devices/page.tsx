@@ -182,14 +182,14 @@ export default function DevicesPage() {
       try {
         await deleteDevice(deviceId)
         await loadDevicesFromApi() // Reload devices after deleting
-        
+        setCurrentPage(1) // Reset to first page after deletion
         // Hiển thị toast thành công khi xóa
         toast.success("Thiết bị đã được xóa thành công!")
       } catch (error) {
         console.error("Failed to delete device:", error)
         
         // Hiển thị toast lỗi khi xóa thất bại
-        toast.error("Không thể xóa thiết bị. Vui lòng thử lại.")
+        toast.error("Không thể xóa thiết bị. Vui lòng thử lại.",{description: (error as any).error})
       }
     }
   }

@@ -20,6 +20,7 @@ function ResetPasswordForm() {
   const [success, setSuccess] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [expired, setExpired] = useState(false)
 
   const router = useRouter()
   const { t } = useTranslation()
@@ -74,12 +75,39 @@ function ResetPasswordForm() {
         router.push('/login?message=password-reset-success')
       }, 2000)
     } catch (err) {
-      setError("Lỗi mạng. Vui lòng thử lại.")
+    //   setError( "Lỗi không xác định. Vui lòng thử lại.")
+      console.error("Error resetting password:", err)
+      if (err.error && err.error.toLowerCase().includes("expired")) {
+        setError("Reset link has expired. Please request a new password reset.")
+        setExpired(true)
+      } else {
+        setError(err.error ||"Lỗi không xác định. Vui lòng thử lại.")
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleResendEmail = async () => {
+    if (!userId) {
+      setError("Invalid user. Cannot resend email.")
+      return
+    }
+
+    setIsLoading(true)
+    setError("")
+
+    try {
+      await UserApiService.resendEmail(userId)
+      setError("A new password reset email has been sent if the user exists.")
+      setExpired(false)
+    } catch (err) {
+      console.error("Error resending password reset email:", err)
+      setError(err.error || "Lỗi không xác định. Vui lòng thử lại.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -143,6 +171,15 @@ function ResetPasswordForm() {
               />
             </div>
             {error && <div className="text-sm text-red-600 text-center">{error}</div>}
+            {expired ? (
+              <div className="text-sm text-red-600 text-center">
+                Your reset link has expired. Please{" "}
+                <a onClick={handleResendEmail} className="text-blue-600 underline">
+                  request a new password reset
+                </a>
+                .
+              </div>
+            ) : null}
             <Button type="submit" className="w-full" disabled={isLoading || !token || !userId}>
               {isLoading ? "Đang xử lý..." : "Đặt mật khẩu mới"}
             </Button>

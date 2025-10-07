@@ -222,7 +222,7 @@ export interface Alert {
 }
 
 export interface Report {
-    id: string
+    id?: string
     name: string
     type: "Daily" | "Weekly" | "Monthly" | "Custom"
     factoryIds: string[]
@@ -231,9 +231,9 @@ export interface Report {
     lineIds: string[]
     deviceIds: string[]
     dateRange: { start: string; end: string }
-    generatedAt: string
+    generatedAt?: string
     generatedBy: string
-    data: any
+    data?: any
 }
 
 export interface SystemSettings {
@@ -416,4 +416,61 @@ export interface Role {
 export interface ApiPermission {
     key: string;
     name: string;
+}
+
+export interface SmtpConfig {
+    host: string
+    port: number
+    username: string
+    password: string
+    secure: boolean
+}
+
+export interface DbConfig {
+    mode: "simulation" | "mysql" | "mssql" | "postgresql"
+    host?: string
+    port?: number
+    database?: string
+    username?: string
+    password?: string
+}
+
+export interface Shift {
+    id?: string
+    name: string
+    startTime: string
+    endTime: string
+    order: number
+}
+
+export interface EnergyTariff {
+    flatRate?: number
+    timeOfUse?: Array<{
+        startTime: string
+        endTime: string
+        rate: number
+    }>
+}
+
+export interface AuditLogEntry {
+    id: string
+    userId: string
+    username: string
+    action: string
+    resource?: string
+    timestamp: string
+    ipAddress?: string
+    userAgent?: string
+    details?: string
+}
+
+export interface ConnectionLogEntry {
+    id: string
+    deviceId: string
+    deviceName: string
+    connectionType: string
+    status: string
+    ipAddress?: string
+    timestamp: string
+    duration?: number
 }

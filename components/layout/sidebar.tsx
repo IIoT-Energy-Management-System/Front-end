@@ -89,7 +89,7 @@ export function Sidebar() {
         <div className="text-sm font-medium">{user?.username}</div>
         <div className="text-xs text-muted-foreground">{user?.role}</div>
         {/* <div><PermissionGuard permission="user.view"><Button variant="ghost" size="sm" onClick={() => handleEdit(user.id, user.name, "người dùng")}>Edit</Button></PermissionGuard></div> */}
-        <div className="text-xs text-muted-foreground">{user?.permissions?.join("| |")}</div>
+        {/* <div className="text-xs text-muted-foreground">{user?.permissions?.join("| |")}</div> */}
       </div>
 
       {/* Language Selector */}

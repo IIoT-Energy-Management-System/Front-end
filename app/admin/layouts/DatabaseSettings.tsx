@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from 'sonner';
 import { Database } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { DbConfigApiService } from "@/lib/api"
 
 export default function DatabaseSettings() {
   const [databaseSettings, setDatabaseSettings] = useState({
@@ -17,9 +19,101 @@ export default function DatabaseSettings() {
     username: "",
     password: "",
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+
+  // Load current config on component mount
+  useEffect(() => {
+    loadDatabaseConfig()
+  }, [])
+
+  const loadDatabaseConfig = async () => {
+    try {
+      const response = await DbConfigApiService.getDbConfig()
+      console.log('Loaded DB config:', response)
+      setDatabaseSettings({
+        mode: response.mode || "simulation",
+        host: response.host || "",
+        port: response.port || 3306,
+        database: response.database || "",
+        username: response.username || "",
+        password: "", // Don't load password for security
+          })
+    } catch (error) {
+      console.error('Failed to load database config:', error)
+      toast.error("Không thể tải cấu hình cơ sở dữ liệu")
+    }
+  }
+
+  const handleModeChange = (value: typeof databaseSettings.mode) => {
+    const defaultPorts = {
+      simulation: 0,
+      mysql: 3306,
+      mssql: 1433,
+      postgresql: 5432,
+    }
+    
+    setDatabaseSettings({ 
+      ...databaseSettings, 
+      mode: value,
+      port: defaultPorts[value]
+    })
+  }
 
   const handleTestDatabaseConnection = async () => {
-    alert("Database connection test successful!")
+    setIsTesting(true)
+    try {
+      const testData = {
+        mode: databaseSettings.mode,
+        host: databaseSettings.host,
+        port: databaseSettings.port,
+        database: databaseSettings.database,
+        username: databaseSettings.username,
+        password: databaseSettings.password,
+      }
+
+      const response = await DbConfigApiService.testDbConnection(testData)
+      console.log('Test DB connection result:', response)
+
+      if (response.success === true) {
+        toast.success("Kết nối cơ sở dữ liệu thành công!")
+        console.log('Database connection test succeeded')
+      } else {
+        toast.error(response.error || "Không thể kết nối đến cơ sở dữ liệu")
+      }
+    } catch (error) {
+      console.error('Database test error:', error)
+      toast.error("Có lỗi xảy ra khi kiểm tra kết nối", {description: (error as any).error,})
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const handleSaveDatabaseConfig = async () => {
+    setIsLoading(true)
+    try {
+      const configData = {
+        mode: databaseSettings.mode,
+        host: databaseSettings.host,
+        port: databaseSettings.port,
+        database: databaseSettings.database,
+        username: databaseSettings.username,
+        password: databaseSettings.password,
+      }
+
+      const response = await DbConfigApiService.updateDbConfig(configData)
+
+      if (response.ok) {
+        toast.success("Cấu hình cơ sở dữ liệu đã được lưu!")
+      } else {
+        toast.error(response.error || "Không thể lưu cấu hình cơ sở dữ liệu")
+      }
+    } catch (error) {
+      console.error('Save config error:', error)
+      toast.error("Có lỗi xảy ra khi lưu cấu hình")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -36,9 +130,7 @@ export default function DatabaseSettings() {
           <Label htmlFor="databaseMode">Chế Độ Cơ Sở Dữ Liệu</Label>
           <Select
             value={databaseSettings.mode}
-            onValueChange={(value: typeof databaseSettings.mode) =>
-              setDatabaseSettings({ ...databaseSettings, mode: value })
-            }
+            onValueChange={handleModeChange}
           >
             <SelectTrigger>
               <SelectValue />
@@ -103,8 +195,19 @@ export default function DatabaseSettings() {
         )}
 
         <div className="flex gap-4">
-          <Button onClick={handleTestDatabaseConnection}>Kiểm Tra Kết Nối</Button>
-          <Button variant="outline">Lưu Cấu Hình</Button>
+          <Button 
+            onClick={handleTestDatabaseConnection} 
+            disabled={isTesting || databaseSettings.mode === "simulation"}
+          >
+            {isTesting ? "Đang kiểm tra..." : "Kiểm Tra Kết Nối"}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleSaveDatabaseConfig}
+            disabled={isLoading}
+          >
+            {isLoading ? "Đang lưu..." : "Lưu Cấu Hình"}
+          </Button>
         </div>
       </CardContent>
     </Card>

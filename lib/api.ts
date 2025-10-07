@@ -1,4 +1,4 @@
-import type { Alert, AnalyticsData, ApiPermission, Building, DashboardStats, Device, Factory, Floor, Line, RankingData, ReportData, Role, User } from './types';
+import type { Alert, AnalyticsData, ApiPermission, AuditLogEntry, Building, ConnectionLog, ConnectionLogEntry, DashboardStats, DbConfig, Device, Factory, Floor, Line, RankingData, Report, ReportData, Role, Shift, SmtpConfig, User } from './types';
 
 const API_BASE_URL = 'http://localhost:5000'
 
@@ -39,7 +39,14 @@ async function authenticatedFetch(url: string, options: RequestInit = {}): Promi
     }
   }
   
-  let response = await fetch(url, finalOptions)
+  let response: Response
+  try {
+    response = await fetch(url, finalOptions)
+  } catch (networkError) {
+    // Tắt console.log cho network errors, chỉ throw error
+    const errorMessage = networkError instanceof Error ? networkError.message : 'Unknown network error'
+    throw new Error(`Network error: ${errorMessage}`)
+  }
   
   // Nếu 403 (token expired) và chưa thử refresh, thử refresh token và retry
   if (response.status === 403 && !(finalOptions.headers as any)?.['X-Retry']) {
@@ -133,7 +140,6 @@ async function setPermissionsFromToken(token: string): Promise<void> {
     const { authService } = await import('./auth')
     authService.setPermissionsFromToken(token)
     
-    console.log('Updated permissions from token')
   } catch (error) {
     console.error('Failed to set permissions from token:', error)
   }
@@ -217,15 +223,13 @@ export class DeviceApiService {
   }
 
   // DELETE /api/devices/:id - Xóa thiết bị
-  static async deleteDevice(id: string): Promise<void> {
+  static async deleteDevice(id: string): Promise<Device> {
     const response = await authenticatedFetch(`${API_BASE_URL}/api/devices/${id}`, {
       method: 'DELETE',
     })
     
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Delete failed: ${errorText}`)
-    }
+    const result = await handleResponse<{ success: boolean; data: Device }>(response)
+    return result.data
   }
 
   // PUT /api/devices/:id/status - Cập nhật trạng thái thiết bị
@@ -732,7 +736,19 @@ export class UserApiService {
         newPassword: password,
       }),
     })
-    const result = await handleResponse<{ success: boolean; data: User[] }>(response)
+    const result = await handleResponse<{ success: boolean; data: any }>(response)
+    return result.data
+  }
+
+  static async resendEmail(userId: string): Promise<User[]> {
+    const response = await fetch(`${API_BASE_URL}/api/users/resend-reset-email`, {
+      method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+    })
+    const result = await handleResponse<{ success: boolean; data: any }>(response)
     return result.data
   }
 
@@ -855,6 +871,130 @@ export class PermissionApiService {
         // return result.data
     }
 }
+
+export class DbConfigApiService {
+    // GET /api/db-config - Lấy cấu hình database
+    static async getDbConfig(): Promise<DbConfig> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/db-config/config`);
+        const result = await handleResponse<{ success: boolean; data: DbConfig }>(response);
+        return result.data;
+    }
+
+    // PUT /api/db-config - Cập nhật cấu hình database
+    static async updateDbConfig(dbConfig: DbConfig): Promise<any> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/db-config/config`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dbConfig),
+        });
+
+        const result = await handleResponse<{ success: boolean; data: DbConfig }>(response);
+        return result.data;
+    }
+
+    static async testDbConnection(dbConfig: DbConfig): Promise<any> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/db-config/test-temp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dbConfig),
+        });
+
+        const result = await handleResponse<{ success: boolean; data: DbConfig }>(response);
+        return result.data;
+    }
+}
+
+export class SmtpConfigApiService {
+    // GET /api/smtp-config - Lấy cấu hình SMTP
+    static async getSmtpConfig(): Promise<SmtpConfig> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/smtp-config/config`);
+        const result = await handleResponse<{ success: boolean; data: SmtpConfig }>(response);
+        return result.data;
+    }
+
+    // PUT /api/smtp-config - Cập nhật cấu hình SMTP
+    static async updateSmtpConfig(smtpConfig: SmtpConfig): Promise<any> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/smtp-config/config`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(smtpConfig),
+        });
+
+        const result = await handleResponse<{ success: boolean; data: SmtpConfig }>(response);
+        return result.data;
+    }
+
+    static async testSmtpConnection(smtpConfig: SmtpConfig): Promise<any> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/smtp-config/test-temp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(smtpConfig),
+        });
+
+        const result = await handleResponse<{ success: boolean; data: SmtpConfig }>(response);
+        return result.data;
+    }
+}
+
+export class ShiftApiService {
+    // GET /api/shifts - Lấy danh sách ca làm việc
+    static async getShifts(): Promise<Shift[]> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/shifts`);
+        const result = await handleResponse<{ success: boolean; data: Shift[] }>(response);
+        return result.data;
+    }
+
+    // POST /api/shifts/save - Thay thế tất cả ca làm việc
+    static async saveShifts(shifts: Shift[]): Promise<Shift[]> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/shifts/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ shifts }),
+        });
+        const result = await handleResponse<{ success: boolean; data: Shift[] }>(response);
+        return result.data;
+    }
+}
+
+export class ReportApiService {
+    // GET /api/reports - Lấy danh sách báo cáo
+    static async getReports(): Promise<Report[]> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/reports`);
+        const result = await handleResponse<{ success: boolean; data: Report[] }>(response);
+        return result.data;
+    }
+
+    // POST /api/reports - Tạo báo cáo mới
+    static async createReport(reportData: Report): Promise<Report> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/reports`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(reportData),
+        });
+
+        const result = await handleResponse<{ success: boolean; data: Report }>(response);
+        return result.data;
+    }
+
+    // GET /api/reports/export/:id?format= - Xuất báo cáo
+    static async exportReport(id: string, format: 'pdf' | 'excel'): Promise<Blob> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/reports/export/${id}?format=${format}`);
+        return response.blob();
+    }
+}
+
 // Hook để sử dụng trong React components
 export function useDeviceApi() {
   return {
@@ -968,6 +1108,36 @@ export function usePermissionApi() {
     }
 }
 
+export function useDbConfigApi() {
+    return {
+        getDbConfig: DbConfigApiService.getDbConfig,
+        updateDbConfig: DbConfigApiService.updateDbConfig,
+        testDbConnection: DbConfigApiService.testDbConnection,
+    }
+}
+
+export function useSmtpConfigApi() {
+    return {
+        getSmtpConfig: SmtpConfigApiService.getSmtpConfig,
+        updateSmtpConfig: SmtpConfigApiService.updateSmtpConfig,
+        testSmtpConnection: SmtpConfigApiService.testSmtpConnection,
+    }
+}
+
+export function useShiftApi() {
+    return {
+        getShifts: ShiftApiService.getShifts,
+        saveShifts: ShiftApiService.saveShifts,
+    }
+}
+
+export function useReportApi() {
+    return {
+        getReports: ReportApiService.getReports,
+        createReport: ReportApiService.createReport,
+        exportReport: ReportApiService.exportReport,
+    }
+}
 // Utility functions for error handling
 export function isAuthenticationError(error: any): boolean {
   return error && (
@@ -978,6 +1148,26 @@ export function isAuthenticationError(error: any): boolean {
     error.status === 401 ||
     error.status === 403
   )
+}
+
+export async function getAuditLogs(): Promise<AuditLogEntry[]> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/audit`)
+    const result = await handleResponse<{ success: boolean; data: AuditLogEntry[] }>(response);
+        return result.data;
+  } catch (error) {
+    throw error
+  }
+}
+
+export async function getConnectionLogs(): Promise<ConnectionLogEntry[]> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/connection`)
+    const result = await handleResponse<{ success: boolean; data: ConnectionLog[] }>(response);
+        return result.data;
+  } catch (error) {
+    throw error
+  }
 }
 
 export function handleApiError(error: any, defaultMessage: string = 'Có lỗi xảy ra'): string {

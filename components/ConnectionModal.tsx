@@ -26,6 +26,8 @@ interface ConnectionModalProps {
   isOpen: boolean
   onClose: () => void
   deviceId: string
+  mode: "add" | "edit"
+  connection?: any // Connection object for edit mode
   onSave: (connectionData: any) => Promise<void>
   language: "vi" | "en"
 }
@@ -45,6 +47,8 @@ export default function ConnectionModal({
   isOpen,
   onClose,
   deviceId,
+  mode,
+  connection,
   onSave,
   language
 }: ConnectionModalProps) {
@@ -59,19 +63,44 @@ export default function ConnectionModal({
     healthStatus: "Disconnected"
   })
 
-  // Reset form when modal opens
+  // Reset form when modal opens or mode/connection changes
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        deviceId,
-        type: "MQTT",
-        config: getDefaultConfig("MQTT"),
-        priority: 1,
-        isActive: true,
-        healthStatus: "Disconnected"
-      })
+      if (mode === "edit" && connection) {
+        // Load existing connection data
+        let parsedConfig = {}
+        try {
+          // Check if config is already an object or needs parsing
+          if (typeof connection.config === 'string') {
+            parsedConfig = connection.config ? JSON.parse(connection.config) : {}
+          } else if (typeof connection.config === 'object' && connection.config !== null) {
+            parsedConfig = connection.config
+          }
+        } catch (error) {
+          console.warn('Error parsing connection config:', error)
+        }
+        
+        setFormData({
+          deviceId,
+          type: connection.type,
+          config: parsedConfig,
+          priority: connection.priority || 1,
+          isActive: connection.isActive || false,
+          healthStatus: connection.healthStatus || "Disconnected"
+        })
+      } else {
+        // Reset for add mode
+        setFormData({
+          deviceId,
+          type: "MQTT",
+          config: getDefaultConfig("MQTT"),
+          priority: 1,
+          isActive: true,
+          healthStatus: "Disconnected"
+        })
+      }
     }
-  }, [isOpen, deviceId])
+  }, [isOpen, deviceId, mode, connection])
 
   const getDefaultConfig = (type: ConnectionType) => {
     switch (type) {
@@ -129,12 +158,18 @@ export default function ConnectionModal({
   const handleSave = async () => {
     setLoading(true)
     try {
-      await onSave(formData)
-      toast.success(`Connection "${formData.type}" has been added successfully!`)
+      const connectionData = {
+        ...formData,
+        ...(mode === "edit" && connection ? { id: connection.id } : {})
+      }
+      await onSave(connectionData)
+      toast.success(mode === "edit" ? `Connection "${formData.type}" has been updated successfully!` : `Connection "${formData.type}" has been added successfully!`)
       onClose()
     } catch (error) {
       console.error("Failed to save connection:", error)
-      toast.error("Failed to add connection. Please try again.")
+      toast.error("Failed to save connection. Please try again.", {
+        description: (error as any).error || (error as any).message,
+      })
     } finally {
       setLoading(false)
     }
@@ -347,10 +382,13 @@ export default function ConnectionModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <Wifi className="h-6 w-6 text-blue-600" />
-            Add Device Connection
+            {mode === "edit" ? "Edit Device Connection" : "Add Device Connection"}
           </DialogTitle>
           <DialogDescription>
-            Configure a new connection for device {deviceId} to start collecting real-time data.
+            {mode === "edit" 
+              ? `Modify connection settings for device ${deviceId}.`
+              : `Configure a new connection for device ${deviceId} to start collecting real-time data.`
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -479,7 +517,7 @@ export default function ConnectionModal({
             disabled={loading}
             className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-blue-600 hover:to-green-700"
           >
-            {loading ? "Adding..." : "Add Connection"}
+            {loading ? (mode === "edit" ? "Updating..." : "Adding...") : (mode === "edit" ? "Update Connection" : "Add Connection")}
           </Button>
         </DialogFooter>
       </DialogContent>

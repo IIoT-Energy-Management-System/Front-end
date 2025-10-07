@@ -74,6 +74,9 @@ export const translations = {
     "devices.deviceId": "Device ID",
     "devices.createdAt": "Created At",
     "devices.noPermissionToAdd": "No permission to add devices",
+    "devices.addConnection": "Add Connection",
+    "devices.noConnections": "No connections added yet",
+    "devices.addConnectionDescription": "Add a new connection to the device. Connections can be Modbus TCP, OPC UA, MQTT, etc. The device will start transmitting data automatically once the connection is established and configured correctly.",
 
     // Layouts
     "layouts.title": "Layout Management",
@@ -232,6 +235,10 @@ export const translations = {
   "filters.allBuildings": "All buildings",
   "filters.selectFloor": "Select floor",
   "filters.allFloors": "All floors",
+    "filters.selectLine": "Select line",
+    "filters.allLines": "All lines",
+
+
 
     // Reports
     "reports.title": "Reports",
@@ -350,6 +357,10 @@ export const translations = {
     "devices.deviceId": "ID thiết bị",
     "devices.createdAt": "Ngày tạo",
     "devices.noPermissionToAdd": "Không có quyền thêm thiết bị",
+    "devices.addConnection": "Thêm kết nối",
+    "devices.noConnections": "Chưa có kết nối nào được thêm",
+    "devices.addConnectionDescription": "Thêm kết nối mới cho thiết bị. Kết nối có thể là Modbus TCP, OPC UA, MQTT, v.v. Thiết bị sẽ bắt đầu truyền dữ liệu tự động sau khi kết nối được thiết lập và cấu hình đúng.",
+
 
     // Layouts
     "layouts.title": "Quản lý bố cục",
@@ -512,6 +523,9 @@ export const translations = {
   "filters.allBuildings": "Tất cả tòa nhà",
   "filters.selectFloor": "Chọn tầng",
   "filters.allFloors": "Tất cả tầng",
+    "filters.selectLine": "Chọn dây chuyền",
+    "filters.allLines": "Tất cả dây chuyền",
+
 
     // Reports
     "reports.title": "Báo cáo",

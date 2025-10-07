@@ -19,72 +19,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { FactoryApiService, BuildingApiService, DeviceApiService, ReportApiService } from "@/lib/api"
+import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
-import { useAppStore } from "@/lib/store"
-import type { Report } from "@/lib/types"
+import type { Building, Device, Factory, Report } from "@/lib/types"
 import { Download, FileText, Plus, Search } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 export default function ReportsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [reports, setReports] = useState<Report[]>([
-    {
-      id: "report-1",
-      name: "Daily Energy Report - Production Building A",
-      type: "Daily",
-      factoryIds: ["factory-1"],
-      buildingIds: ["building-1"],
-      floorIds: [],
-      lineIds: [],
-      deviceIds: [],
-      dateRange: {
-        start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        end: new Date().toISOString(),
-      },
-      generatedAt: new Date().toISOString(),
-      generatedBy: "admin",
-      data: {
-        summary: {
-          totalEnergyConsumption: 1250.5,
-          averagePowerFactor: 0.892,
-          peakDemand: 85.2,
-          totalCost: 150.06,
-          uptimePercentage: 94.2,
-        },
-        devices: 25,
-        alerts: 3,
-        efficiency: 89.5,
-      },
-    },
-    {
-      id: "report-2",
-      name: "Weekly Performance Summary",
-      type: "Weekly",
-      factoryIds: ["factory-1"],
-      buildingIds: [],
-      floorIds: [],
-      lineIds: [],
-      deviceIds: [],
-      dateRange: {
-        start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        end: new Date().toISOString(),
-      },
-      generatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      generatedBy: "admin",
-      data: {
-        summary: {
-          totalEnergyConsumption: 8750.3,
-          averagePowerFactor: 0.885,
-          peakDemand: 92.1,
-          totalCost: 1050.04,
-          uptimePercentage: 91.8,
-        },
-        devices: 25,
-        alerts: 12,
-        efficiency: 87.2,
-      },
-    },
-  ])
+  const [reports, setReports] = useState<Report[]>([])
+  const [loading, setLoading] = useState(true)
+  const [factories, setFactories] = useState<Factory[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
+  const [devices, setDevices] = useState<Device[]>([])
 
   const [newReport, setNewReport] = useState({
     name: "",
@@ -103,32 +52,78 @@ export default function ReportsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
 
-  const { factories, devices, language } = useAppStore()
+//   const { factories, devices, language } = useAppStore()
   const { t } = useTranslation()
   const itemsPerPage = 10
 
-  const handleCreateReport = () => {
-    const report: Report = {
-      id: `report-${Date.now()}`,
-      name: newReport.name,
-      type: newReport.type,
-      factoryIds: newReport.factoryIds,
-      buildingIds: newReport.buildingIds,
-      floorIds: newReport.floorIds,
-      lineIds: newReport.lineIds,
-      deviceIds: newReport.deviceIds,
-      dateRange: {
-        start: new Date(newReport.dateRange.start).toISOString(),
-        end: new Date(newReport.dateRange.end).toISOString(),
-      },
-      generatedAt: new Date().toISOString(),
-      generatedBy: "admin",
-      data: generateReportData(),
+  // Fetch reports, factories, and devices on mount
+  const fetchReports = async () => {
+    try {
+        setLoading(true)
+        const reportsRes = await ReportApiService.getReports()
+        setReports(reportsRes)
+    } catch (err) {
+        toast.error('Network error while fetching reports')
+        console.error('Error fetching reports:', err)
+    } finally {
+        setLoading(false)
     }
+  }
 
-    setReports([report, ...reports])
-    setIsCreateDialogOpen(false)
-    resetNewReport()
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [factoriesRes, buildingsRes, devicesRes] = await Promise.all([
+            FactoryApiService.getFactories(),
+            BuildingApiService.getBuildings(),
+            DeviceApiService.getDevices(),
+        ])
+        setFactories(factoriesRes)
+        setBuildings(buildingsRes)
+        setDevices(devicesRes)
+      } catch (err) {
+        toast.error('Network error while fetching data')
+        console.error('Error fetching data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchReports()
+    fetchData()
+  }, [])
+
+  const handleCreateReport = async () => {
+    const user = authService.getCurrentUser()
+    try {
+      const reportPayload = {
+        name: newReport.name,
+        type: newReport.type,
+        factoryIds: newReport.factoryIds,
+        buildingIds: newReport.buildingIds,
+        floorIds: newReport.floorIds,
+        lineIds: newReport.lineIds,
+        deviceIds: newReport.deviceIds,
+        dateRange: {
+          start: new Date(newReport.dateRange.start).toISOString(),
+          end: new Date(newReport.dateRange.end).toISOString(),
+        },
+        generatedBy: user?.id ?? ""
+      }
+
+      await ReportApiService.createReport(reportPayload)
+      fetchReports()
+      setIsCreateDialogOpen(false)
+      resetNewReport()
+      toast.success('Report created successfully')
+    } catch (err) {
+      toast.error('Network error while creating report')
+      console.error('Error creating report:', err)
+    }
+  }
+
+  const handleOpenCreateDialog = () => {
+    setIsCreateDialogOpen(true)
   }
 
   const resetNewReport = () => {
@@ -145,25 +140,6 @@ export default function ReportsPage() {
         end: new Date().toISOString().split("T")[0],
       },
     })
-  }
-
-  const generateReportData = () => {
-    const deviceCount = newReport.deviceIds.length || getFilteredDevices().length
-    const energyPerDevice = 50 + Math.random() * 100
-    const totalEnergy = deviceCount * energyPerDevice
-
-    return {
-      summary: {
-        totalEnergyConsumption: totalEnergy,
-        averagePowerFactor: 0.85 + Math.random() * 0.1,
-        peakDemand: 70 + Math.random() * 30,
-        totalCost: totalEnergy * 0.12,
-        uptimePercentage: 90 + Math.random() * 8,
-      },
-      devices: deviceCount,
-      alerts: Math.floor(Math.random() * 10),
-      efficiency: 85 + Math.random() * 10,
-    }
   }
 
   const getFilteredDevices = () => {
@@ -183,16 +159,23 @@ export default function ReportsPage() {
     return filtered
   }
 
-  const downloadReport = (report: Report, format: "pdf" | "excel") => {
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${report.name}.${format === "pdf" ? "pdf" : "xlsx"}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const downloadReport = async (report: Report, format: "pdf" | "excel") => {
+    try {
+      const response = await ReportApiService.exportReport(report?.id ?? "", format)
+      const blob = new Blob([response], { type: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `${report.name.replace(/\s+/g, "_")}.${format === "pdf" ? "pdf" : "xlsx"}`)
+      document.body.appendChild(link)
+      link.click()
+      link.parentNode?.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      toast.success('Report downloaded successfully')
+    } catch (err) {
+      toast.error('Network error while downloading report')
+      console.error('Error downloading report:', err)
+    }
   }
 
   const getReportTypeColor = (type: Report["type"]) => {
@@ -225,15 +208,13 @@ export default function ReportsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Báo Cáo</h1>
             <p className="text-gray-600">Tạo và quản lý báo cáo tiêu thụ năng lượng</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
                 <PermissionGuard permission="report.generate">
-                    <Button>
+                    <Button onClick={handleOpenCreateDialog}>
                         <Plus className="h-4 w-4 mr-2" />
                         Tạo Báo Cáo
                     </Button>
                 </PermissionGuard>
-            </DialogTrigger>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Tạo Báo Cáo Mới</DialogTitle>
@@ -319,6 +300,10 @@ export default function ReportsPage() {
                               setNewReport((prev) => ({
                                 ...prev,
                                 factoryIds: prev.factoryIds.filter((id) => id !== factory.id),
+                                buildingIds: prev.buildingIds.filter((id) => {
+                                    const building = buildings.find((b) => b.id === id)
+                                    return building?.factoryId !== factory.id
+                                }),
                               }))
                             }
                           }}
@@ -336,9 +321,8 @@ export default function ReportsPage() {
                   <div className="space-y-2">
                     <Label>Chọn Tòa Nhà (Tùy Chọn)</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      {factories
-                        .filter((f) => newReport.factoryIds.includes(f.id))
-                        .flatMap((f) => f.buildings)
+                      {buildings
+                        .filter((building) => newReport.factoryIds.includes(building.factoryId))
                         .map((building) => (
                           <div key={building.id} className="flex items-center space-x-2">
                             <Checkbox
@@ -408,51 +392,56 @@ export default function ReportsPage() {
               Báo Cáo Đã Tạo
             </CardTitle>
             <CardDescription>
-              Hiển thị {startIndex + 1} đến {Math.min(startIndex + itemsPerPage, filteredReports.length)} trong{" "}
-              {filteredReports.length} báo cáo
+              {loading ? 'Đang tải...' : `Hiển thị ${startIndex + 1} đến ${Math.min(startIndex + itemsPerPage, filteredReports.length)} trong ${filteredReports.length} báo cáo`}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên Báo Cáo</TableHead>
-                  <TableHead>Loại</TableHead>
-                  <TableHead>Khoảng Thời Gian</TableHead>
-                  <TableHead>Được Tạo</TableHead>
-                  <TableHead>Thiết Bị</TableHead>
-                  <TableHead>Hành Động</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedReports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="font-medium">{report.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={getReportTypeColor(report.type)}>{report.type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(report.dateRange.start).toLocaleDateString()} -{" "}
-                      {new Date(report.dateRange.end).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{new Date(report.generatedAt).toLocaleString()}</TableCell>
-                    <TableCell>{report.data?.devices || 0}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => downloadReport(report, "pdf")}>
-                          <Download className="h-4 w-4 mr-1" />
-                          PDF
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => downloadReport(report, "excel")}>
-                          <Download className="h-4 w-4 mr-1" />
-                          Excel
-                        </Button>
-                      </div>
-                    </TableCell>
+            {loading ? (
+              <div className="p-8 text-center">Đang tải báo cáo...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên Báo Cáo</TableHead>
+                    <TableHead>Loại</TableHead>
+                    <TableHead>Khoảng Thời Gian</TableHead>
+                    <TableHead>Ngày Tạo</TableHead>
+                    <TableHead>Được Tạo Bởi</TableHead>
+                    <TableHead>Thiết Bị</TableHead>
+                    <TableHead>Hành Động</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedReports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="font-medium">{report.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={getReportTypeColor(report.type)}>{report.type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {report.dateRange?.start ? new Date(report.dateRange.start).toLocaleDateString() : 'N/A'} -{' '}
+                        {report.dateRange?.end ? new Date(report.dateRange.end).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>{report?.generatedAt ? new Date(report?.generatedAt).toLocaleString() : 'N/A'}</TableCell>
+                        <TableCell>{report?.generatedBy || 'N/A'}</TableCell>
+                      <TableCell>{report.data?.devices || 0}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => downloadReport(report, "pdf")}>
+                            <Download className="h-4 w-4 mr-1" />
+                            PDF
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => downloadReport(report, "excel")}>
+                            <Download className="h-4 w-4 mr-1" />
+                            Excel
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

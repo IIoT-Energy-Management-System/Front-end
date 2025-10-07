@@ -108,17 +108,6 @@ function LoginForm() {
                 disabled={isLoading}
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="rememberMe"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked === true)}
-                disabled={isLoading}
-              />
-              <Label htmlFor="rememberMe" className="text-sm font-normal">
-                Ghi nhớ đăng nhập
-              </Label>
-            </div>
             {successMessage && <div className="text-sm text-green-600 text-center bg-green-50 p-2 rounded">{successMessage}</div>}
             {error && <div className="text-sm text-red-600 text-center">{error}</div>}
             <Button type="submit" className="w-full" disabled={isLoading}>

@@ -55,7 +55,7 @@ export default function UserDialogModal({
   const [lines, setLines] = useState<Line[]>([]);
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [errors, setErrors] = useState<{ username?: string; email?: string; factoryAccess?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; email?: string;}>({});
   
   useEffect(() => {
     if ((mode === "edit" || mode === "view") && user) {
@@ -105,93 +105,176 @@ export default function UserDialogModal({
     fetchData();
   }, []);
 
-  useEffect(() => {
-  const fetchBuildings = async () => {
-    try {
-      let buildingList: Building[] = [];
-      if (userData.factoryAccess.length > 0) {
-        // Lấy buildings thuộc factories đã chọn
-        const promises = userData.factoryAccess.map((factoryId) =>
-          BuildingApiService.getBuildingsByFactory(factoryId)
-        );
-        const results = await Promise.all(promises);
-        buildingList = Array.from(
-          new Map(
-            results.flat().map((building) => [building.id, building])
-          ).values()
-        );
-        // Chỉ cập nhật buildingAccess nếu chưa có building nào được chọn
-        setUserData((prev) => ({
-          ...prev,
-          buildingAccess: prev.buildingAccess.filter((id) =>
-                  buildingList.some((b) => b.id === id)
-                ), // Giữ lại các building hợp lệ
-        }));
-      }
-      console.log("Fetched buildings:", buildingList);
-      console.log("Current buildingAccess:", userData.buildingAccess);
-      console.log("Current factoryAccess:", userData.factoryAccess);
-      setBuildings(buildingList);
-    } catch (error) {
-      console.error("Failed to load buildings:", error);
-    }
-  };
-
-  fetchBuildings();
-}, [userData.factoryAccess]);
-
-  useEffect(() => {
-    const fetchFloorsAndLines = async () => {
-      if (userData.buildingAccess.length > 0) {
+    useEffect(() => {
+    const fetchBuildings = async () => {
         try {
-          // Load floors thuộc buildings đã chọn
-          const floorPromises = userData.buildingAccess.map(buildingId => 
-            FloorApiService.getFloorsByBuilding(buildingId)
-          );
-          const floorResults = await Promise.all(floorPromises);
-          const allFloors = Array.from(
-            new Map(floorResults.flat().map(floor => [floor.id, floor])).values()
-          );
-          setFloors(allFloors);
-
-          // Load lines thuộc floors đã chọn
-          const linePromises = userData.floorAccess.map(floorId =>
-            LineApiService.getLinesByFloor(floorId)
-          );
-          const lineResults = await Promise.all(linePromises);
-          const allLines = Array.from(
-            new Map(lineResults.flat().map(line => [line.id, line])).values()
-          );
-          setLines(allLines);
-
-          // Auto-populate nếu không phải advanced mode
-          if (!isAdvancedMode) {
-            setUserData(prev => ({
-              ...prev,
-              floorAccess: allFloors.map(f => f.id),
-              lineAccess: allLines.map(l => l.id)
+        let buildingList: Building[] = [];
+        if (userData.factoryAccess.length > 0) {
+            // Lấy buildings thuộc factories đã chọn
+            const promises = userData.factoryAccess.map((factoryId) =>
+            BuildingApiService.getBuildingsByFactory(factoryId)
+            );
+            const results = await Promise.all(promises);
+            buildingList = Array.from(
+            new Map(
+                results.flat().map((building) => [building.id, building])
+            ).values()
+            );
+            // Chỉ cập nhật buildingAccess nếu chưa có building nào được chọn
+            setUserData((prev) => ({
+            ...prev,
+            buildingAccess: prev.buildingAccess.filter((id) =>
+                    buildingList.some((b) => b.id === id)
+                    ), // Giữ lại các building hợp lệ
             }));
-          }
-        } catch (error) {
-          console.error("Failed to load floors and lines:", error);
         }
-      } else {
-        setFloors([]);
-        setLines([]);
-        setUserData(prev => ({
-          ...prev,
-          floorAccess: [],
-          lineAccess: []
-        }));
-      }
+        //   console.log("Fetched buildings:", buildingList);
+        //   console.log("Current buildingAccess:", userData.buildingAccess);
+        //   console.log("Current factoryAccess:", userData.factoryAccess);
+        setBuildings(buildingList);
+        } catch (error) {
+        console.error("Failed to load buildings:", error);
+        }
     };
 
-    fetchFloorsAndLines();
-  }, [userData.buildingAccess, isAdvancedMode]);
+    fetchBuildings();
+}, [userData.factoryAccess]);
+
+//   useEffect(() => {
+//     const fetchFloorsAndLines = async () => {
+//       if (userData.buildingAccess.length > 0) {
+//         try {
+//           // Load floors thuộc buildings đã chọn
+//           const floorPromises = userData.buildingAccess.map(buildingId => 
+//             FloorApiService.getFloorsByBuilding(buildingId)
+//           );
+//           const floorResults = await Promise.all(floorPromises);
+//           const allFloors = Array.from(
+//             new Map(floorResults.flat().map(floor => [floor.id, floor])).values()
+//           );
+//           setFloors(allFloors);
+
+//           // Load lines thuộc floors đã chọn
+//           const linePromises = userData.floorAccess.map(floorId =>
+//             LineApiService.getLinesByFloor(floorId)
+//           );
+//           const lineResults = await Promise.all(linePromises);
+//           const allLines = Array.from(
+//             new Map(lineResults.flat().map(line => [line.id, line])).values()
+//           );
+//           setLines(allLines);
+
+//           // Auto-populate nếu không phải advanced mode
+//           if (!isAdvancedMode) {
+//             setUserData(prev => ({
+//               ...prev,
+//               floorAccess: allFloors.map(f => f.id),
+//               lineAccess: allLines.map(l => l.id)
+//             }));
+//           }
+//         } catch (error) {
+//           console.error("Failed to load floors and lines:", error);
+//         }
+//       } else {
+//         setFloors([]);
+//         setLines([]);
+//         setUserData(prev => ({
+//           ...prev,
+//           floorAccess: [],
+//           lineAccess: []
+//         }));
+//       }
+//     };
+
+//     fetchFloorsAndLines();
+//   }, [userData.buildingAccess, isAdvancedMode]);
+
+    useEffect(() => {
+        const fetchFLoors = async () => {
+            if (userData.buildingAccess.length > 0) {
+                try {
+                    // Load floors thuộc buildings đã chọn
+                    const floorPromises = userData.buildingAccess.map(buildingId =>
+                        FloorApiService.getFloorsByBuilding(buildingId)
+                    );
+                    const floorResults = await Promise.all(floorPromises);
+                    const allFloors = Array.from(
+                        new Map(floorResults.flat().map(floor => [floor.id, floor])).values()
+                    );
+                    setFloors(allFloors);
+
+                    // if(!isAdvancedMode) {
+                    //     setUserData(prev => ({
+                    //         ...prev,
+                    //         floorAccess: allFloors.map(f => f.id),
+                    //     }));
+                    // } else {
+                        setUserData(prev => ({
+                            ...prev,
+                            floorAccess: prev.floorAccess.filter((id) =>
+                                allFloors.some((b) => b.id === id)
+                            ), // Giữ lại các floor hợp lệ
+                        }));
+                    //     setLines([]);
+                    // }
+                } catch (error) {
+                    console.error("Failed to load floors:", error);
+                }
+            } else {
+                setFloors([]);
+                setUserData(prev => ({
+                    ...prev,
+                    floorAccess: [],
+                    lineAccess: [],
+                }));
+                setLines([]);
+            }
+        }
+        fetchFLoors();
+    }, [userData.buildingAccess, isAdvancedMode]);
+
+    useEffect(() => {
+        setIsAdvancedMode(false)
+    }, [userData.factoryAccess, userData.buildingAccess]);
+
+    // useEffect để tải lines, chỉ chạy khi có floor được chọn và isAdvancedMode = true
+    useEffect(() => {
+        const fetchLines = async () => {
+        if (userData.floorAccess.length > 0) {
+            try {
+                const linePromises = userData.floorAccess.map(floorId =>
+                    LineApiService.getLinesByFloor(floorId)
+                );
+                const lineResults = await Promise.all(linePromises);
+                const allLines = Array.from(
+                    new Map(lineResults.flat().map(line => [line.id, line])).values()
+                );
+                setLines(allLines);
+
+                setUserData(prev => ({
+                    ...prev,
+                    lineAccess: prev.lineAccess.filter((id) =>
+                                allLines.some((b) => b.id === id)
+                            ), // Giữ lại các line hợp lệ
+                }));
+            } catch (error) {
+            console.error("Failed to load lines:", error);
+            }
+        } else {
+            setLines([]);
+            setUserData(prev => ({
+                ...prev,
+                lineAccess: [],
+            }));
+        }
+        };
+
+        fetchLines();
+    }, [userData.floorAccess, isAdvancedMode]);
 
     const validate = () => {
         let valid = true;
-        const newErrors: { username?: string; email?: string; factoryAccess?: string; } = {};
+        const newErrors: { username?: string; email?: string; factoryAccess?: string; buildingAccess?: string; } = {};
         if (!userData.username) {
             newErrors.username = 'Tên người dùng là bắt buộc.';
             valid = false;
@@ -204,10 +287,14 @@ export default function UserDialogModal({
             valid = false;
         }
 
-        if(userData.factoryAccess.length === 0) {
-            newErrors.factoryAccess = 'Phải có ít nhất một nhà máy được chọn.';
-            valid = false;
-        }
+        // if(userData.factoryAccess.length === 0) {
+        //     newErrors.factoryAccess = 'Phải có ít nhất một nhà máy được chọn.';
+        //     valid = false;
+        // }
+        // if(userData.buildingAccess.length === 0) {
+        //     newErrors.buildingAccess = 'Phải có ít nhất một tòa nhà được chọn.';
+        //     valid = false;
+        // }
         setErrors(newErrors);
         return valid;
     }
@@ -220,6 +307,7 @@ export default function UserDialogModal({
             try {
                 let savedUser: User;
                 if (mode === 'add') {
+                    // console.log("userData",userData)
                     savedUser = await UserApiService.createUser(userData);
                 } else if (mode === 'edit') {
                     if (!user?.id) throw new Error('User ID is required for update');
@@ -272,11 +360,18 @@ export default function UserDialogModal({
         }
     }, [userData.email]);
 
-    useEffect(() => {
-        if (errors.factoryAccess) {
-            setErrors((prev) => ({ ...prev, factoryAccess: undefined }));
-        }
-    }, [userData.factoryAccess]);
+    // useEffect(() => {
+    //     if (errors.factoryAccess) {
+    //         setErrors((prev) => ({ ...prev, factoryAccess: undefined }));
+    //     }
+    // }, [userData.factoryAccess]);
+
+    // useEffect(() => {
+    //     if (errors.buildingAccess) {
+    //         setErrors((prev) => ({ ...prev, buildingAccess: undefined }));
+    //     }
+    // }, [userData.buildingAccess]);
+
 
   const getDialogTitle = () => {
     switch (mode) {
@@ -364,24 +459,26 @@ export default function UserDialogModal({
           {/* Factory Access */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-                <Label>Quyền Truy Cập Nhà Máy</Label>
-                <div className="flex items-center space-x-2">
+                <Label>Quyền Truy Cập Nhà Máy (Để trống cho tất cả)</Label>
+                {/* <div className="flex items-center space-x-2">
                     <Checkbox
                         id="select-all-factories"
                         checked={userData.factoryAccess.length === factories.length}
                         onCheckedChange={(checked) => {
                             setUserData((prev) => ({
-                            ...prev,
-                            factoryAccess: checked ? factories.map((f) => f.id) : [],
-                            // buildingAccess: checked ? buildings.map((b) => b.id) : [],
+                                ...prev,
+                                factoryAccess: checked ? factories.map((f) => f.id) : [],
+                                buildingAccess: [],
+                                floorAccess: [],
+                                lineAccess: [],
                             }));
                         }}
                         disabled={isReadOnly}
                     />
                     <Label htmlFor="select-all-factories" className="text-sm">Truy cập tất cả nhà máy</Label>
-                </div>
+                </div> */}
             </div>
-            {errors.factoryAccess && <p className="text-sm text-red-500">{errors.factoryAccess}</p>}
+            {/* {errors.factoryAccess && <p className="text-sm text-red-500">{errors.factoryAccess}</p>} */}
             <div className="grid grid-cols-2 gap-2">
               {factories.map((factory) => (
                 <div key={factory.id} className="flex items-center space-x-2">
@@ -419,24 +516,26 @@ export default function UserDialogModal({
           {userData.factoryAccess.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Quyền Truy Cập Tòa nhà</Label>
-                <div className="flex items-center space-x-2">
+                <Label>Quyền Truy Cập Tòa nhà (Để trống cho tất cả trong nhà máy đã chọn)</Label>
+                {/* <div className="flex items-center space-x-2">
                     <Checkbox
                         id="select-all-buildings"
                         checked={userData.buildingAccess.length === buildings.length}
                         onCheckedChange={(checked) => {
                             setUserData((prev) => ({
-                            ...prev,
-                            // factoryAccess: checked ? factories.map((f) => f.id) : [],
-                            buildingAccess: checked ? buildings.map((b) => b.id) : [],
+                                ...prev,
+                                buildingAccess: checked ? buildings.map((b) => b.id) : [],
+                                floorAccess: [],
+                                lineAccess: [],
                             }));
                         }}
                         disabled={isReadOnly}
                     />
                     <Label htmlFor="select-all-buildings" className="text-sm">Truy cập tất cả theo nhà máy đã chọn</Label>
-                </div>
+                </div> */}
             </div>
               <ScrollArea>
+                {/* {errors.buildingAccess && <p className="text-sm text-red-500">{errors.buildingAccess}</p>} */}
                 <div className="grid grid-cols-2 gap-2">
                   {buildings.map((building) => (
                     <div key={building.id} className="flex items-center space-x-2">
@@ -444,17 +543,21 @@ export default function UserDialogModal({
                         id={`building-${building.id}`}
                         checked={userData.buildingAccess.includes(building.id)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setUserData((prev) => ({
-                              ...prev,
-                              buildingAccess: [...prev.buildingAccess, building.id],
-                            }));
-                          } else {
-                            setUserData((prev) => ({
-                              ...prev,
-                              buildingAccess: prev.buildingAccess.filter((id) => id !== building.id),
-                            }));
-                          }
+                            if (checked) {
+                                setUserData((prev) => ({
+                                ...prev,
+                                buildingAccess: [...prev.buildingAccess, building.id],
+                                }));
+                            } else {
+                                setUserData((prev) => ({
+                                    ...prev,
+                                    buildingAccess: prev.buildingAccess.filter((id) => id !== building.id),
+                                    floorAccess: prev.floorAccess.filter((floorId) => {
+                                        const floor = floors.find((f) => f.id === floorId);
+                                        return floor ? floor.buildingId !== building.id : true;
+                                    }),
+                                }));
+                            }
                         }}
                         disabled={isReadOnly}
                       />
@@ -465,46 +568,6 @@ export default function UserDialogModal({
                   ))}
                 </div>
               </ScrollArea>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="language">Ngôn Ngữ</Label>
-              <Select
-                value={userData.language}
-                onValueChange={(value: "en" | "vi") => setUserData({ ...userData, language: value })}
-                disabled={isReadOnly}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">Tiếng Anh</SelectItem>
-                  <SelectItem value="vi">Tiếng Việt</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timezone">Múi Giờ</Label>
-              <TimezoneCombobox
-                value={userData.timezone}
-                onValueChange={(value) => setUserData({ ...userData, timezone: value })}
-                disabled={isReadOnly}
-                placeholder="Chọn múi giờ..."
-              />
-            </div>
-          </div>
-
-          {mode !== "add" && (
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={userData.isActive}
-                onCheckedChange={(checked) => setUserData({ ...userData, isActive: checked })}
-                disabled={isReadOnly}
-              />
-              <Label htmlFor="isActive">Người Dùng Hoạt Động</Label>
             </div>
           )}
 
@@ -519,7 +582,7 @@ export default function UserDialogModal({
                   onCheckedChange={setIsAdvancedMode}
                   disabled={isReadOnly}
                 />
-                <Label htmlFor="advanced-mode">Chọn chi tiết tầng và băng chuyền</Label>
+                <Label htmlFor="advanced-mode">Chọn chi tiết tầng và băng chuyền ( Mặc định chọn tất cả )</Label>
               </div>
 
               {/* Floor Access - chỉ hiển thị khi advanced mode */}
@@ -585,6 +648,46 @@ export default function UserDialogModal({
               )}
             </>
           )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="language">Ngôn Ngữ</Label>
+              <Select
+                value={userData.language}
+                onValueChange={(value: "en" | "vi") => setUserData({ ...userData, language: value })}
+                disabled={isReadOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">Tiếng Anh</SelectItem>
+                  <SelectItem value="vi">Tiếng Việt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Múi Giờ</Label>
+              <TimezoneCombobox
+                value={userData.timezone}
+                onValueChange={(value) => setUserData({ ...userData, timezone: value })}
+                disabled={isReadOnly}
+                placeholder="Chọn múi giờ..."
+              />
+            </div>
+          </div>
+
+          {mode !== "add" && (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isActive"
+                checked={userData.isActive}
+                onCheckedChange={(checked) => setUserData({ ...userData, isActive: checked })}
+                disabled={isReadOnly}
+              />
+              <Label htmlFor="isActive">Người Dùng Hoạt Động</Label>
+            </div>
+          )}
+
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
