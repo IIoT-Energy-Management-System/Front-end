@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomPagination } from "@/components/custom-pagination"
 import { MainLayout } from "@/components/layout/main-layout"
 import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
@@ -12,14 +13,13 @@ import {
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+    DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FactoryApiService, BuildingApiService, DeviceApiService, ReportApiService } from "@/lib/api"
+import { BuildingApiService, DeviceApiService, FactoryApiService, ReportApiService } from "@/lib/api"
 import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
 import type { Building, Device, Factory, Report } from "@/lib/types"
@@ -203,36 +203,36 @@ export default function ReportsPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Báo Cáo</h1>
-            <p className="text-gray-600">Tạo và quản lý báo cáo tiêu thụ năng lượng</p>
+            <h1 className="text-3xl font-bold text-gray-900 text-center sm:text-left">{t("reports.title")}</h1>
+            <p className="text-gray-600">{t("reports.description")}</p>
           </div>
                 <PermissionGuard permission="report.generate">
-                    <Button onClick={handleOpenCreateDialog}>
+                    <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
                         <Plus className="h-4 w-4 mr-2" />
-                        Tạo Báo Cáo
+                        {t("reports.createReport")}
                     </Button>
                 </PermissionGuard>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Tạo Báo Cáo Mới</DialogTitle>
-                <DialogDescription>Cấu hình thông số và phạm vi báo cáo</DialogDescription>
+                <DialogTitle>{t("reports.generateReport")}</DialogTitle>
+                <DialogDescription>{t("reports.generateReportDescription")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reportName">Tên Báo Cáo</Label>
+                    <Label htmlFor="reportName">{t("reports.reportName")}</Label>
                     <Input
                       id="reportName"
                       value={newReport.name}
                       onChange={(e) => setNewReport({ ...newReport, name: e.target.value })}
-                      placeholder="Nhập tên báo cáo"
+                      placeholder={t("reports.reportNamePlaceholder")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reportType">Loại Báo Cáo</Label>
+                    <Label htmlFor="reportType">{t("reports.reportType")}</Label>
                     <Select
                       value={newReport.type}
                       onValueChange={(value: Report["type"]) => setNewReport({ ...newReport, type: value })}
@@ -241,10 +241,10 @@ export default function ReportsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Daily">Hàng Ngày</SelectItem>
-                        <SelectItem value="Weekly">Hàng Tuần</SelectItem>
-                        <SelectItem value="Monthly">Hàng Tháng</SelectItem>
-                        <SelectItem value="Custom">Tùy Chỉnh</SelectItem>
+                        <SelectItem value="Daily">{t("analytics.daily")}</SelectItem>
+                        <SelectItem value="Weekly">{t("analytics.weekly")}</SelectItem>
+                        <SelectItem value="Monthly">{t("analytics.monthly")}</SelectItem>
+                        <SelectItem value="Custom">{t("analytics.custom")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -252,7 +252,7 @@ export default function ReportsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Ngày Bắt Đầu</Label>
+                    <Label htmlFor="startDate">{t("reports.startDate")}</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -266,7 +266,7 @@ export default function ReportsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="endDate">Ngày Kết Thúc</Label>
+                    <Label htmlFor="endDate">{t("reports.endDate")}</Label>
                     <Input
                       id="endDate"
                       type="date"
@@ -283,7 +283,7 @@ export default function ReportsPage() {
 
                 {/* Factory Selection */}
                 <div className="space-y-2">
-                  <Label>Chọn Nhà Máy</Label>
+                  <Label>{t("filters.selectFactory")}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {factories.map((factory) => (
                       <div key={factory.id} className="flex items-center space-x-2">
@@ -319,7 +319,7 @@ export default function ReportsPage() {
                 {/* Building Selection */}
                 {newReport.factoryIds.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Chọn Tòa Nhà (Tùy Chọn)</Label>
+                    <Label>{t("filters.selectBuilding")} ({t("filters.optional")})</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {buildings
                         .filter((building) => newReport.factoryIds.includes(building.factoryId))
@@ -351,14 +351,14 @@ export default function ReportsPage() {
                   </div>
                 )}
 
-                <div className="text-sm text-gray-600">Phạm vi đã chọn: {getFilteredDevices().length} thiết bị</div>
+                <div className="text-sm text-gray-600">{t("filters.range")}: {getFilteredDevices().length} {t("layouts.devices")}</div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Hủy
+                  {t("common.cancel")}
                 </Button>
                 <Button onClick={handleCreateReport} disabled={!newReport.name || newReport.factoryIds.length === 0}>
-                  Tạo Báo Cáo
+                  {t("reports.generateReport")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -373,7 +373,7 @@ export default function ReportsPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Tìm kiếm báo cáo..."
+                    placeholder={t("reports.searchPlaceholder")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -389,26 +389,26 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Báo Cáo Đã Tạo
+              {t("reports.createdReports")}
             </CardTitle>
             <CardDescription>
-              {loading ? 'Đang tải...' : `Hiển thị ${startIndex + 1} đến ${Math.min(startIndex + itemsPerPage, filteredReports.length)} trong ${filteredReports.length} báo cáo`}
+              {loading ? t("common.loading") : `${t("common.showing")} ${startIndex + 1} ${t("common.to")} ${Math.min(startIndex + itemsPerPage, filteredReports.length)} ${t("common.of")} ${filteredReports.length} ${t("analytics.report")}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="p-8 text-center">Đang tải báo cáo...</div>
+              <div className="p-8 text-center">{t("common.loading")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tên Báo Cáo</TableHead>
-                    <TableHead>Loại</TableHead>
-                    <TableHead>Khoảng Thời Gian</TableHead>
-                    <TableHead>Ngày Tạo</TableHead>
-                    <TableHead>Được Tạo Bởi</TableHead>
-                    <TableHead>Thiết Bị</TableHead>
-                    <TableHead>Hành Động</TableHead>
+                    <TableHead>{t("reports.reportName")}</TableHead>
+                    <TableHead>{t("reports.type")}</TableHead>
+                    <TableHead>{t("reports.dateRange")}</TableHead>
+                    <TableHead>{t("reports.createdAt")}</TableHead>
+                    <TableHead>{t("reports.createdBy")}</TableHead>
+                    <TableHead>{t("reports.devices")}</TableHead>
+                    <TableHead>{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -446,35 +446,16 @@ export default function ReportsPage() {
         </Card>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Hiển thị {startIndex + 1} đến {Math.min(startIndex + itemsPerPage, filteredReports.length)} trong{" "}
-              {filteredReports.length} báo cáo
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                Trước
-              </Button>
-              <span className="text-sm">
-                Trang {currentPage} trong {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Tiếp
-              </Button>
-            </div>
-          </div>
-        )}
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredReports.length}
+          showInfo={true}
+          t={t}
+          itemName={t("analytics.report")}
+        />
       </div>
     </MainLayout>
   )

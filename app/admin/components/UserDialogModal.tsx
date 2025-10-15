@@ -20,6 +20,7 @@ import { BuildingApiService, FactoryApiService, FloorApiService, LineApiService,
 import type { Building, Factory, Floor, Line, Role, User } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { toast } from 'sonner';
+import { useTranslation } from "@/lib/i18n";
 
 interface UserDialogModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export default function UserDialogModal({
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; email?: string;}>({});
+    const { t } = useTranslation();
   
   useEffect(() => {
     if ((mode === "edit" || mode === "view") && user) {
@@ -71,7 +73,6 @@ export default function UserDialogModal({
         timezone: user.timezone || "Asia/Ho_Chi_Minh",
         isActive: user.isActive,
       });
-      console.log("Loaded user data:", user)
     } else if (mode === "add") {
       setUserData({
         username: "",
@@ -128,9 +129,6 @@ export default function UserDialogModal({
                     ), // Giữ lại các building hợp lệ
             }));
         }
-        //   console.log("Fetched buildings:", buildingList);
-        //   console.log("Current buildingAccess:", userData.buildingAccess);
-        //   console.log("Current factoryAccess:", userData.factoryAccess);
         setBuildings(buildingList);
         } catch (error) {
         console.error("Failed to load buildings:", error);
@@ -276,14 +274,14 @@ export default function UserDialogModal({
         let valid = true;
         const newErrors: { username?: string; email?: string; factoryAccess?: string; buildingAccess?: string; } = {};
         if (!userData.username) {
-            newErrors.username = 'Tên người dùng là bắt buộc.';
+            newErrors.username = `${t("user.requiredUsername")}`;
             valid = false;
         }
         if (!userData.email) {
-            newErrors.email = 'Email là bắt buộc.';
+            newErrors.email = `${t("user.requiredEmail")}`;
             valid = false;
         } else if (!/\S+@\S+\.\S+/.test(userData.email)) {
-            newErrors.email = 'Email không hợp lệ.';
+            newErrors.email = `${t("user.invalidEmail")}`;
             valid = false;
         }
 
@@ -307,11 +305,9 @@ export default function UserDialogModal({
             try {
                 let savedUser: User;
                 if (mode === 'add') {
-                    // console.log("userData",userData)
                     savedUser = await UserApiService.createUser(userData);
                 } else if (mode === 'edit') {
                     if (!user?.id) throw new Error('User ID is required for update');
-                    console.log("user",userData)
                     const updatedUsers = await UserApiService.updateUser(user.id, userData);
                     savedUser = updatedUsers[0];
                 } else {
@@ -339,7 +335,7 @@ export default function UserDialogModal({
                 setIsSaving(false);
             }
         } else {
-            console.log('Error:', errors);
+            console.error('Error:', errors);
             toast.error("Lỗi thêm thông tin người dùng", {
                 duration: 10000,
             });
@@ -376,24 +372,24 @@ export default function UserDialogModal({
   const getDialogTitle = () => {
     switch (mode) {
       case "add":
-        return "Thêm Người Dùng Mới";
+        return `${t("user.addNew")}`;
       case "edit":
-        return "Sửa Người Dùng";
+        return `${t("user.editUser")}`;
       case "view":
-        return "Chi Tiết Người Dùng";
+        return `${t("user.infoUser")}`;
       default:
-        return "Người Dùng";
+        return `${t("user.title")}`;
     }
   };
 
   const getDialogDescription = () => {
     switch (mode) {
       case "add":
-        return "Tạo tài khoản người dùng mới với quyền hạn cụ thể";
+        return `${t("user.addDescription")}`;
       case "edit":
-        return "Cập nhật thông tin và quyền hạn người dùng";
+        return `${t("user.editDescription")}`;
       case "view":
-        return "Xem chi tiết thông tin người dùng";
+        return `${t("user.infoDescription")}`;
       default:
         return "";
     }
@@ -410,9 +406,9 @@ export default function UserDialogModal({
           <DialogDescription>{getDialogDescription()}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Tên Người Dùng</Label>
+              <Label htmlFor="username">{t("user.username")}</Label>
               <Input
                 id="username"
                 value={userData.username}
@@ -437,7 +433,7 @@ export default function UserDialogModal({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="role">Vai Trò</Label>
+            <Label htmlFor="role">{t("user.role")}</Label>
             <Select
               value={userData.roleId}
               onValueChange={(value) => setUserData({ ...userData, roleId: value })}
@@ -459,7 +455,7 @@ export default function UserDialogModal({
           {/* Factory Access */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-                <Label>Quyền Truy Cập Nhà Máy (Để trống cho tất cả)</Label>
+                <Label>{t("user.factoryAccess")} ({t("user.factoryAccessDescription")})</Label>
                 {/* <div className="flex items-center space-x-2">
                     <Checkbox
                         id="select-all-factories"
@@ -516,7 +512,7 @@ export default function UserDialogModal({
           {userData.factoryAccess.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Quyền Truy Cập Tòa nhà (Để trống cho tất cả trong nhà máy đã chọn)</Label>
+                <Label>{t("user.buildingAccess")} ({t("user.buildingAccessDescription")})</Label>
                 {/* <div className="flex items-center space-x-2">
                     <Checkbox
                         id="select-all-buildings"
@@ -582,13 +578,13 @@ export default function UserDialogModal({
                   onCheckedChange={setIsAdvancedMode}
                   disabled={isReadOnly}
                 />
-                <Label htmlFor="advanced-mode">Chọn chi tiết tầng và băng chuyền ( Mặc định chọn tất cả )</Label>
+                <Label htmlFor="advanced-mode">{t("user.advancedMode")}</Label>
               </div>
 
               {/* Floor Access - chỉ hiển thị khi advanced mode */}
               {isAdvancedMode && floors.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Quyền Truy Cập Tầng</Label>
+                  <Label>{t("user.floorAccess")}</Label>
                   <ScrollArea>
                     <div className="grid grid-cols-2 gap-2">
                       {floors.map((floor) => (
@@ -619,7 +615,7 @@ export default function UserDialogModal({
               {/* Line Access - chỉ hiển thị khi advanced mode */}
               {isAdvancedMode && lines.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Quyền Truy Cập Băng Chuyền</Label>
+                  <Label>{t("user.lineAccess")}</Label>
                   <ScrollArea>
                     <div className="grid grid-cols-2 gap-2">
                       {lines.map((line) => (
@@ -648,9 +644,9 @@ export default function UserDialogModal({
               )}
             </>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="language">Ngôn Ngữ</Label>
+              <Label htmlFor="language">{t("user.language")}</Label>
               <Select
                 value={userData.language}
                 onValueChange={(value: "en" | "vi") => setUserData({ ...userData, language: value })}
@@ -660,13 +656,13 @@ export default function UserDialogModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en">Tiếng Anh</SelectItem>
-                  <SelectItem value="vi">Tiếng Việt</SelectItem>
+                  <SelectItem value="en">{t("common.english")}</SelectItem>
+                  <SelectItem value="vi">{t("common.vietnamese")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="timezone">Múi Giờ</Label>
+              <Label htmlFor="timezone">{t("user.timezone")}</Label>
               <TimezoneCombobox
                 value={userData.timezone}
                 onValueChange={(value) => setUserData({ ...userData, timezone: value })}
@@ -684,21 +680,21 @@ export default function UserDialogModal({
                 onCheckedChange={(checked) => setUserData({ ...userData, isActive: checked })}
                 disabled={isReadOnly}
               />
-              <Label htmlFor="isActive">Người Dùng Hoạt Động</Label>
+              <Label htmlFor="isActive">{t("user.activeUser")}</Label>
             </div>
           )}
 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {mode === "view" ? "Đóng" : "Hủy"}
+            {mode === "view" ? t("common.close") : t("common.cancel")}
           </Button>
           {mode !== "view" && (
             <Button
               onClick={handleSave}
               disabled={!userData.username || !userData.email || !userData.roleId || isSaving}
             >
-              {isSaving ? 'Đang lưu...' : (mode === "add" ? "Thêm Người Dùng" : "Lưu Thay Đổi")}
+              {isSaving ? t("common.saving") : (mode === "add" ? t("user.addNew") : t("common.save"))}
             </Button>
           )}
         </DialogFooter>

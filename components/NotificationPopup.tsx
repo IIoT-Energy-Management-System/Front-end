@@ -2,13 +2,14 @@
 
 let notificationsSeen = false
 
-import { io } from "socket.io-client"
 import { Badge } from "@/components/ui/badge"
 import { useAlertApi } from "@/lib/api"
+import { useTranslation } from "@/lib/i18n"
 import type { Alert } from "@/lib/types"
 import { AlertTriangle, Bell, RotateCcw, X } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
+import { io } from "socket.io-client"
 type AlertItem = {
   id: string
   deviceId?: string
@@ -21,6 +22,7 @@ type AlertItem = {
 }
 
 export default function NotificationPopup() {
+  const { t } = useTranslation()
   const [show, setShow] = useState(false)
   const [selectedAlert, setSelectedAlert] = useState<any | null>(null)
   const [alerts, setAlerts] = useState<AlertItem[]>([])
@@ -101,6 +103,8 @@ export default function NotificationPopup() {
         return "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0"
       case "Info":
         return "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0"
+        case "High":
+        return "bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0"
       default:
         return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
     }
@@ -114,6 +118,8 @@ export default function NotificationPopup() {
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />
       case "Info":
         return <Bell className="h-4 w-4 text-blue-600" />
+      case "High":
+        return <AlertTriangle className="h-4 w-4 text-purple-600" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -136,14 +142,14 @@ export default function NotificationPopup() {
         </button>
 
       {show && (
-        <div className="absolute left-0 mt-2 w-90 bg-white border rounded-lg shadow-lg z-50">
+        <div className="absolute -right-40 sm:left-0 sm:-right-96 mt-2 w-90 bg-white border rounded-lg shadow-lg z-50">
           <div className="p-3 border-b flex items-center justify-between">
-            <div className="font-medium">Notifications</div>
+            <div className="font-medium">{t("notification.popupTitle")}</div>
             <button className="text-sm text-gray-500" onClick={() => fetchAlerts()}><RotateCcw/></button>
           </div>
           <div className="max-h-64 overflow-auto">
-            {loading && <div className="p-3 text-sm text-gray-500">Loading...</div>}
-            {!loading && alerts.length === 0 && <div className="p-3 text-sm text-gray-500">No notifications</div>}
+            {loading && <div className="p-3 text-sm text-gray-500">{t("notification.loading")}</div>}
+            {!loading && alerts.length === 0 && <div className="p-3 text-sm text-gray-500">{t("notification.noNotifications")}</div>}
             {!loading && alerts.map((a) => (
               <button key={a.id} onClick={() => handleClick(a)} className="w-full text-left p-3 border-b hover:bg-gray-50 flex items-start gap-2">
                 <div className="flex-1">
@@ -159,7 +165,7 @@ export default function NotificationPopup() {
             ))}
           </div>
             <Link href="/alerts" className="text-center text-sm border-t-2 w-full" onClick={() => { setShow(false); setSelectedAlert(null); }}>
-              <p className="text-blue-600 hover:bg-blue-200 p-2">View all alerts</p>
+              <p className="text-blue-600 hover:bg-blue-200 p-2">{t("notification.viewAllAlerts")}</p>
             </Link>
         </div>
       )}
@@ -176,12 +182,12 @@ export default function NotificationPopup() {
               <button className="text-gray-500 hover:bg-gray-100 p-1 rounded" onClick={() => setSelectedAlert(null)}><X /></button>
             </div>
             <div className="mt-4 text-sm text-gray-700">
-              <p><strong>Severity:</strong> <Badge className={getSeverityColor(selectedAlert.severity as Alert["severity"])}>{selectedAlert.severity}</Badge></p>
-              <p className="mt-2"><strong>Message:</strong> {selectedAlert.message}</p>
-              <p className="mt-2"><strong>Device:</strong> {selectedAlert.deviceName}</p>
+              <p><strong>{t("notification.severity")}:</strong> <Badge className={getSeverityColor(selectedAlert.severity as Alert["severity"])}>{selectedAlert.severity}</Badge></p>
+              <p className="mt-2"><strong>{t("notification.message")}:</strong> {selectedAlert.message}</p>
+              <p className="mt-2"><strong>{t("notification.device")}:</strong> {selectedAlert.deviceName}</p>
             </div>
             <div className="mt-4 text-right">
-              <Link href={`/alerts?alertId=${selectedAlert?.id}`} className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => { setShow(false); setSelectedAlert(null); }} >Đi đến xác nhận</Link>
+              <Link href={`/alerts?alertId=${selectedAlert?.id}`} className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => { setShow(false); setSelectedAlert(null); }} >{t("notification.goToAcknowledge")}</Link>
             </div>
           </div>
         </div>

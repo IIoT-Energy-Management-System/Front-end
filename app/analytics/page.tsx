@@ -147,9 +147,9 @@ export default function AnalyticsPage() {
       }
     })
 
-    socketRef.current.on("connect", () => {
-      console.log("Connected to WebSocket server")
-    })
+    // socketRef.current.on("connect", () => {
+    //   console.log("Connected to WebSocket server")
+    // })
 
     socketRef.current.on("analytics-update", (data: AnalyticsData) => {
       setAnalytics((prev) => {
@@ -157,10 +157,11 @@ export default function AnalyticsPage() {
         const newPoints = data.trendData.filter(d => !prev.trendData.some(p => p.timestamp === d.timestamp))
         const updatedTrendData = [...prev.trendData, ...newPoints]
         // Maintain max 50 points
-        while (updatedTrendData.length > 50) {
+        const maxPoints = window.innerWidth >= 1024 ? 50 : 20
+        while (updatedTrendData.length > maxPoints) {
           updatedTrendData.shift()
         }
-        console.log("Received analytics update", data, updatedTrendData);
+        // console.log("Received analytics update", data, updatedTrendData);
         return {
           ...prev,
           ...data,  // Update other fields with new data
@@ -169,9 +170,9 @@ export default function AnalyticsPage() {
       })
     })
 
-    socketRef.current.on("disconnect", () => {
-      console.log("Disconnected from WebSocket server")
-    })
+    // socketRef.current.on("disconnect", () => {
+    //   console.log("Disconnected from WebSocket server")
+    // })
 
     // Cleanup
     return () => {
@@ -209,16 +210,16 @@ export default function AnalyticsPage() {
   
   return (
     <MainLayout>
-      <div className="space-y-6 bg-gradient-to-br from-gray-50 to-orange-50 min-h-screen p-6 -m-6">
+      <div className="space-y-6 p-2 sm:p-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent text-center sm:text-left">
               {t("analytics.title")}
             </h1>
-            <p className="text-gray-600 mt-2">Comprehensive energy analytics and performance insights</p>
+            <p className="text-gray-600 mt-2 text-center sm:text-left">{t("analytics.description")}</p>
           </div>
-          <div className="flex gap-4">
+          <div className="sm:flex gap-4 hidden">
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-32 border-2 border-orange-200 focus:border-orange-400">
                 <SelectValue />
@@ -259,10 +260,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.totalEnergyConsumption.toFixed(2)} kWh</div>
-                  <div className="flex items-center text-xs text-white/80">
+                  {/* <div className="flex items-center text-xs text-white/80">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     +5.2% from last period
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
 
@@ -275,10 +276,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.averagePowerFactor.toFixed(3)}</div>
-                  <div className="flex items-center text-xs text-white/80">
+                  {/* <div className="flex items-center text-xs text-white/80">
                     <TrendingDown className="h-3 w-3 mr-1" />
                     -0.5% from last period
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
 
@@ -289,10 +290,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.loadFactor.toFixed(1)}%</div>
-                  <div className="flex items-center text-xs text-white/80">
+                  {/* <div className="flex items-center text-xs text-white/80">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     +2.1% from last period
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
 
@@ -303,10 +304,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics.uptimePercentage.toFixed(1)}%</div>
-                  <div className="flex items-center text-xs text-white/80">
+                  {/* <div className="flex items-center text-xs text-white/80">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     +0.8% from last period
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
             </div>
@@ -314,15 +315,15 @@ export default function AnalyticsPage() {
             {/* Real-time Power Consumption Trend */}
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <LineChart className="h-5 w-5 text-orange-600" />
-                      {t("analytics.powerConsumptionTrend")} - Real-time
+                      {t("analytics.powerConsumptionTrend")} - {t("devices.realTimeData")}
                     </CardTitle>
-                    <CardDescription>Live power consumption with real-time updates</CardDescription>
+                    <CardDescription>{t("analytics.powerConsumptionDescription")}</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -336,18 +337,18 @@ export default function AnalyticsPage() {
                       {isRealTimeActive ? (
                         <>
                           <Pause className="h-4 w-4 mr-2" />
-                          Pause
+                          {t("common.pause")}
                         </>
                       ) : (
                         <>
                           <Play className="h-4 w-4 mr-2" />
-                          Resume
+                          {t("common.resume")}
                         </>
                       )}
                     </Button>
                     <Button variant="outline" size="sm" onClick={resetChart}>
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset
+                      {t("common.reset")}
                     </Button>
                   </div>
                 </div>
@@ -390,8 +391,8 @@ export default function AnalyticsPage() {
                       )
                     })
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      No trend data available
+                    <div className="flex items-center justify-center h-full w-full text-gray-500">
+                      {t("analytics.noTrendData")}
                     </div>
                   )}
 
@@ -399,28 +400,28 @@ export default function AnalyticsPage() {
                   {isRealTimeActive && (
                     <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      LIVE
+                      {t("analytics.live")}
                     </div>
                   )}
                 </div>
 
                 <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                  <span>{analytics.trendData && analytics.trendData.length > 0 ? analytics.trendData[0]?.time : "Start"}</span>
+                  <span>{analytics.trendData && analytics.trendData.length > 0 ? analytics.trendData[0]?.time : t("analytics.start")}</span>
                   <span className="text-center">
-                    {isRealTimeActive ? "Real-time Updates" : "Paused"} •{analytics.trendData ? analytics.trendData.length : 0} data points
+                    {isRealTimeActive ? t("analytics.realtime") : t("common.pause")} •{analytics.trendData ? analytics.trendData.length : 0} {t("analytics.dataPoints")}
                   </span>
-                  <span>Now</span>
+                  <span>{t("analytics.now")}</span>
                 </div>
 
                 {/* Current metrics */}
                 <div className="grid grid-cols-3 gap-4 mt-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg">
                   <div className="text-center">
                     <div className="text-lg font-bold text-orange-600">{(analytics.currentPower || 0).toFixed(2)} kW</div>
-                    <div className="text-xs text-gray-600">Current Power</div>
+                    <div className="text-xs text-gray-600">{t("analytics.currentPower")}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-red-600">{analytics.peakDemand.toFixed(2)} kW</div>
-                    <div className="text-xs text-gray-600">Peak Demand</div>
+                    <div className="text-xs text-gray-600">{t("analytics.peakDemand")}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-green-600">{analytics.energyEfficiency.toFixed(1)}%</div>
@@ -437,7 +438,7 @@ export default function AnalyticsPage() {
                   <Activity className="h-5 w-5 text-purple-600" />
                   {t("analytics.topDevicePerformance")}
                 </CardTitle>
-                <CardDescription>Efficiency and uptime metrics for key devices</CardDescription>
+                <CardDescription>{t("analytics.devicePerformanceDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -460,7 +461,7 @@ export default function AnalyticsPage() {
                           <div>
                             <div className="font-medium">{device.deviceName}</div>
                             <div className="text-sm text-white/80">
-                              {t("analytics.energy")}: {device.energyUsage.toFixed(1)} kWh/day
+                              {t("analytics.energy")}: {device.energyUsage.toFixed(1)} {t("building.kwhPerDay")}
                             </div>
                           </div>
                           <div className="flex items-center space-x-4">
@@ -485,7 +486,7 @@ export default function AnalyticsPage() {
                     })
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      No device performance data available
+                      {t("analytics.noDevicePerformanceData")}
                     </div>
                   )}
                 </div>
@@ -497,7 +498,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
                 <div>
                 <h2 className="text-2xl font-bold">{t("analytics.performanceReports")}</h2>
-                <p className="text-gray-600">Historical data analysis and trends</p>
+                <p className="text-gray-600">{t("analytics.historicalDataAnalysis")}</p>
                 </div>
                 <div className="flex gap-4">
                 <Select value={reportPeriod} onValueChange={setReportPeriod}>
@@ -511,12 +512,12 @@ export default function AnalyticsPage() {
                     <SelectItem value="year">{t("analytics.yearly")}</SelectItem>
                     </SelectContent>
                 </Select>
-                <PermissionGuard permission="analytic.export">
+                {/* <PermissionGuard permission="analytic.export">
                     <Button variant="outline">
                         <Download className="h-4 w-4 mr-2" />
                         {t("analytics.export")}
                     </Button>
-                </PermissionGuard>
+                </PermissionGuard> */}
                 </div>
             </div>
 
@@ -529,7 +530,15 @@ export default function AnalyticsPage() {
                     {t("analytics.powerConsumption")}
                 </CardTitle>
                 <CardDescription>
-                    {reportPeriod} {t("analytics.report")}
+                    {reportPeriod == "day"
+                        ? t("analytics.day")
+                        : reportPeriod == "week"
+                        ? t("analytics.thisWeek")
+                        : reportPeriod == "3months"
+                        ? t("analytics.last3Months")
+                        : reportPeriod == "year"
+                        ? t("analytics.thisYear")
+                        : ""}
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -576,7 +585,15 @@ export default function AnalyticsPage() {
                     {t("analytics.uptime")}
                 </CardTitle>
                 <CardDescription>
-                    {reportPeriod} {t("analytics.report")}
+                    {reportPeriod == "day"
+                        ? t("analytics.day")
+                        : reportPeriod == "week"
+                        ? t("analytics.thisWeek")
+                        : reportPeriod == "3months"
+                        ? t("analytics.last3Months")
+                        : reportPeriod == "year"
+                        ? t("analytics.thisYear")
+                        : ""}
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -622,7 +639,15 @@ export default function AnalyticsPage() {
                     {t("analytics.downtime")}
                 </CardTitle>
                 <CardDescription>
-                    {reportPeriod} {t("analytics.report")}
+                    {reportPeriod == "day"
+                        ? t("analytics.day")
+                        : reportPeriod == "week"
+                        ? t("analytics.thisWeek")
+                        : reportPeriod == "3months"
+                        ? t("analytics.last3Months")
+                        : reportPeriod == "year"
+                        ? t("analytics.thisYear")
+                        : ""}
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -668,7 +693,7 @@ export default function AnalyticsPage() {
           <TabsContent value="rankings" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold">{t("analytics.performanceRankings")}</h2>
-              <p className="text-gray-600">Top performers across all levels</p>
+              <p className="text-gray-600">{t("analytics.topPerformers")}</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

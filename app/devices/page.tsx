@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomPagination } from "@/components/custom-pagination"
 import DeviceModal from "@/components/DeviceModal"
 import { MainLayout } from "@/components/layout/main-layout"
 import { PermissionGuard } from "@/components/PermissionGuard"
@@ -69,8 +70,8 @@ export default function DevicesPage() {
       setApiFactories(factoriesData)
       
       // Debug logging để kiểm tra dữ liệu từ API
-      console.log("Devices loaded from API:", deviceArray)
-      console.log("Sample device with latestData:", deviceArray[0])
+    //   console.log("Devices loaded from API:", deviceArray)
+    //   console.log("Sample device with latestData:", deviceArray[0])
       
     //   // Hiển thị toast thành công khi load data
     //   if (deviceArray.length > 0) {
@@ -122,7 +123,7 @@ export default function DevicesPage() {
       // Lấy chi tiết device từ API để có đầy đủ thông tin including latestData và connections
       const fullDeviceData = await getDeviceById(device.id)
       
-      console.log("Full device data for edit:", fullDeviceData)
+    //   console.log("Full device data for edit:", fullDeviceData)
       setSelectedDevice(fullDeviceData)
     } catch (error) {
       console.error("Failed to fetch device details for edit:", error)
@@ -145,7 +146,7 @@ export default function DevicesPage() {
       // Lấy chi tiết device từ API để có đầy đủ thông tin including latestData
       const fullDeviceData = await getDeviceById(device.id)
       
-      console.log("Full device data from API:", fullDeviceData)
+    //   console.log("Full device data from API:", fullDeviceData)
       setSelectedDevice(fullDeviceData)
     } catch (error) {
       console.error("Failed to fetch device details:", error)
@@ -178,18 +179,18 @@ export default function DevicesPage() {
   }
 
   const handleDeleteDevice = async (deviceId: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa thiết bị này?")) {
+    if (confirm(`${t("devices.deleteConfirm")}`)) {
       try {
         await deleteDevice(deviceId)
         await loadDevicesFromApi() // Reload devices after deleting
         setCurrentPage(1) // Reset to first page after deletion
         // Hiển thị toast thành công khi xóa
-        toast.success("Thiết bị đã được xóa thành công!")
+        toast.success(`${t("devices.deleteSuccess")}`)
       } catch (error) {
         console.error("Failed to delete device:", error)
         
         // Hiển thị toast lỗi khi xóa thất bại
-        toast.error("Không thể xóa thiết bị. Vui lòng thử lại.",{description: (error as any).error})
+        toast.error(`${t("devices.deleteError")}`, { description: (error as any).error })
       }
     }
   }
@@ -261,11 +262,11 @@ export default function DevicesPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 bg-gradient-to-br from-gray-50 to-purple-50 min-h-screen p-6 -m-6">
+      <div className="space-y-6 p-2 sm:p-6 ">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-center sm:text-left text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               {t("devices.title")}
             </h1>
             <p className="text-gray-600 mt-2">{t("devices.description")}</p>
@@ -361,7 +362,7 @@ export default function DevicesPage() {
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48 border-2 border-purple-200 focus:border-purple-400">
+                <SelectTrigger className="w-full sm:w-48 border-2 border-purple-200 focus:border-purple-400">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -532,37 +533,16 @@ export default function DevicesPage() {
         </Card>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {t("common.showing")} {startIndex + 1} {t("common.to")} {Math.min(startIndex + itemsPerPage, safeFilteredDevices.length)} {t("common.of")}{" "}
-              {safeFilteredDevices.length} {t("devices")}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="border-2 border-purple-200 hover:bg-purple-50"
-              >
-                {t("common.previous")}
-              </Button>
-              <span className="text-sm">
-                {t("common.page")} {currentPage} {t("common.of")} {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="border-2 border-purple-200 hover:bg-purple-50"
-              >
-                {t("common.next")}
-              </Button>
-            </div>
-          </div>
-        )}
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={safeFilteredDevices.length}
+          showInfo={true}
+          t={t}
+          itemName={t("devices")}
+        />
       </div>
 
       {/* Device Modal */}
@@ -573,7 +553,6 @@ export default function DevicesPage() {
         device={selectedDevice}
         factories={apiFactories.length > 0 ? apiFactories : factories}
         onSave={handleModalSave}
-        language={language as "vi" | "en"}
         loading={modalLoading}
         onDeviceUpdated={async () => {
           // Refresh device data sau khi thêm/xóa connections

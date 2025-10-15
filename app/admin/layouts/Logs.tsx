@@ -1,12 +1,14 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAuditLogs, getConnectionLogs } from "@/lib/api"
+import { LogApiService } from "@/lib/api"
+import { useTranslation } from "@/lib/i18n"
 import type { AuditLogEntry, ConnectionLogEntry } from "@/lib/types"
 import { Activity, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function Logs() {
+  const { t } = useTranslation()
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
   const [connectionLogs, setConnectionLogs] = useState<ConnectionLogEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,8 +21,8 @@ export default function Logs() {
         setError(null)
         
         const [auditData, connectionData] = await Promise.all([
-          getAuditLogs(),
-          getConnectionLogs()
+          LogApiService.getAuditLogs(),
+          LogApiService.getConnectionLogs()
         ])
         
         setAuditLogs(auditData)
@@ -54,9 +56,9 @@ export default function Logs() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Nhật Ký Hệ Thống
+            {t("logs.title")}
           </CardTitle>
-          <CardDescription>Đang tải nhật ký hệ thống...</CardDescription>
+          <CardDescription>{t("logs.loading")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center py-8">
@@ -73,9 +75,9 @@ export default function Logs() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Nhật Ký Hệ Thống
+            {t("logs.title")}
           </CardTitle>
-          <CardDescription>Có lỗi xảy ra khi tải nhật ký</CardDescription>
+          <CardDescription>{t("logs.loadError")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-red-500">
@@ -91,23 +93,23 @@ export default function Logs() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="h-5 w-5" />
-          Nhật Ký Hệ Thống
+          {t("logs.title")}
         </CardTitle>
-        <CardDescription>Xem nhật ký kiểm toán và hoạt động hệ thống</CardDescription>
+        <CardDescription>{t("logs.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Nhật Ký Kiểm Toán</CardTitle>
-                <CardDescription>Hành động người dùng và sự kiện hệ thống</CardDescription>
+                <CardTitle className="text-lg">{t("logs.auditLogs")}</CardTitle>
+                <CardDescription>{t("logs.auditDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   {auditLogs.length === 0 ? (
                     <div className="text-center py-4 text-gray-500">
-                      Chưa có nhật ký kiểm toán nào
+                      {t("logs.noAuditLogs")}
                     </div>
                   ) : (
                     auditLogs.map((log, index) => (
@@ -122,14 +124,14 @@ export default function Logs() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Nhật Ký Kết Nối</CardTitle>
-                <CardDescription>Trạng thái kết nối thiết bị và lịch sử</CardDescription>
+                <CardTitle className="text-lg">{t("logs.connectionLogs")}</CardTitle>
+                <CardDescription>{t("logs.connectionDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   {connectionLogs.length === 0 ? (
                     <div className="text-center py-4 text-gray-500">
-                      Chưa có nhật ký kết nối nào
+                      {t("logs.noConnectionLogs")}
                     </div>
                   ) : (
                     connectionLogs.map((log, index) => (

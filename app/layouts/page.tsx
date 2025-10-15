@@ -106,7 +106,6 @@ const [newTimezone, setNewTimezone] = useState("")
 const [newBuildingName, setNewBuildingName] = useState("")
 const [newFloorName, setNewFloorName] = useState("")
 const [newLineName, setNewLineName] = useState("")
-const [selectedDeviceConnection, setSelectedDeviceConnection] = useState<Device | null>(null)
 const [externalDeviceSearchTerm, setExternalDeviceSearchTerm] = useState("")
 
 // API states
@@ -521,7 +520,7 @@ const handleBack = () => {
 
 const handleEdit = async (id: string, name: string, type: string) => {
     setEditingItem({ id, name, type })
-    console.log('Editing item:', { id, name, type })
+    // console.log('Editing item:', { id, name, type })
     // switch (type) {
     //     case "nhà máy":
     //         if (!currentUser?.permissions?.includes("layout.edit_factory")) {
@@ -650,23 +649,23 @@ const confirmDeviceMove = async () => {
     setApiDevices(updatedDevices)
     
     // Mock audit log (in real implementation, this would be sent to API)
-    console.log('Device moved:', {
-        userId: currentUser.id,
-        username: currentUser.username,
-        action: "MOVE_DEVICE",
-        resource: `DEVICE:${selectedDeviceForMove.id}`,
-        timestamp: new Date().toISOString(),
-        details: {
-        deviceId: selectedDeviceForMove.id,
-        from: {
-            factoryId: selectedDeviceForMove.factoryId,
-            buildingId: selectedDeviceForMove.buildingId,
-            floorId: selectedDeviceForMove.floorId,
-            lineId: selectedDeviceForMove.lineId,
-        },
-        to: targetLocation,
-        },
-    })
+    // console.log('Device moved:', {
+    //     userId: currentUser.id,
+    //     username: currentUser.username,
+    //     action: "MOVE_DEVICE",
+    //     resource: `DEVICE:${selectedDeviceForMove.id}`,
+    //     timestamp: new Date().toISOString(),
+    //     details: {
+    //     deviceId: selectedDeviceForMove.id,
+    //     from: {
+    //         factoryId: selectedDeviceForMove.factoryId,
+    //         buildingId: selectedDeviceForMove.buildingId,
+    //         floorId: selectedDeviceForMove.floorId,
+    //         lineId: selectedDeviceForMove.lineId,
+    //     },
+    //     to: targetLocation,
+    //     },
+    // })
 
     toast.success('Thiết bị đã được di chuyển thành công')
     await loadStats()
@@ -681,50 +680,52 @@ const confirmDeviceMove = async () => {
 }
 
 const handleDragStart = (e: React.DragEvent, device: Device) => {
-    console.log('Drag started:', {
-        deviceId: device.id,
-        deviceName: device.name,
-        fromLocation: {
-            factoryId: device.factoryId,
-            buildingId: device.buildingId,
-            floorId: device.floorId,
-            lineId: device.lineId
-        }
-    })
+    // console.log('Drag started:', {
+    //     deviceId: device.id,
+    //     deviceName: device.name,
+    //     fromLocation: {
+    //         factoryId: device.factoryId,
+    //         buildingId: device.buildingId,
+    //         floorId: device.floorId,
+    //         lineId: device.lineId
+    //     }
+    // })
     e.dataTransfer.setData("text/plain", device.id)
     setDraggedDevice(device)
 }
 
 const handleDragOver = (e: React.DragEvent) => {
-    console.log('Drag over element')
+    // console.log('Drag over element')
     e.preventDefault()
     e.stopPropagation()
 }
 
 const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBuildingId: string, targetFloorId: string, targetLineId: string) => {
-    console.log('Drop event:', {
-        targetFactoryId,
-        targetBuildingId,
-        targetFloorId,
-        targetLineId
-    })
+    // console.log('Drop event:', {
+    //     targetFactoryId,
+    //     targetBuildingId,
+    //     targetFloorId,
+    //     targetLineId
+    // })
     e.preventDefault()
     e.stopPropagation()
 
     const deviceId = e.dataTransfer.getData("text/plain")
-    console.log('Device ID from dataTransfer:', deviceId)
+    // console.log('Device ID from dataTransfer:', deviceId)
     const device = apiDevices.find((d) => d.id === deviceId) // Use apiDevices instead of devices
-    console.log('Found device:', device)
+    // console.log('Found device:', device)
 
     if (!device || !currentUser) {
-        console.log('No device found or no current user')
+        // console.log('No device found or no current user')
+        toast.error('Không thể di chuyển thiết bị')
         return
     }
 
     const targetLine = apiLines.find((l) => l.id === targetLineId) // Use apiLines instead of complex lookup
-    console.log('Target line:', targetLine)
+    // console.log('Target line:', targetLine)
     if (!targetLine) {
-        console.log('No target line found')
+        // console.log('No target line found')
+        toast.error('Không thể di chuyển thiết bị')
         return
     }
 
@@ -743,25 +744,25 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     
     // Update device via API
     await DeviceApiService.updateDevice(device.id, { factoryId: targetFactoryId, buildingId: targetBuildingId, floorId: targetFloorId, lineId: targetLineId })
-    console.log('Device updated via API')
-    // Mock audit log (in real implementation, this would be sent to API)
-    console.log('Device drag-dropped:', {
-        userId: currentUser.id,
-        username: currentUser.username,
-        action: "DRAG_DROP_DEVICE",
-        resource: `DEVICE:${device.id}`,
-        timestamp: new Date().toISOString(),
-        details: {
-        deviceId: device.id,
-        targetFactoryId,
-        targetBuildingId,
-        targetFloorId,
-        targetLineId,
-        },
-    })
+    // console.log('Device updated via API')
+    // // Mock audit log (in real implementation, this would be sent to API)
+    // console.log('Device drag-dropped:', {
+    //     userId: currentUser.id,
+    //     username: currentUser.username,
+    //     action: "DRAG_DROP_DEVICE",
+    //     resource: `DEVICE:${device.id}`,
+    //     timestamp: new Date().toISOString(),
+    //     details: {
+    //     deviceId: device.id,
+    //     targetFactoryId,
+    //     targetBuildingId,
+    //     targetFloorId,
+    //     targetLineId,
+    //     },
+    // })
 
     toast.success('Thiết bị đã được di chuyển thành công')
-    console.log('Reloading stats and external devices')
+    // console.log('Reloading stats and external devices')
     await loadStats()
     await loadExternalDevices()
     } catch (error) {
@@ -770,7 +771,7 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     }
 
 setDraggedDevice(null)
-console.log('Drag operation completed')
+// console.log('Drag operation completed')
 }
 const handleAddFactory = async () => {
     if (!newFactoryName.trim()) return
@@ -920,7 +921,7 @@ const renderFactoryView = () => {
                             <div className="flex items-center space-x-2">
                             <Play className="h-4 w-4 text-white/80" />
                             <div>
-                                <div className="text-sm text-white/80">Thời gian chạy</div>
+                                <div className="text-sm text-white/80">{t("layouts.runningtime")}</div>
                                 <div className="font-medium text-white">
                                 {factory.operationalTime?.runningTime?.toFixed(0) || 0} {t("layouts.minutes")}
                                 </div>
@@ -929,7 +930,7 @@ const renderFactoryView = () => {
                             <div className="flex items-center space-x-2">
                             <Pause className="h-4 w-4 text-white/80" />
                             <div>
-                                <div className="text-sm text-white/80">Thiết bị ngừng</div>
+                                <div className="text-sm text-white/80">{t("layouts.downtime")}</div>
                                 <div className="font-medium text-white">
                                 {factoryStats?.downtime || 0} {t("layouts.devices")}
                                 </div>
@@ -941,7 +942,7 @@ const renderFactoryView = () => {
                             <div className="flex items-center space-x-2">
                             <AlertCircle className="h-4 w-4 text-white/80" />
                             <div>
-                                <div className="text-sm text-white/80">Thời gian lỗi</div>
+                                <div className="text-sm text-white/80">{t("layouts.errortime")}</div>
                                 <div className="font-medium text-white">
                                 {factory.operationalTime?.errorTime?.toFixed(0) || 0} {t("layouts.minutes")}
                                 </div>
@@ -950,7 +951,7 @@ const renderFactoryView = () => {
                             <div className="flex items-center space-x-2">
                             <Zap className="h-4 w-4 text-white/80" />
                             <div>
-                                <div className="text-sm text-white/80">Tiêu thụ điện</div>
+                                <div className="text-sm text-white/80">{t("layouts.powerConsumption")}</div>
                                 <div className="font-medium text-white">
                                 {factory.power?.toFixed(1) || 0} {t("layouts.kwh")}
                                 </div>
@@ -961,10 +962,10 @@ const renderFactoryView = () => {
                         <div className="pt-2 border-t border-white/20">
                             <div className="flex justify-between items-center">
                             <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                                {factory.buildingCount || 0} Tòa nhà
+                                {factory.buildingCount || 0} {t("layouts.building")}
                             </Badge>
                             <div className="text-right">
-                                <div className="text-sm text-white/80">Hiệu suất</div>
+                                <div className="text-sm text-white/80">{t("layouts.efficiency")}</div>
                                 <div className="font-bold text-white">{factory.operationalTime?.uptimePercentage || 0}%</div>
                             </div>
                             </div>
@@ -1051,7 +1052,7 @@ const renderBuildingView = () => {
                     <div className="flex items-center space-x-2">
                     <Play className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thời gian chạy</div>
+                        <div className="text-sm text-white/80">{t("layouts.runningtime")}</div>
                         <div className="font-medium text-white">
                         {building.operationalTime?.runningTime?.toFixed(0) ?? 0} {t("layouts.minutes")}
                         </div>
@@ -1060,7 +1061,7 @@ const renderBuildingView = () => {
                     <div className="flex items-center space-x-2">
                     <Pause className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thiết bị ngừng</div>
+                        <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                         <div className="font-medium text-white">
                         {buildingStats?.downtime || 0} {t("layouts.devices")}
                         </div>
@@ -1072,7 +1073,7 @@ const renderBuildingView = () => {
                     <div className="flex items-center space-x-2">
                     <AlertCircle className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thời gian lỗi</div>
+                        <div className="text-sm text-white/80">{t("layouts.errortime")}</div>
                         <div className="font-medium text-white">
                         {building.operationalTime?.errorTime?.toFixed(0) ?? 0} {t("layouts.minutes")}
                         </div>
@@ -1081,7 +1082,7 @@ const renderBuildingView = () => {
                     <div className="flex items-center space-x-2">
                     <Zap className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Tiêu thụ điện</div>
+                        <div className="text-sm text-white/80">{t("layouts.powerConsumption")}</div>
                         <div className="font-medium text-white">
                         {building.power?.toFixed(1) ?? 0} {t("layouts.kwh")}
                         </div>
@@ -1092,10 +1093,10 @@ const renderBuildingView = () => {
                 <div className="pt-2 border-t border-white/20">
                     <div className="flex justify-between items-center">
                     <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                        {building.floorCount || 0} Tầng
+                        {building.floorCount || 0} {t("layouts.floor")}
                     </Badge>
                     <div className="text-right">
-                        <div className="text-sm text-white/80">Hiệu suất</div>
+                        <div className="text-sm text-white/80">{t("layouts.efficiency")}</div>
                         <div className="font-bold text-white">{building.operationalTime.uptimePercentage?.toFixed(1) || 0}%</div>
                     </div>
                     </div>
@@ -1181,7 +1182,7 @@ const renderFloorView = () => {
                     <div className="flex items-center space-x-2">
                     <Play className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thời gian chạy</div>
+                        <div className="text-sm text-white/80">{t("layouts.runningtime")}</div>
                         <div className="font-medium text-white">
                         {floor?.operationalTime.runningTime.toFixed(0) || 0} {t("layouts.minutes")}
                         </div>
@@ -1190,7 +1191,7 @@ const renderFloorView = () => {
                     <div className="flex items-center space-x-2">
                     <Pause className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thiết bị ngừng</div>
+                        <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                         <div className="font-medium text-white">
                         {floorStats?.downtime || 0} {t("layouts.devices")}
                         </div>
@@ -1202,7 +1203,7 @@ const renderFloorView = () => {
                     <div className="flex items-center space-x-2">
                     <AlertCircle className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Thời gian lỗi</div>
+                        <div className="text-sm text-white/80">{t("layouts.errortime")}</div>
                         <div className="font-medium text-white">
                         {floor?.operationalTime.errorTime.toFixed(0) || 0} {t("layouts.minutes")}
                         </div>
@@ -1211,7 +1212,7 @@ const renderFloorView = () => {
                     <div className="flex items-center space-x-2">
                     <Zap className="h-4 w-4 text-white/80" />
                     <div>
-                        <div className="text-sm text-white/80">Tiêu thụ điện</div>
+                        <div className="text-sm text-white/80">{t("layouts.powerConsumption")}</div>
                         <div className="font-medium text-white">
                         {floor?.power.toFixed(1) || 0} {t("layouts.kwh")}
                         </div>
@@ -1222,10 +1223,10 @@ const renderFloorView = () => {
                 <div className="pt-2 border-t border-white/20">
                     <div className="flex justify-between items-center">
                     <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                        {floor.lineCount || 0} Dây chuyền
+                        {floor.lineCount || 0} {t("layouts.line")}
                     </Badge>
                     <div className="text-right">
-                        <div className="text-sm text-white/80">Hiệu suất</div>
+                        <div className="text-sm text-white/80">{t("layouts.efficiency")}</div>
                         <div className="font-bold text-white">{floorStats?.efficiency.toFixed(1) || 0}%</div>
                     </div>
                     </div>
@@ -1278,13 +1279,13 @@ const renderLineView = () => {
     }
 
     return (
-    <div className="flex gap-6">
+    <div className="flex flex-col md:flex-row gap-6">
         {/* Lines Grid */}
         <div className="flex-1">
         <div className="space-y-6">
             {filteredLines.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
-                Không tìm thấy dây chuyền nào khớp với "{searchTerm}"
+                {t("layouts.searchLineFail")} "{searchTerm}"
             </div>
             ) : (
             filteredLines.map((line) => {
@@ -1318,29 +1319,29 @@ const renderLineView = () => {
                     )}
                 >
                     <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-center justify-between">
                         <div>
                         <CardTitle className="text-xl font-semibold">{line.name}</CardTitle>
-                        <div className="grid grid-cols-4 gap-4 mt-3 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 text-sm text-muted-foreground">
                             <div className="flex items-center space-x-1">
                             <Play className="h-4 w-4 text-green-600" />
-                            <span>Chạy: {line?.operationalTime.runningTime?.toFixed(0) || 0}p</span>
+                            <span>{t("layouts.run")}: {line?.operationalTime.runningTime?.toFixed(0) || 0}p</span>
                             </div>
                             <div className="flex items-center space-x-1">
                             <Pause className="h-4 w-4 text-blue-600" />
-                            <span>Ngừng: {lineStats?.downtime || 0} thiết bị</span>
+                            <span>{t("layouts.stop")}: {lineStats?.downtime || 0} {t("building.devicesLabel")}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                             <AlertCircle className="h-4 w-4 text-red-600" />
-                            <span>Lỗi: {line?.operationalTime.errorTime?.toFixed(0) || 0}p</span>
+                            <span>{t("devices.error")}: {line?.operationalTime.errorTime?.toFixed(0) || 0}p</span>
                             </div>
                             <div className="flex items-center space-x-1">
                             <Zap className="h-4 w-4 text-orange-600" />
-                            <span>Điện: {line?.power?.toFixed(1) || 0} kWh</span>
+                            <span>{t("layouts.power")}: {line?.power?.toFixed(1) || 0} kWh</span>
                             </div>
                         </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex mt-2 gap-2 self-end sm:self-auto">
                         <Button variant="ghost" size="sm" onClick={() => handleLineDetails(line.id)}>
                             <Activity className="h-4 w-4" />
                         </Button>
@@ -1396,40 +1397,40 @@ const renderLineView = () => {
                                 }
                                 >
                                 {device.status === "Online"
-                                    ? "Chạy"
+                                    ? `${t("layouts.run")}`
                                     : device.status === "Error"
-                                    ? "Lỗi"
+                                    ? `${t("devices.error")}`
                                     : device.status === "Maintenance"
-                                        ? "Bảo trì"
-                                        : "Ngừng"}
+                                        ? `${t("layouts.maintenance")}`
+                                        : `${t("layouts.stop")}`}
                                 </Badge>
                             </div>
 
                             <div className="space-y-1 text-xs">
                                 <div className="flex justify-between">
-                                <span className="text-muted-foreground">Công suất:</span>
+                                <span className="text-muted-foreground">{t("detail.power")}:</span>
                                 <span className="font-medium">{device.power?.toFixed(2)} kW</span>
                                 </div>
                                 <div className="flex justify-between">
-                                <span className="text-muted-foreground">Thời gian chạy:</span>
+                                <span className="text-muted-foreground">{t("layouts.runningtime")}:</span>
                                 <span className="font-medium text-green-600">
                                     {device.operationalTime?.runningTime.toFixed(0)}p
                                 </span>
                                 </div>
                                 <div className="flex justify-between">
-                                <span className="text-muted-foreground">Thiết bị ngừng:</span>
+                                <span className="text-muted-foreground">{t("layouts.deviceDownTime")}:</span>
                                 <span className="font-medium text-blue-600">
                                     {device.operationalTime?.breakTime.toFixed(0)}p
                                 </span>
                                 </div>
                                 <div className="flex justify-between">
-                                <span className="text-muted-foreground">Thời gian lỗi:</span>
+                                <span className="text-muted-foreground">{t("layouts.errortime")}:</span>
                                 <span className="font-medium text-red-600">
                                     {device.operationalTime?.errorTime.toFixed(0)}p
                                 </span>
                                 </div>
                                 <div className="flex justify-between">
-                                <span className="text-muted-foreground">Năng lượng/ngày:</span>
+                                <span className="text-muted-foreground">{t("layouts.energyPerDay")}:</span>
                                 <span className="font-medium">{((device.power ?? 0) * 24).toFixed(1)} {t("units.kwh")}</span>
                                 </div>
                             </div>
@@ -1439,29 +1440,6 @@ const renderLineView = () => {
                             <div className="flex justify-between items-center">
                                 <span className="text-xs text-muted-foreground">{device.type}</span>
                                 <div className="flex gap-1">
-                                    <PermissionGuard permission="layout.edit"
-                                    fallback={
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0 cursor-not-allowed opacity-50"
-                                        >
-                                            <Settings className="h-3 w-3" />
-                                        </Button>
-                                    }
-                                    >
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0"
-                                            onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedDeviceConnection(device);
-                                            }}
-                                        >
-                                            <Settings className="h-3 w-3" />
-                                        </Button>
-                                    </PermissionGuard>
                                     <PermissionGuard permission="layout.edit"
                                     fallback={
                                         <Button
@@ -1494,15 +1472,15 @@ const renderLineView = () => {
                         {/* Empty slot indicator when dragging */}
                         {draggedDevice && (
                         <div className="p-3 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                            Thả thiết bị vào đây
+                            {t("layouts.dropHere")}
                         </div>
                         )}
                     </div>
 
                     {lineDevices.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
-                        <p>Không có thiết bị trong dây chuyền này</p>
-                        <p className="text-sm">Kéo thiết bị từ thanh bên để thêm vào</p>
+                        <p>{t("layouts.noDevice")}</p>
+                        <p className="text-sm">{t("layouts.dragDevice")}</p>
                         </div>
                     )}
                     </CardContent>
@@ -1514,18 +1492,18 @@ const renderLineView = () => {
         </div>
 
         {/* External Devices Panel */}
-        <div className="w-80">
+        <div className="w-full md:w-80">
         <Card className="sticky top-6">
             <CardHeader>
-            <CardTitle className="text-lg">Thiết bị có sẵn</CardTitle>
+            <CardTitle className="text-lg">{t("layouts.externalDevices")}</CardTitle>
             <p className="text-sm text-muted-foreground">
-                Kéo thiết bị từ các vị trí khác để di chuyển chúng đến các dây chuyền trên tầng này
+                {t("layouts.externalDevicesDescription")}
             </p>
             {/* Search input for external devices */}
             <div className="relative mt-3">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                placeholder="Tìm kiếm thiết bị..."
+                placeholder={`${t("common.search")}`}
                 value={externalDeviceSearchTerm}
                 onChange={(e) => setExternalDeviceSearchTerm(e.target.value)}
                 className="pl-10"
@@ -1562,12 +1540,12 @@ const renderLineView = () => {
                         <span className="font-medium text-sm truncate">{device.name}</span>
                         <Badge variant={device.status === "Online" ? "default" : "secondary"}>
                             {device.status === "Online"
-                            ? "Chạy"
+                            ? `${t("layouts.run")}`
                             : device.status === "Error"
-                                ? "Lỗi"
+                                ? `${t("devices.error")}`
                                 : device.status === "Maintenance"
-                                ? "Bảo trì"
-                                : "Ngừng"}
+                                ? `${t("layouts.maintenance")}`
+                                : `${t("layouts.stop")}`}
                         </Badge>
                         </div>
 
@@ -1578,18 +1556,18 @@ const renderLineView = () => {
 
                         <div className="space-y-1 text-xs">
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Công suất:</span>
+                            <span className="text-muted-foreground">{t("detail.power")}:</span>
                             <span className="font-medium">{devicePower.toFixed(2)} kW</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Loại:</span>
+                            <span className="text-muted-foreground">{t("alerts.type")}:</span>
                             <span className="font-medium">{device.type}</span>
                         </div>
                         </div>
 
                         <div className="flex justify-between items-center mt-2">
                         <span className="text-xs text-muted-foreground">
-                            Định mức: {device.ratedPower.toFixed(2)} kW
+                            {t("devices.ratedPower")} : {device.ratedPower.toFixed(2)} kW
                         </span>
                         <PermissionGuard permission="layout.edit"
                         fallback={
@@ -1622,13 +1600,13 @@ const renderLineView = () => {
                     device.name.toLowerCase().includes(externalDeviceSearchTerm.toLowerCase())
                 ).length === 0 && externalDevices.length > 0 && externalDeviceSearchTerm && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
-                    Không tìm thấy thiết bị nào khớp với "{externalDeviceSearchTerm}"
+                    {t("layouts.noDevice")} "{externalDeviceSearchTerm}"
                     </div>
                 )}
 
                 {externalDevices.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
-                    Tất cả thiết bị đều ở trên tầng này
+                    {t("layouts.allDevicesPlaced")}
                     </div>
                 )}
                 </div>
@@ -1655,43 +1633,43 @@ const renderDeviceView = () => {
                 <CardTitle className="text-sm font-medium">{device.name}</CardTitle>
                 <Badge variant={device.status === "Online" ? "default" : "secondary"}>
                     {device.status === "Online"
-                    ? "Chạy"
+                    ? `${t("layouts.run")}`
                     : device.status === "Error"
-                        ? "Lỗi"
+                        ? `${t("devices.error")}`
                         : device.status === "Maintenance"
-                        ? "Bảo trì"
-                        : "Ngừng"}
+                        ? `${t("layouts.maintenance")}`
+                        : `${t("layouts.stop")}`}
                 </Badge>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Thời gian chạy</span>
+                    <span className="text-muted-foreground">{t("layouts.runningtime")}</span>
                     <span className="font-medium">
                     {device.operationalTime?.runningTime.toFixed(0)} {t("layouts.minutes")}
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Thời gian ngừng</span>
+                    <span className="text-muted-foreground">{t("layouts.runningtime")}</span>
                     <span className="font-medium">
                     {device.operationalTime?.breakTime.toFixed(0)} {t("layouts.minutes")}
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Thời gian lỗi</span>
+                    <span className="text-muted-foreground">{t("layouts.errortime")}</span>
                     <span className="font-medium">
                     {device.operationalTime?.errorTime.toFixed(0)} {t("layouts.minutes")}
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Công suất</span>
+                    <span className="text-muted-foreground">{t("detail.power")}</span>
                     <span className="font-medium">
                     {device.power?.toFixed(2) || 0}{t("units.kw")}
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Năng lượng hàng ngày</span>
+                    <span className="text-muted-foreground">{t("layouts.energyPerDay")}</span>
                     <span className="font-medium">
                     {((device.power ?? 0) * 24).toFixed(1)} {t("units.kwh")}
                     </span>
@@ -1700,7 +1678,7 @@ const renderDeviceView = () => {
                 <PermissionGuard permission="layout.edit"
                 fallback={
                     <div className="text-center text-xs text-muted-foreground bg-gray-50 p-2 rounded">
-                        Bạn không có quyền chỉnh sửa thiết bị này
+                        {t("common.noPermissionToEdit")}
                     </div>
                 }>
                     <Button
@@ -1710,7 +1688,7 @@ const renderDeviceView = () => {
                         onClick={() => handleDeviceMove(device)}
                     >
                         <Move className="h-4 w-4 mr-2" />
-                        Di chuyển thiết bị
+                        {t("devices.moveDevice")}
                     </Button>
                 </PermissionGuard>
                 </div>
@@ -1823,41 +1801,39 @@ const getAvailableLines = () => {
 
 return (
     <MainLayout>
-    <div className="space-y-6 bg-gradient-to-br from-gray-50 to-green-50 min-h-screen p-6 -m-6">
+    <div className="space-y-6 min-h-screen p-2 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-        <div>
-            <div className="flex items-center gap-4">
-            {currentLevel !== "factory" && (
-                <Button variant="outline" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                {t("common.back")}
-                </Button>
-            )}
-            <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                {t("layouts.title")}
-                </h1>
-                {getBreadcrumb().length > 0 && (
-                <div className="flex items-center space-x-2 text-gray-600">
-                    {getBreadcrumb().map((item, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                        <button
-                        onClick={item.onClick}
-                        className="hover:text-blue-600 hover:underline transition-colors cursor-pointer"
-                        >
-                        {item.name}
-                        </button>
-                        {index < getBreadcrumb().length - 1 && (
-                        <span className="text-gray-400">/</span>
-                        )}
-                    </div>
-                    ))}
-                </div>
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
+                {currentLevel !== "factory" && (
+                    <Button variant="outline" size="sm" onClick={handleBack} className="self-start sm:self-auto">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        {t("common.back")}
+                    </Button>
                 )}
+                <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                    {t("layouts.title")}
+                    </h1>
+                    {getBreadcrumb().length > 0 && (
+                    <div className="flex items-center space-x-2 text-gray-600">
+                        {getBreadcrumb().map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                            <button
+                            onClick={item.onClick}
+                            className="hover:text-blue-600 hover:underline transition-colors cursor-pointer"
+                            >
+                            {item.name}
+                            </button>
+                            {index < getBreadcrumb().length - 1 && (
+                            <span className="text-gray-400">/</span>
+                            )}
+                        </div>
+                        ))}
+                    </div>
+                    )}
+                </div>
             </div>
-            </div>
-        </div>
 
         {/* Add Buttons */}
         <PermissionGuard
@@ -1867,25 +1843,25 @@ return (
                 {currentLevel === "factory" && (
                 <Button onClick={() => setIsAddFactoryOpen(true)} className="bg-green-600 hover:bg-green-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm Nhà Máy
+                    {t("layouts.addFactory")}
                 </Button>
                 )}
                 {currentLevel === "building" && (
                 <Button onClick={() => setIsAddBuildingOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm Tòa Nhà
+                    {t("layouts.addBuilding")}
                 </Button>
                 )}
                 {currentLevel === "floor" && (
                 <Button onClick={() => setIsAddFloorOpen(true)} className="bg-purple-600 hover:bg-purple-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm Tầng
+                    {t("layouts.addFloor")}
                 </Button>
                 )}
                 {currentLevel === "line" && (
                 <Button onClick={() => setIsAddLineOpen(true)} className="bg-orange-600 hover:bg-orange-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm Dây Chuyền
+                    {t("layouts.addLine")}
                 </Button>
                 )}
             </div>
@@ -1897,16 +1873,16 @@ return (
             <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-                placeholder={`Tìm kiếm ${
+                placeholder={`${t("layouts.search")} ${
                 currentLevel === "factory"
-                    ? "nhà máy"
+                    ? `${t("layouts.factory").toLowerCase()}`
                     : currentLevel === "building"
-                    ? "tòa nhà"
+                    ? `${t("layouts.building").toLowerCase()}`
                     : currentLevel === "floor"
-                        ? "tầng"
+                        ? `${t("layouts.floor").toLowerCase()}`
                         : currentLevel === "line"
-                        ? "dây chuyền"
-                        : "thiết bị"
+                        ? `${t("layouts.line").toLowerCase()}`
+                        : `${t("layouts.devices").toLowerCase()}`
                 }...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1929,10 +1905,10 @@ return (
             <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5" />
-                Chi tiết {selectedLineDetails?.name}
+                {t("common.detail")} {selectedLineDetails?.name}
             </SheetTitle>
             <SheetDescription>
-                Giám sát thời gian thực và quản lý thiết bị cho dây chuyền sản xuất này
+                {t("layouts.inFactory")}.
             </SheetDescription>
             </SheetHeader>
 
@@ -1944,7 +1920,7 @@ return (
                     <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                        <p className="text-sm text-white/80">Tổng công suất</p>
+                        <p className="text-sm text-white/80">{t("dashboard.totalPower")}</p>
                         <p className="text-2xl font-bold">{selectedLineDetails.totalPower.toFixed(2)} kW</p>
                         </div>
                         <Zap className="h-8 w-8 text-white/80" />
@@ -1956,7 +1932,7 @@ return (
                     <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                        <p className="text-sm text-white/80">Hiệu suất</p>
+                        <p className="text-sm text-white/80">{t("layouts.efficiency")}</p>
                         <p className="text-2xl font-bold">{selectedLineDetails.efficiency.toFixed(1)}%</p>
                         </div>
                         <Activity className="h-8 w-8 text-white/80" />
@@ -1968,7 +1944,7 @@ return (
                     <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                        <p className="text-sm text-white/80">Thời gian chạy</p>
+                        <p className="text-sm text-white/80">{t("layouts.runningtime")}</p>
                         <p className="text-2xl font-bold">{selectedLineDetails.runningTime.toFixed(0)} phút</p>
                         </div>
                         <Play className="h-8 w-8 text-white/80" />
@@ -1980,7 +1956,7 @@ return (
                     <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                        <p className="text-sm text-white/80">Cảnh báo</p>
+                        <p className="text-sm text-white/80">{t("nav.alerts")}</p>
                         <p className="text-2xl font-bold">{selectedLineDetails.alerts}</p>
                         </div>
                         <AlertTriangle className="h-8 w-8 text-white/80" />
@@ -1992,7 +1968,7 @@ return (
                 {/* Power Trend Chart */}
                 <Card>
                 <CardHeader>
-                    <CardTitle>Xu hướng tiêu thụ điện (24h)</CardTitle>
+                    <CardTitle>{t("analytics.powerConsumptionTrend")} (24h)</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="h-64 flex items-end justify-between space-x-1">
@@ -2020,7 +1996,7 @@ return (
                 {/* Device List */}
                 <Card>
                 <CardHeader>
-                    <CardTitle>Thiết bị ({selectedLineDetails.devices.length})</CardTitle>
+                    <CardTitle>{t("devices")} ({selectedLineDetails.devices.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-64">
@@ -2030,12 +2006,12 @@ return (
                             <div className="flex items-center gap-3">
                             <Badge variant={device.status === "Online" ? "default" : "secondary"}>
                                 {device.status === "Online"
-                                ? "Chạy"
+                                ? `${t("layouts.run")}`
                                 : device.status === "Error"
-                                    ? "Lỗi"
+                                    ? `${t("devices.error")}`
                                     : device.status === "Maintenance"
-                                    ? "Bảo trì"
-                                    : "Ngừng"}
+                                    ? `${t("layouts.maintenance")}`
+                                    : `${t("layouts.stop")}`}
                             </Badge>
                             <div>
                                 <p className="font-medium">{device.name}</p>
@@ -2050,7 +2026,7 @@ return (
                                 kW
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                Định mức: {device.ratedPower.toFixed(2)} kW
+                                {t("devices.ratedPower")} : {device.ratedPower.toFixed(2)} kW
                             </p>
                             </div>
                         </div>
@@ -2064,126 +2040,16 @@ return (
         </SheetContent>
         </Sheet>
 
-        {/* Device Connection Dialog */}
-        <Dialog open={!!selectedDeviceConnection} onOpenChange={() => setSelectedDeviceConnection(null)}>
-        <DialogContent className="max-w-2xl">
-            <DialogHeader>
-            <DialogTitle>Cài đặt kết nối thiết bị</DialogTitle>
-            <DialogDescription>Cấu hình phương thức kết nối cho {selectedDeviceConnection?.name}</DialogDescription>
-            </DialogHeader>
-
-            {selectedDeviceConnection && (
-            <Tabs defaultValue="connection" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="connection">Kết nối</TabsTrigger>
-                <TabsTrigger value="settings">Cài đặt</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="connection" className="space-y-4">
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                    <Label>Loại kết nối</Label>
-                    <Select defaultValue="MQTT">
-                        <SelectTrigger>
-                        <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="MQTT">
-                            <div className="flex items-center gap-2">
-                            <Wifi className="h-4 w-4" />
-                            MQTT
-                            </div>
-                        </SelectItem>
-                        <SelectItem value="MODBUS_TCP">
-                            <div className="flex items-center gap-2">
-                            <Cable className="h-4 w-4" />
-                            Modbus TCP/IP
-                            </div>
-                        </SelectItem>
-                        <SelectItem value="OPC_UA">
-                            <div className="flex items-center gap-2">
-                            <Cable className="h-4 w-4" />
-                            OPC UA
-                            </div>
-                        </SelectItem>
-                        </SelectContent>
-                    </Select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Broker/Host</Label>
-                        <Input placeholder="192.168.1.100" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Cổng</Label>
-                        <Input placeholder="1883" />
-                    </div>
-                    </div>
-
-                    <div className="space-y-2">
-                    <Label>Topic/Địa chỉ</Label>
-                    <Input placeholder="factory/line1/device001" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Tên đăng nhập</Label>
-                        <Input placeholder="Tùy chọn" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Mật khẩu</Label>
-                        <Input type="password" placeholder="Tùy chọn" />
-                    </div>
-                    </div>
-                </div>
-                </TabsContent>
-
-                <TabsContent value="settings" className="space-y-4">
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                    <Label>Khoảng thời gian polling (giây)</Label>
-                    <Input type="number" defaultValue="5" />
-                    </div>
-
-                    <div className="space-y-2">
-                    <Label>Timeout (giây)</Label>
-                    <Input type="number" defaultValue="10" />
-                    </div>
-
-                    <div className="space-y-2">
-                    <Label>Số lần thử lại</Label>
-                    <Input type="number" defaultValue="3" />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="autoReconnect" defaultChecked />
-                    <Label htmlFor="autoReconnect">Tự động kết nối lại</Label>
-                    </div>
-                </div>
-                </TabsContent>
-            </Tabs>
-            )}
-
-            <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedDeviceConnection(null)}>
-                Hủy
-            </Button>
-            <Button>Lưu cấu hình</Button>
-            </DialogFooter>
-        </DialogContent>
-        </Dialog>
-
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
             <DialogHeader>
-            <DialogTitle>Sửa {editingItem?.type}</DialogTitle>
-            <DialogDescription>Cập nhật tên của {editingItem?.type} này</DialogDescription>
+            <DialogTitle>{t("common.edit")} {editingItem?.type}</DialogTitle>
+            <DialogDescription>{t("common.updateName")} {editingItem?.type}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="editName">Tên</Label>
+                <Label htmlFor="editName">{t("common.name")}</Label>
                 <Input
                 id="editName"
                 value={editingItem?.name || ""}
@@ -2204,13 +2070,13 @@ return (
         <Dialog open={isDeviceRelocationOpen} onOpenChange={setIsDeviceRelocationOpen}>
         <DialogContent className="max-w-2xl">
             <DialogHeader>
-            <DialogTitle>Di chuyển thiết bị</DialogTitle>
-            <DialogDescription>Di chuyển {selectedDeviceForMove?.name} đến vị trí khác</DialogDescription>
+            <DialogTitle>{t("devices.moveDevice")}</DialogTitle>
+            <DialogDescription>{t("devices.moveDevice")} {selectedDeviceForMove?.name} {t("devices.toAnotherLocation")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                <Label>Nhà máy</Label>
+                <Label>{t("layouts.factory")}</Label>
                 <Select
                     value={targetLocation.factoryId}
                     onValueChange={(value) =>
@@ -2223,7 +2089,7 @@ return (
                     }
                 >
                     <SelectTrigger>
-                    <SelectValue placeholder="Chọn nhà máy" />
+                    <SelectValue placeholder={t("layouts.selectFactory")} />
                     </SelectTrigger>
                     <SelectContent>
                     {apiFactories.map((factory) => (
@@ -2236,7 +2102,7 @@ return (
                 </div>
 
                 <div className="space-y-2">
-                <Label>Tòa nhà</Label>
+                <Label>{t("layouts.building")}</Label>
                 <Select
                     value={targetLocation.buildingId}
                     onValueChange={(value) =>
@@ -2250,7 +2116,7 @@ return (
                     disabled={!targetLocation.factoryId}
                 >
                     <SelectTrigger>
-                    <SelectValue placeholder="Chọn tòa nhà" />
+                    <SelectValue placeholder={t("layouts.selectBuilding")} />
                     </SelectTrigger>
                     <SelectContent>
                     {apiBuildings
@@ -2265,7 +2131,7 @@ return (
                 </div>
 
                 <div className="space-y-2">
-                <Label>Tầng</Label>
+                <Label>{t("layouts.floor")}</Label>
                 <Select
                     value={targetLocation.floorId}
                     onValueChange={(value) =>
@@ -2278,7 +2144,7 @@ return (
                     disabled={!targetLocation.buildingId}
                 >
                     <SelectTrigger>
-                    <SelectValue placeholder="Chọn tầng" />
+                    <SelectValue placeholder={t("layouts.selectFloor")} />
                     </SelectTrigger>
                     <SelectContent>
                     {apiFloors
@@ -2293,7 +2159,7 @@ return (
                 </div>
 
                 <div className="space-y-2">
-                <Label>Dây chuyền</Label>
+                <Label>{t("layouts.line")}</Label>
                 <Select
                     value={targetLocation.lineId}
                     onValueChange={(value) =>
@@ -2305,7 +2171,7 @@ return (
                     disabled={!targetLocation.floorId}
                 >
                     <SelectTrigger>
-                    <SelectValue placeholder="Chọn dây chuyền" />
+                    <SelectValue placeholder={t("layouts.selectLine")} />
                     </SelectTrigger>
                     <SelectContent>
                     {apiLines
@@ -2325,7 +2191,7 @@ return (
                 {t("common.cancel")}
             </Button>
             <Button onClick={confirmDeviceMove} disabled={!targetLocation.lineId}>
-                Di chuyển thiết bị
+                {t("devices.moveDevice")}
             </Button>
             </DialogFooter>
         </DialogContent>
@@ -2334,47 +2200,47 @@ return (
 
     {/* Add Factory Dialog */}
     <Dialog open={isAddFactoryOpen} onOpenChange={setIsAddFactoryOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
         <DialogHeader>
-            <DialogTitle>Thêm Nhà Máy Mới</DialogTitle>
+            <DialogTitle>{t("factories.addNew")}</DialogTitle>
             <DialogDescription>
-            Nhập thông tin cho nhà máy mới
+            {t("factories.enterInfo")}
             </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="factory-name">Tên Nhà Máy</Label>
+                <Label htmlFor="factory-name">{t("factories.name")}</Label>
                 <Input
                     id="factory-name"
                     value={newFactoryName}
                     onChange={(e) => setNewFactoryName(e.target.value)}
-                    placeholder="Nhập tên nhà máy..."
+                    placeholder={t("factories.namePlaceholder")}
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="factory-location">Địa điểm</Label>
+                <Label htmlFor="factory-location">{t("factories.location")}</Label>
                 <Input
                     id="factory-location"
                     value={newLocation}
                     onChange={(e) => setNewLocation(e.target.value)}
-                    placeholder="Nhập địa điểm..."
+                    placeholder={t("factories.locationPlaceholder")}
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="timezone">Múi Giờ</Label>
+                <Label htmlFor="timezone">{t("factories.timezone")}</Label>
                 <TimezoneCombobox
                     value={newTimezone}
                     onValueChange={(value) => setNewTimezone(value)}
-                    placeholder="Chọn múi giờ..."
+                    placeholder={t("factories.timezonePlaceholder")}
                 />
             </div>
         </div>
         <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddFactoryOpen(false)}>
-            Hủy
+            {t("common.cancel")}
             </Button>
             <Button onClick={handleAddFactory} disabled={!newFactoryName.trim()}>
-            Thêm Nhà Máy
+            {t("factories.addNew")}
             </Button>
         </DialogFooter>
         </DialogContent>
@@ -2382,30 +2248,30 @@ return (
 
     {/* Add Building Dialog */}
     <Dialog open={isAddBuildingOpen} onOpenChange={setIsAddBuildingOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
         <DialogHeader>
-            <DialogTitle>Thêm Tòa Nhà Mới</DialogTitle>
+            <DialogTitle>{t("buildings.addNew")}</DialogTitle>
             <DialogDescription>
-            Nhập tên cho tòa nhà mới trong nhà máy hiện tại
+            {t("buildings.enterInfo")}
             </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
             <div className="space-y-2">
-            <Label htmlFor="building-name">Tên Tòa Nhà</Label>
+            <Label htmlFor="building-name">{t("buildings.name")}</Label>
             <Input
                 id="building-name"
                 value={newBuildingName}
                 onChange={(e) => setNewBuildingName(e.target.value)}
-                placeholder="Nhập tên tòa nhà..."
+                placeholder={t("buildings.namePlaceholder")}
             />
             </div>
         </div>
         <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddBuildingOpen(false)}>
-            Hủy
+            {t("common.cancel")}
             </Button>
             <Button onClick={handleAddBuilding} disabled={!newBuildingName.trim()}>
-            Thêm Tòa Nhà
+            {t("buildings.addNew")}
             </Button>
         </DialogFooter>
         </DialogContent>
@@ -2413,30 +2279,30 @@ return (
 
     {/* Add Floor Dialog */}
     <Dialog open={isAddFloorOpen} onOpenChange={setIsAddFloorOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
         <DialogHeader>
-            <DialogTitle>Thêm Tầng Mới</DialogTitle>
+            <DialogTitle>{t("floors.addNew")}</DialogTitle>
             <DialogDescription>
-            Nhập tên cho tầng mới trong tòa nhà hiện tại
+            {t("floors.enterInfo")}
             </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
             <div className="space-y-2">
-            <Label htmlFor="floor-name">Tên Tầng</Label>
+            <Label htmlFor="floor-name">{t("floors.name")}</Label>
             <Input
                 id="floor-name"
                 value={newFloorName}
                 onChange={(e) => setNewFloorName(e.target.value)}
-                placeholder="Nhập tên tầng..."
+                placeholder={t("floors.namePlaceholder")}
             />
             </div>
         </div>
         <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddFloorOpen(false)}>
-            Hủy
+            {t("common.cancel")}
             </Button>
             <Button onClick={handleAddFloor} disabled={!newFloorName.trim()}>
-            Thêm Tầng
+            {t("floors.addNew")}
             </Button>
         </DialogFooter>
         </DialogContent>
@@ -2444,30 +2310,30 @@ return (
 
     {/* Add Line Dialog */}
     <Dialog open={isAddLineOpen} onOpenChange={setIsAddLineOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
         <DialogHeader>
-            <DialogTitle>Thêm Dây Chuyền Mới</DialogTitle>
+            <DialogTitle>{t("lines.addNew")}</DialogTitle>
             <DialogDescription>
-            Nhập tên cho dây chuyền mới trong tầng hiện tại
+            {t("lines.enterInfo")}
             </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
             <div className="space-y-2">
-            <Label htmlFor="line-name">Tên Dây Chuyền</Label>
+            <Label htmlFor="line-name">{t("lines.name")}</Label>
             <Input
                 id="line-name"
                 value={newLineName}
                 onChange={(e) => setNewLineName(e.target.value)}
-                placeholder="Nhập tên dây chuyền..."
+                placeholder={t("lines.namePlaceholder")}
             />
             </div>
         </div>
         <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddLineOpen(false)}>
-            Hủy
+            {t("common.cancel")}
             </Button>
             <Button onClick={handleAddLine} disabled={!newLineName.trim()}>
-            Thêm Dây Chuyền
+            {t("lines.addNew")}
             </Button>
         </DialogFooter>
         </DialogContent>

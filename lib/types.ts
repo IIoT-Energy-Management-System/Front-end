@@ -210,7 +210,7 @@ export interface Alert {
     deviceId: string
     deviceName?: string
     type: "Power Threshold" | "Device Offline" | "Low Power Factor" | "Temperature" | "Custom"
-    severity: "Info" | "Warning" | "Critical"
+    severity: "Info" | "Warning" | "Critical" | "High"
     message: string
     timestamp: string
     acknowledged: boolean
@@ -473,4 +473,15 @@ export interface ConnectionLogEntry {
     ipAddress?: string
     timestamp: string
     duration?: number
+}
+
+export interface EnergySettings {
+    id: string
+    type: 'flat' | 'timeOfUse'
+    flatRate?: number
+    timeOfUseData?: Array<{
+        startTime: string
+        endTime: string
+        rate: number
+    }>
 }

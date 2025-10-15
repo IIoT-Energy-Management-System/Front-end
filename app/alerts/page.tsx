@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomPagination } from "@/components/custom-pagination"
 import { MainLayout } from "@/components/layout/main-layout"
 import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
@@ -47,7 +48,6 @@ export default function AlertsPage() {
       try {
         const response = await getAlerts();
         setAlerts(response.data);
-        console.log(response.data);
 
         // If we have alertId in query params, open dialog for that alert
         const alertId = searchParams?.get?.('alertId')
@@ -129,7 +129,6 @@ export default function AlertsPage() {
     if (!selectedAlert || !user) return
     
     try {
-        console.log("Acknowledging alert:", selectedAlert.id, "by user:", user.id ?? "", "with note:", acknowledgmentNote)
         await confirmAcknowledgeAlert(selectedAlert.id, { userId: user.id ?? "", acknowledgmentNote })
     } catch (error) {
         console.error("Failed to acknowledge alert:", error)
@@ -149,7 +148,6 @@ export default function AlertsPage() {
     const confirmResolve = async () => {
     if (!selectedAlert || !user) return
     try {
-        console.log("Resolving alert:", selectedAlert.id, "by user:", user.id ?? "")
         await confirmResolveAlert(selectedAlert.id)
     } catch (error) {
         console.error("Failed to resolve alert:", error)
@@ -173,6 +171,8 @@ export default function AlertsPage() {
         return "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0"
       case "Info":
         return "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0"
+      case "High":
+        return "bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0"
       default:
         return "bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0"
     }
@@ -186,6 +186,8 @@ export default function AlertsPage() {
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />
       case "Info":
         return <Bell className="h-4 w-4 text-blue-600" />
+        case "High":
+        return <AlertTriangle className="h-4 w-4 text-purple-600" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -196,21 +198,21 @@ export default function AlertsPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 bg-gradient-to-br from-gray-50 to-red-5050 p-6 -m-6">
+      <div className="space-y-6 p-2 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-              Quản Lý Cảnh Báo
+            <h1 className="text-center sm:text-left text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+              {t("alerts.title")}
             </h1>
-            <p className="text-gray-600 mt-2">Giám sát và quản lý cảnh báo và thông báo hệ thống</p>
+            <p className="text-gray-600 mt-2">{t("alerts.description")}</p>
           </div>
           <div className="flex items-center gap-4">
             <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0 text-sm px-3 py-1">
-              {criticalCount} Nghiêm Trọng
+              {criticalCount} {t("alerts.critical")}
             </Badge>
             <Badge className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0 text-sm px-3 py-1">
-              {unacknowledgedCount} Chưa Xác Nhận
+              {unacknowledgedCount} {t("alerts.unacknowledged")}
             </Badge>
           </div>
         </div>
@@ -219,45 +221,45 @@ export default function AlertsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Tổng Cảnh Báo</CardTitle>
+              <CardTitle className="text-sm font-medium text-white/90">{t("alerts.total")}</CardTitle>
               <Bell className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{alerts.length}</div>
-              <p className="text-xs text-white/80">24 giờ qua</p>
+              <p className="text-xs text-white/80">{t("alerts.last24Hours")}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Cảnh Báo Nghiêm Trọng</CardTitle>
+              <CardTitle className="text-sm font-medium text-white/90">{t("alerts.critical")}</CardTitle>
               <AlertTriangle className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{criticalCount}</div>
-              <p className="text-xs text-white/80">Cần xử lý ngay lập tức</p>
+              <p className="text-xs text-white/80">{t("alerts.criticalDescription")}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Chưa Xác Nhận</CardTitle>
+              <CardTitle className="text-sm font-medium text-white/90">{t("alerts.unacknowledged")}</CardTitle>
               <Clock className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{unacknowledgedCount}</div>
-              <p className="text-xs text-white/80">Đang chờ xác nhận</p>
+              <p className="text-xs text-white/80">{t("alerts.unacknowledgedDescription")}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Đã Giải Quyết Hôm Nay</CardTitle>
+              <CardTitle className="text-sm font-medium text-white/90">{t("alerts.resolvedToday")}</CardTitle>
               <CheckCircle className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{alerts.filter((a) => a.resolved).length}</div>
-              <p className="text-xs text-white/80">Đã giải quyết thành công</p>
+              <p className="text-xs text-white/80">{t("alerts.resolvedDescription")}</p>
             </CardContent>
           </Card>
         </div>
@@ -270,7 +272,7 @@ export default function AlertsPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Tìm kiếm cảnh báo, thiết bị hoặc tin nhắn..."
+                    placeholder={`${t("alerts.search")}`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 border-2 border-red-200 focus:border-red-400"
@@ -278,26 +280,28 @@ export default function AlertsPage() {
                 </div>
               </div>
               <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                <SelectTrigger className="w-48 border-2 border-red-200 focus:border-red-400">
+                <SelectTrigger className="w-full sm:w-48 border-2 border-red-200 focus:border-red-400">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tất Cả Mức Độ</SelectItem>
-                  <SelectItem value="Critical">Nghiêm Trọng</SelectItem>
-                  <SelectItem value="Warning">Cảnh Báo</SelectItem>
-                  <SelectItem value="Info">Thông Tin</SelectItem>
+                    <SelectItem value="all">{t("alerts.allSeverities")}</SelectItem>
+                    <SelectItem value="Critical">{t("alerts.critical")}</SelectItem>
+                    <SelectItem value="Warning">{t("alerts.warning")}</SelectItem>
+                    <SelectItem value="Info">{t("alerts.info")}</SelectItem>
+                    <SelectItem value="High">{t("common.high")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48 border-2 border-red-200 focus:border-red-400">
+                <SelectTrigger className="w-full sm:w-48 border-2 border-red-200 focus:border-red-400">
+                    <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tất Cả Trạng Thái</SelectItem>
-                  <SelectItem value="unacknowledged">Chưa Xác Nhận</SelectItem>
-                  <SelectItem value="acknowledged">Đã Xác Nhận</SelectItem>
-                  <SelectItem value="resolved">Đã Giải Quyết</SelectItem>
+                  <SelectItem value="all">{t("alerts.allStatuses")}</SelectItem>
+                  <SelectItem value="unacknowledged">{t("alerts.unacknowledged")}</SelectItem>
+                  <SelectItem value="acknowledged">{t("alerts.acknowledged")}</SelectItem>
+                  <SelectItem value="resolved">{t("alerts.resolved")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -309,25 +313,24 @@ export default function AlertsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-red-600" />
-              Lịch Sử Cảnh Báo
+              {t("alerts.history")}
             </CardTitle>
             <CardDescription>
-              Hiển thị {startIndex + 1} đến {Math.min(startIndex + itemsPerPage, filteredAlerts.length)} trong{" "}
-              {filteredAlerts.length} cảnh báo
+              {t("common.showing")} {startIndex + 1} {t("common.to")} {Math.min(startIndex + itemsPerPage, filteredAlerts.length)} {t("common.of")} {filteredAlerts.length} {t("alerts")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gradient-to-r from-red-50 to-orange-50">
-                  <TableHead className="font-semibold">Mức Độ</TableHead>
-                  <TableHead className="font-semibold">Thiết Bị</TableHead>
-                  <TableHead className="font-semibold">Loại</TableHead>
-                  <TableHead className="font-semibold">Tin Nhắn</TableHead>
-                  <TableHead className="font-semibold">Thời Gian</TableHead>
-                  <TableHead className="font-semibold">Xác nhận bởi</TableHead>
-                  <TableHead className="font-semibold">Trạng Thái</TableHead>
-                  <TableHead className="font-semibold text-center">Hành Động</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.severity")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.device")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.type")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.message")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.timestamp")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.acknowledgedBy")}</TableHead>
+                  <TableHead className="font-semibold">{t("alerts.status")}</TableHead>
+                  <TableHead className="font-semibold text-center">{t("devices.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -352,14 +355,14 @@ export default function AlertsPage() {
                     <TableCell>
                       {alert.resolved ? (
                         <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-                          Đã Giải Quyết
+                          {t("alerts.resolved")}
                         </Badge>
                       ) : alert.acknowledged ? (
                         <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                          Đã Xác Nhận
+                          {t("alerts.acknowledged")}
                         </Badge>
                       ) : (
-                        <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0">Mới</Badge>
+                        <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0">{t("alerts.new")}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -372,7 +375,7 @@ export default function AlertsPage() {
                                 onClick={() => handleAcknowledgeAlert(alert)}
                                 className="border-2 border-yellow-200 hover:bg-yellow-50"
                             >
-                                Xác Nhận
+                                {t("alerts.acknowledge")}
                             </Button>
                             )}
                         </PermissionGuard>
@@ -384,7 +387,7 @@ export default function AlertsPage() {
                                 onClick={() => handleResolveAlert(alert)}
                                 className="border-2 border-green-200 hover:bg-green-50"
                             >
-                                Giải Quyết
+                                {t("alerts.resolve")}
                             </Button>
                             )}
                         </PermissionGuard>
@@ -408,45 +411,24 @@ export default function AlertsPage() {
         </Card>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Hiển thị {startIndex + 1} đến {Math.min(startIndex + itemsPerPage, filteredAlerts.length)} trong{" "}
-              {filteredAlerts.length} cảnh báo
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="border-2 border-red-200 hover:bg-red-50"
-              >
-                Trước
-              </Button>
-              <span className="text-sm">
-                Trang {currentPage} trong {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="border-2 border-red-200 hover:bg-red-50"
-              >
-                Tiếp
-              </Button>
-            </div>
-          </div>
-        )}
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredAlerts.length}
+          showInfo={true}
+          t={t}
+          itemName={t("alerts")}
+        />
 
         {/* Acknowledge Dialog */}
         <Dialog open={isAcknowledgeDialogOpen} onOpenChange={setIsAcknowledgeDialogOpen}>
           <DialogContent className="bg-white/95 backdrop-blur-sm">
             <DialogHeader>
-              <DialogTitle>Xác Nhận Cảnh Báo</DialogTitle>
+              <DialogTitle>{t("alerts.acknowledgeTitle")}</DialogTitle>
               <DialogDescription>
-                Xác nhận cảnh báo này và tùy chọn thêm ghi chú về hành động đã thực hiện.
+                {t("alerts.acknowledgeDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -462,11 +444,11 @@ export default function AlertsPage() {
               )}
               <div className="space-y-2">
                 <label htmlFor="acknowledgmentNote" className="text-sm font-medium">
-                  Ghi Chú Xác Nhận (Tùy Chọn)
+                  {t("alerts.acknowledgmentNote")} ({t("filters.optional")})
                 </label>
                 <Textarea
                   id="acknowledgmentNote"
-                  placeholder="Thêm ghi chú về cảnh báo này hoặc hành động đã thực hiện..."
+                  placeholder={`${t("alerts.acknowledgmentNotePlaceholder")}`}
                   value={acknowledgmentNote}
                   onChange={(e) => setAcknowledgmentNote(e.target.value)}
                   className="border-2 border-red-200 focus:border-red-400"
@@ -475,13 +457,13 @@ export default function AlertsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAcknowledgeDialogOpen(false)}>
-                Hủy
+                {t("common.cancel")}
               </Button>
               <Button
                 onClick={confirmAcknowledge}
                 className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
               >
-                Xác Nhận Cảnh Báo
+                {t("alerts.acknowledgeButton")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -491,9 +473,9 @@ export default function AlertsPage() {
         <Dialog open={isSolveDialogOpen} onOpenChange={setIsSolveDialogOpen}>
           <DialogContent className="bg-white/95 backdrop-blur-sm">
             <DialogHeader>
-              <DialogTitle>Xác Nhận Giải Quyết Cảnh Báo</DialogTitle>
+              <DialogTitle>{t("alerts.resolveTitle")}</DialogTitle>
               <DialogDescription>
-                Xác nhận rằng bạn đã giải quyết cảnh báo này.
+                {t("alerts.resolveDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -509,25 +491,25 @@ export default function AlertsPage() {
               )}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-red-700">
-                  Đã xác nhận:
+                  {t("alerts.acknowledged")}:
                 </label>
                 <div className="p-4 border rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 shadow-sm flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col">
-                      <span className="text-xs text-gray-500">Xác nhận bởi</span>
-                      <span className="font-medium text-red-700">{selectedAlert?.acknowledgedBy || "Chưa rõ"}</span>
+                      <span className="text-xs text-gray-500">{t("alerts.acknowledgedBy")}</span>
+                      <span className="font-medium text-red-700">{selectedAlert?.acknowledgedBy || t("common.unknown")}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs text-gray-500">Thời gian</span>
+                      <span className="text-xs text-gray-500">{t("alerts.acknowledgedAt")}</span>
                       <span className="text-sm text-gray-700">
                         {selectedAlert?.acknowledgedAt ? new Date(selectedAlert.acknowledgedAt).toLocaleString() : ""}
                       </span>
                     </div>
                   </div>
                   <div className="bg-white/80 rounded-lg p-3 border border-red-100">
-                    <span className="text-xs text-gray-500">Ghi chú xác nhận</span>
+                    <span className="text-xs text-gray-500">{t("alerts.acknowledgmentNote")}</span>
                     <p className="italic text-gray-700 mt-1">
-                      {selectedAlert?.acknowledgmentNote ? `"${selectedAlert.acknowledgmentNote}"` : <span className="text-gray-400">Không có ghi chú</span>}
+                      {selectedAlert?.acknowledgmentNote ? `"${selectedAlert.acknowledgmentNote}"` : <span className="text-gray-400">{t("common.noNote")}</span>}
                     </p>
                   </div>
                 </div>
@@ -535,14 +517,14 @@ export default function AlertsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsSolveDialogOpen(false)}>
-                Hủy
+                {t("common.cancel")}
               </Button>
               {selectedAlert?.acknowledged && !selectedAlert?.resolved && (
               <Button
                 onClick={confirmResolve}
                 className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               >
-                Xác Nhận Cảnh Báo
+                {t("alerts.resolveButton")}
               </Button>
               )}
             </DialogFooter>

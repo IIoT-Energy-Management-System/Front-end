@@ -14,6 +14,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { useTranslation } from "@/lib/i18n";
 import { formatInTimeZone } from "date-fns-tz";
 import { Check, ChevronsUpDown } from "lucide-react";
 import moment from "moment-timezone";
@@ -33,6 +34,7 @@ export default function TimezoneCombobox({
   placeholder = "Chọn múi giờ...",
 }: TimezoneComboboxProps) {
   const [open, setOpen] = useState(false);
+    const { t } = useTranslation();
 
   const timezoneOptions = useMemo(() => {
     return moment.tz.names().map((tz) => ({
@@ -59,9 +61,9 @@ export default function TimezoneCombobox({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput placeholder="Tìm múi giờ..." />
+          <CommandInput placeholder={`${t("user.searchTimezone")}`} />
           <CommandList>
-            <CommandEmpty>Không tìm thấy múi giờ.</CommandEmpty>
+            <CommandEmpty>{t("user.noTimezoneFound")}</CommandEmpty>
             <CommandGroup >
               {timezoneOptions.map((tz) => (
                 <CommandItem

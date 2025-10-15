@@ -1,7 +1,7 @@
 import { create } from "zustand"
+import { UserApiService } from "./api"
 import { authService } from "./auth"
 import type { Alert, Device, DeviceData, Factory, SystemSettings, User } from "./types"
-import { UserApiService } from "./api"
 
 interface AppState {
   user: User | null
@@ -29,6 +29,7 @@ interface AppState {
   setLanguage: (lang: "en" | "vi") => void
   updateDeviceData: (deviceId: string, data: DeviceData) => void
   addAlert: (alert: Alert) => void
+  updateUser: (userData: Partial<User>) => void
   setIsCheckingAuth: (checking: boolean) => void
 }
 
@@ -137,7 +138,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         const user = authService.getCurrentUser()
         if (!user || !user.id) return
-        await UserApiService.updateUser(user.id, { username: user.username, email: user.email, roleId: user.roleId, language: lang })
+        await UserApiService.updateProfile(user.id, { language: lang })
       } catch (error) {
         console.error("Error saving language to localStorage:", error)
       }
@@ -160,5 +161,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   addAlert: (alert: Alert) => {
     const { alerts } = get()
     set({ alerts: [alert, ...alerts].slice(0, 100) })
+  },
+
+  updateUser: (userData: Partial<User>) => {
+    const { user } = get()
+    if (user) {
+      set({ user: { ...user, ...userData } })
+    }
+    set({ language: userData.language || get().language})
   },
 }))

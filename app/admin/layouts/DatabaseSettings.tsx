@@ -5,12 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from 'sonner';
+import { DbConfigApiService } from "@/lib/api"
+import { authService } from "@/lib/auth"
+import { useTranslation } from "@/lib/i18n"
 import { Database } from "lucide-react"
 import { useEffect, useState } from "react"
-import { DbConfigApiService } from "@/lib/api"
+import { toast } from 'sonner'
 
 export default function DatabaseSettings() {
+  const { t } = useTranslation()
   const [databaseSettings, setDatabaseSettings] = useState({
     mode: "simulation" as "simulation" | "mysql" | "mssql" | "postgresql",
     host: "",
@@ -30,7 +33,6 @@ export default function DatabaseSettings() {
   const loadDatabaseConfig = async () => {
     try {
       const response = await DbConfigApiService.getDbConfig()
-      console.log('Loaded DB config:', response)
       setDatabaseSettings({
         mode: response.mode || "simulation",
         host: response.host || "",
@@ -73,17 +75,15 @@ export default function DatabaseSettings() {
       }
 
       const response = await DbConfigApiService.testDbConnection(testData)
-      console.log('Test DB connection result:', response)
 
       if (response.success === true) {
-        toast.success("Kết nối cơ sở dữ liệu thành công!")
-        console.log('Database connection test succeeded')
+        toast.success(t("database.connectionSuccess"))
       } else {
-        toast.error(response.error || "Không thể kết nối đến cơ sở dữ liệu")
+        toast.error(response.error || t("database.connectionFailed"))
       }
     } catch (error) {
       console.error('Database test error:', error)
-      toast.error("Có lỗi xảy ra khi kiểm tra kết nối", {description: (error as any).error,})
+      toast.error(t("database.testError"), {description: (error as any).error,})
     } finally {
       setIsTesting(false)
     }
@@ -103,14 +103,14 @@ export default function DatabaseSettings() {
 
       const response = await DbConfigApiService.updateDbConfig(configData)
 
-      if (response.ok) {
-        toast.success("Cấu hình cơ sở dữ liệu đã được lưu!")
+      if (response.success === true) {
+        toast.success(t("database.saveSuccess"))
       } else {
-        toast.error(response.error || "Không thể lưu cấu hình cơ sở dữ liệu")
+        toast.error(response.error || t("database.saveFailed"))
       }
     } catch (error) {
       console.error('Save config error:', error)
-      toast.error("Có lỗi xảy ra khi lưu cấu hình")
+      toast.error(t("database.saveError"))
     } finally {
       setIsLoading(false)
     }
@@ -121,42 +121,44 @@ export default function DatabaseSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Database className="h-5 w-5" />
-          Cấu Hình Cơ Sở Dữ Liệu
+          {t("database.title")}
         </CardTitle>
-        <CardDescription>Cấu hình kết nối cơ sở dữ liệu và cài đặt nguồn dữ liệu</CardDescription>
+        <CardDescription>{t("database.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="databaseMode">Chế Độ Cơ Sở Dữ Liệu</Label>
+          <Label htmlFor="databaseMode">{t("database.mode")}</Label>
           <Select
             value={databaseSettings.mode}
             onValueChange={handleModeChange}
+            disabled={!authService.hasPermission("settings.edit")}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="simulation">Chế Độ Mô Phỏng</SelectItem>
-              <SelectItem value="mysql">MySQL</SelectItem>
-              <SelectItem value="mssql">Microsoft SQL Server</SelectItem>
-              <SelectItem value="postgresql">PostgreSQL</SelectItem>
+              <SelectItem value="simulation">{t("database.simulation")}</SelectItem>
+              <SelectItem value="mysql">{t("database.mysql")}</SelectItem>
+              <SelectItem value="mssql">{t("database.mssql")}</SelectItem>
+              <SelectItem value="postgresql">{t("database.postgresql")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {databaseSettings.mode !== "simulation" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="dbHost">Máy Chủ</Label>
+              <Label htmlFor="dbHost">{t("database.host")}</Label>
               <Input
                 id="dbHost"
                 value={databaseSettings.host}
                 onChange={(e) => setDatabaseSettings({ ...databaseSettings, host: e.target.value })}
                 placeholder="localhost"
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dbPort">Cổng</Label>
+              <Label htmlFor="dbPort">{t("database.port")}</Label>
               <Input
                 id="dbPort"
                 type="number"
@@ -164,49 +166,53 @@ export default function DatabaseSettings() {
                 onChange={(e) =>
                   setDatabaseSettings({ ...databaseSettings, port: Number.parseInt(e.target.value) || 3306 })
                 }
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dbName">Tên Cơ Sở Dữ Liệu</Label>
+              <Label htmlFor="dbName">{t("database.name")}</Label>
               <Input
                 id="dbName"
                 value={databaseSettings.database}
                 onChange={(e) => setDatabaseSettings({ ...databaseSettings, database: e.target.value })}
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dbUsername">Tên Đăng Nhập</Label>
+              <Label htmlFor="dbUsername">{t("database.username")}</Label>
               <Input
                 id="dbUsername"
                 value={databaseSettings.username}
                 onChange={(e) => setDatabaseSettings({ ...databaseSettings, username: e.target.value })}
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="dbPassword">Mật Khẩu</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="dbPassword">{t("database.password")}</Label>
               <Input
                 id="dbPassword"
                 type="password"
                 value={databaseSettings.password}
                 onChange={(e) => setDatabaseSettings({ ...databaseSettings, password: e.target.value })}
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 justify-center sm:justify-start">
           <Button 
             onClick={handleTestDatabaseConnection} 
-            disabled={isTesting || databaseSettings.mode === "simulation"}
+            disabled={isTesting || databaseSettings.mode === "simulation" || !authService.hasPermission("settings.edit")}
           >
-            {isTesting ? "Đang kiểm tra..." : "Kiểm Tra Kết Nối"}
+            {isTesting ? t("database.testing") : t("database.testConnection")}
           </Button>
           <Button 
             variant="outline" 
             onClick={handleSaveDatabaseConfig}
-            disabled={isLoading}
+            disabled={isLoading || !authService.hasPermission("settings.edit")}
           >
-            {isLoading ? "Đang lưu..." : "Lưu Cấu Hình"}
+            {isLoading ? t("database.saving") : t("database.saveConfig")}
           </Button>
         </div>
       </CardContent>

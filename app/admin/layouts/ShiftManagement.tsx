@@ -5,12 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ShiftApiService } from "@/lib/api"
+import { authService } from "@/lib/auth"
+import { useTranslation } from "@/lib/i18n"
 import { Shift } from "@/lib/types"
 import { Calendar, Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 export default function ShiftManagement() {
+  const { t } = useTranslation()
   const [shifts, setShifts] = useState<Shift[]>([])
 
   // Hàm để format thời gian từ ISO string hoặc HH:MM về HH:MM
@@ -37,7 +40,6 @@ export default function ShiftManagement() {
     const fetchData = async () => {
         try {
             const response = await ShiftApiService.getShifts();
-            console.log('Fetched shifts:', response);
             if (response && Array.isArray(response)) {
                 // Format thời gian từ ISO string về HH:MM
                 const formattedShifts = response.map(shift => ({
@@ -49,7 +51,7 @@ export default function ShiftManagement() {
             }
         } catch (error) {
             console.error('Error fetching shifts:', error);
-            toast.error('Có lỗi xảy ra khi tải dữ liệu ca làm việc.');
+            toast.error(t("shift.loadError"));
         }
     }
 
@@ -71,18 +73,18 @@ export default function ShiftManagement() {
         // Kiểm tra tên ca không được để trống
         for (const shift of shifts) {
             if (!shift.name.trim()) {
-                toast.error('Tên ca không được để trống.')
+                toast.error(t("shift.nameRequired"))
                 return false
             }
         }
         // Kiểm tra thời gian bắt đầu và kết thúc hợp lệ
         for (const shift of shifts) {
             if (!shift.startTime || !shift.endTime) {
-                toast.error('Thời gian bắt đầu và kết thúc không được để trống.')
+                toast.error(t("shift.timeRequired"))
                 return false
             }
             if (shift.startTime >= shift.endTime) {
-                toast.error('Thời gian bắt đầu phải trước thời gian kết thúc.')
+                toast.error(t("shift.timeInvalid"))
                 return false
             }
         }
@@ -97,7 +99,7 @@ export default function ShiftManagement() {
                 if (
                     (startA < endB && endA > startB)
                 ) {
-                    toast.error('Các ca làm việc không được trùng hoặc giao nhau về thời gian.')
+                    toast.error(t("shift.timeOverlap"))
                     return false
                 }
             }
@@ -109,7 +111,7 @@ export default function ShiftManagement() {
     
     // Validate shifts
     if (!validate()) {
-      toast.error('Vui lòng kiểm tra lại thông tin ca làm việc.');
+      toast.error(t("shift.validateError"))
       return;
     }
     
@@ -120,15 +122,14 @@ export default function ShiftManagement() {
       endTime: shift.endTime.length === 5 ? `1970-01-01T${shift.endTime}:00.000Z` : shift.endTime,
     }));
     
-    console.log('Shifts to save:', shiftsToSave);
     try {
       await ShiftApiService.saveShifts(shiftsToSave);
-      toast.success('Cấu hình ca làm việc đã được lưu thành công!')
+      toast.success(t("shift.saveSuccess"))
       // Reload data sau khi lưu
       await fetchData();
     } catch (error) {
       console.error('Error saving shifts:', error)
-      toast.error('Có lỗi xảy ra khi lưu cấu hình.', {
+      toast.error(t("shift.saveError"), {
         description: (error as any).error,
       })
     }
@@ -140,23 +141,23 @@ export default function ShiftManagement() {
         <div>
             <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Quản Lý Lịch Ca Làm Việc
+            {t("shift.title")}
             </CardTitle>
-            <CardDescription>Cấu hình ca làm việc cho phân tích và báo cáo</CardDescription>
+            <CardDescription>{t("shift.description")}</CardDescription>
         </div>
         
         {shifts.length < 10 && (
-          <Button variant="outline" onClick={addShift}>
+          <Button variant="outline" onClick={addShift} disabled={shifts.length >= 10 || !authService.hasPermission("settings.edit")}>
             <Plus className="h-4 w-4 mr-2" />
-            Thêm Ca
+            {t("shift.addShift")}
           </Button>
         )}
       </CardHeader>
       <CardContent className="space-y-6">
         {shifts.map((shift, index) => (
-          <div key={index} className="grid grid-cols-3 gap-4 p-4 border rounded-lg relative">
-            <div className="space-y-2">
-              <Label>Tên Ca</Label>
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg relative">
+            <div className="space-y-2 md:col-span-1">
+              <Label>{t("shift.shiftName")}</Label>
               <Input
                 value={shift.name}
                 onChange={(e) => {
@@ -164,45 +165,51 @@ export default function ShiftManagement() {
                   newShifts[index].name = e.target.value
                   setShifts(newShifts)
                 }}
+                disabled={!authService.hasPermission("settings.edit")}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Thời Gian Bắt Đầu</Label>
-              <Input
-                type="time"
-                value={formatTimeToHHMM(shift.startTime)}
-                onChange={(e) => {
-                  const newShifts = [...shifts]
-                  newShifts[index].startTime = e.target.value
-                  setShifts(newShifts)
-                }}
-              />
+            <div className="flex gap-2 md:col-span-2">
+                <div className="space-y-2 flex-1">
+                    <Label>{t("shift.startTime")}</Label>
+                    <Input
+                        type="time"
+                        value={formatTimeToHHMM(shift.startTime)}
+                        onChange={(e) => {
+                        const newShifts = [...shifts]
+                        newShifts[index].startTime = e.target.value
+                        setShifts(newShifts)
+                        }}
+                        disabled={!authService.hasPermission("settings.edit")}
+                    />
+                </div>
+                <div className="space-y-2 flex-1">
+                    <Label>{t("shift.endTime")}</Label>
+                    <Input
+                        type="time"
+                        value={formatTimeToHHMM(shift.endTime)}
+                        onChange={(e) => {
+                        const newShifts = [...shifts]
+                        newShifts[index].endTime = e.target.value
+                        setShifts(newShifts)
+                        }}
+                        disabled={!authService.hasPermission("settings.edit")}
+                    />
+                </div>
             </div>
-            <div className="space-y-2">
-              <Label>Thời Gian Kết Thúc</Label>
-              <Input
-                type="time"
-                value={formatTimeToHHMM(shift.endTime)}
-                onChange={(e) => {
-                  const newShifts = [...shifts]
-                  newShifts[index].endTime = e.target.value
-                  setShifts(newShifts)
-                }}
-              />
-            </div>
+            
             <div className="absolute top-1 right-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => removeShift(index)}
-                disabled={shifts.length <= 1}
+                disabled={shifts.length <= 1 || !authService.hasPermission("settings.edit")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
         ))}
-        <Button onClick={handleSave}>Lưu Cấu Hình Ca Làm Việc</Button>
+        <Button onClick={handleSave} disabled={!authService.hasPermission("settings.edit")}>{t("shift.saveConfig")}</Button>
       </CardContent>
     </Card>
   )

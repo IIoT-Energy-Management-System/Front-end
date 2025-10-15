@@ -29,7 +29,6 @@ interface ConnectionModalProps {
   mode: "add" | "edit"
   connection?: any // Connection object for edit mode
   onSave: (connectionData: any) => Promise<void>
-  language: "vi" | "en"
 }
 
 type ConnectionType = "MQTT" | "OPC_UA" | "MODBUS_TCP" | "MODBUS_RTU" | "SIMULATION"
@@ -50,7 +49,6 @@ export default function ConnectionModal({
   mode,
   connection,
   onSave,
-  language
 }: ConnectionModalProps) {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
@@ -163,7 +161,7 @@ export default function ConnectionModal({
         ...(mode === "edit" && connection ? { id: connection.id } : {})
       }
       await onSave(connectionData)
-      toast.success(mode === "edit" ? `Connection "${formData.type}" has been updated successfully!` : `Connection "${formData.type}" has been added successfully!`)
+      toast.success(mode === "edit" ? `${t("devices.connection")} "${formData.type}" ${t("devices.updateSuccess")}!` : `${t("devices.connection")} "${formData.type}" ${t("devices.addSuccess")}!`)
       onClose()
     } catch (error) {
       console.error("Failed to save connection:", error)
@@ -177,9 +175,9 @@ export default function ConnectionModal({
 
   const getConnectionDescription = (type: ConnectionType) => {
     const descriptions = {
-      MQTT: "Message Queuing Telemetry Transport - Lightweight messaging protocol for IoT devices",
-      OPC_UA: "OPC Unified Architecture - Industrial communication protocol for automation",
-      MODBUS_TCP: "Modbus TCP/IP - Ethernet-based industrial communication protocol",
+      MQTT: `${t("devices.mqttDescription")}`,
+      OPC_UA: `${t("devices.opcuaDescription")}`,
+      MODBUS_TCP: `${t("devices.modbusDescription")}`,
       MODBUS_RTU: "Modbus RTU - Serial communication protocol for industrial devices",
       SIMULATION: "Simulation mode - Generate mock data for testing and development"
     }
@@ -382,12 +380,12 @@ export default function ConnectionModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <Wifi className="h-6 w-6 text-blue-600" />
-            {mode === "edit" ? "Edit Device Connection" : "Add Device Connection"}
+            {mode === "edit" ? `${t("devices.editDeviceConnection")}` : `${t("devices.addDeviceConnection")}`}
           </DialogTitle>
           <DialogDescription>
             {mode === "edit" 
-              ? `Modify connection settings for device ${deviceId}.`
-              : `Configure a new connection for device ${deviceId} to start collecting real-time data.`
+              ? `${t("devices.editDeviceConnectionDescription")} ${deviceId}.`
+              : `${t("devices.addDeviceConnectionDescription1")} ${deviceId} ${t("devices.addDeviceConnectionDescription2")}`
             }
           </DialogDescription>
         </DialogHeader>
@@ -398,12 +396,12 @@ export default function ConnectionModal({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5 text-blue-600" />
-                Connection Type
+                {t("devices.connectionType")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="connectionType">Protocol</Label>
+                <Label htmlFor="connectionType">{t("devices.connectionType")}</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value: ConnectionType) => handleTypeChange(value)}
@@ -440,7 +438,7 @@ export default function ConnectionModal({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5 text-green-600" />
-                Configuration
+                {t("devices.connectionConfiguration")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -453,13 +451,13 @@ export default function ConnectionModal({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5 text-purple-600" />
-                Settings
+                {t("common.settings")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority">{t("devices.connectionPriority")}</Label>
                   <Select
                     value={formData.priority.toString()}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, priority: parseInt(value) }))}
@@ -468,17 +466,17 @@ export default function ConnectionModal({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">1 - Highest</SelectItem>
-                      <SelectItem value="2">2 - High</SelectItem>
-                      <SelectItem value="3">3 - Medium</SelectItem>
-                      <SelectItem value="4">4 - Low</SelectItem>
-                      <SelectItem value="5">5 - Lowest</SelectItem>
+                      <SelectItem value="1">1 - {t("common.highest")}</SelectItem>
+                      <SelectItem value="2">2 - {t("common.high")}</SelectItem>
+                      <SelectItem value="3">3 - {t("common.medium")}</SelectItem>
+                      <SelectItem value="4">4 - {t("common.low")}</SelectItem>
+                      <SelectItem value="5">5 - {t("common.lowest")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="isActive">Active</Label>
+                  <Label htmlFor="isActive">{t("common.active")}</Label>
                   <div className="flex items-center space-x-2 pt-2">
                     <Switch
                       id="isActive"
@@ -496,11 +494,8 @@ export default function ConnectionModal({
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-yellow-800">Note</p>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Connection will be created in "Disconnected" status. 
-                      Health status will update automatically once the connection is established.
-                    </p>
+                    <p className="text-sm font-medium text-yellow-800">{t("common.note")}</p>
+                    <p className="text-xs text-yellow-700 mt-1">{t("devices.connectionNote")}</p>
                   </div>
                 </div>
               </div>
@@ -510,14 +505,14 @@ export default function ConnectionModal({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSave}
             disabled={loading}
             className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-blue-600 hover:to-green-700"
           >
-            {loading ? (mode === "edit" ? "Updating..." : "Adding...") : (mode === "edit" ? "Update Connection" : "Add Connection")}
+            {loading ? (mode === "edit" ? t("common.updating") : t("common.adding")) : (mode === "edit" ? t("common.updateConnection") : t("common.addConnection"))}
           </Button>
         </DialogFooter>
       </DialogContent>

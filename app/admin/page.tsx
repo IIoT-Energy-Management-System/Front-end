@@ -2,12 +2,14 @@
 
 
 import { MainLayout } from "@/components/layout/main-layout"
+import { PermissionGuard } from "@/components/PermissionGuard"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { db } from "@/lib/database"
+// import { db } from "@/lib/database"
 import { useTranslation } from "@/lib/i18n"
+// import { useAppStore } from "@/lib/store"
+// import type { RolePermissions } from "@/lib/types"
 import { useAppStore } from "@/lib/store"
-import type { RolePermissions } from "@/lib/types"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Backup from "./layouts/Backup"
 import DatabaseSettings from "./layouts/DatabaseSettings"
 import EnergySettings from "./layouts/EnergySettings"
@@ -16,71 +18,71 @@ import NotificationSettings from "./layouts/NotificationSettings"
 import RolePermissionManager from "./layouts/RolePermissionManager"
 import ShiftManagement from "./layouts/ShiftManagement"
 import UserManagement from "./layouts/UserManagement"
-import { PermissionGuard } from "@/components/PermissionGuard"
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("users")
-  const [rolePermissions, setRolePermissions] = useState<Map<string, RolePermissions>>(new Map())
-  const [isRolePermissionDialogOpen, setIsRolePermissionDialogOpen] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<string>("")
+    const { user } = useAppStore()
+  const [activeTab, setActiveTab] = useState(user?.permissions?.includes("user.view") ? "users" : "database")
+//   const [rolePermissions, setRolePermissions] = useState<Map<string, RolePermissions>>(new Map())
+//   const [isRolePermissionDialogOpen, setIsRolePermissionDialogOpen] = useState(false)
+//   const [selectedRole, setSelectedRole] = useState<string>("")
 
-  const { factories } = useAppStore()
+//   const { factories } = useAppStore()
   const { t } = useTranslation()
 
-  const loadRolePermissions = async () => {
-    try {
-      const roles = ["Admin", "Supervisor", "Operator", "Viewer"]
-      const permissions = new Map<string, RolePermissions>()
+//   const loadRolePermissions = async () => {
+//     try {
+//       const roles = ["Admin", "Supervisor", "Operator", "Viewer"]
+//       const permissions = new Map<string, RolePermissions>()
 
-      for (const role of roles) {
-        const rolePerms = await db.getRolePermissions(role)
-        if (rolePerms) {
-          permissions.set(role, rolePerms)
-        }
-      }
+//       for (const role of roles) {
+//         const rolePerms = await db.getRolePermissions(role)
+//         if (rolePerms) {
+//           permissions.set(role, rolePerms)
+//         }
+//       }
 
-      setRolePermissions(permissions)
-    } catch (error) {
-      console.error("Failed to load role permissions:", error)
-    }
-  }
+//       setRolePermissions(permissions)
+//     } catch (error) {
+//       console.error("Failed to load role permissions:", error)
+//     }
+//   }
 
-  useEffect(() => {
-    loadRolePermissions()
-  }, [])
+//   useEffect(() => {
+//     loadRolePermissions()
+//   }, [])
 
-  const handleUpdateRolePermissions = async () => {
-    if (!selectedRole) return
+//   const handleUpdateRolePermissions = async () => {
+//     if (!selectedRole) return
 
-    const permissions = rolePermissions.get(selectedRole)
-    if (!permissions) return
+//     const permissions = rolePermissions.get(selectedRole)
+//     if (!permissions) return
 
-    try {
-      await db.updateRolePermissions(selectedRole, permissions)
-      setIsRolePermissionDialogOpen(false)
-      setSelectedRole("")
-      loadRolePermissions()
-    } catch (error) {
-      console.error("Failed to update role permissions:", error)
-    }
-  }
+//     try {
+//       await db.updateRolePermissions(selectedRole, permissions)
+//       setIsRolePermissionDialogOpen(false)
+//       setSelectedRole("")
+//       loadRolePermissions()
+//     } catch (error) {
+//       console.error("Failed to update role permissions:", error)
+//     }
+//   }
 
-  const openRolePermissions = (role: string) => {
-    setSelectedRole(role)
-    setIsRolePermissionDialogOpen(true)
-  }
+//   const openRolePermissions = (role: string) => {
+//     setSelectedRole(role)
+//     setIsRolePermissionDialogOpen(true)
+//   }
 
-  const updateRolePermission = (permission: keyof RolePermissions, value: any) => {
-    if (!selectedRole) return
+//   const updateRolePermission = (permission: keyof RolePermissions, value: any) => {
+//     if (!selectedRole) return
 
-    const currentPermissions = rolePermissions.get(selectedRole)
-    if (!currentPermissions) return
+//     const currentPermissions = rolePermissions.get(selectedRole)
+//     if (!currentPermissions) return
 
-    const updatedPermissions = { ...currentPermissions, [permission]: value }
-    const newRolePermissions = new Map(rolePermissions)
-    newRolePermissions.set(selectedRole, updatedPermissions)
-    setRolePermissions(newRolePermissions)
-  }
+//     const updatedPermissions = { ...currentPermissions, [permission]: value }
+//     const newRolePermissions = new Map(rolePermissions)
+//     newRolePermissions.set(selectedRole, updatedPermissions)
+//     setRolePermissions(newRolePermissions)
+//   }
 
   return (
     <MainLayout>
@@ -88,26 +90,28 @@ export default function AdminPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản Trị Hệ Thống</h1>
-            <p className="text-gray-600">Quản lý người dùng, vai trò, quyền hạn và cài đặt hệ thống</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
+            <p className="text-gray-600">{t("settings.description")}</p>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex space-x-2 *:w-full">
+          <TabsList className="flex overflow-x-auto pb-2 *:w-full">
             <PermissionGuard permission="user.view">
-              <TabsTrigger value="users">Người Dùng</TabsTrigger>
+              <TabsTrigger value="users">{t("settings.users")}</TabsTrigger>
             </PermissionGuard>
             <PermissionGuard permission="role.view">
-              <TabsTrigger value="roles">Vai Trò</TabsTrigger>
+              <TabsTrigger value="roles">{t("settings.roles")}</TabsTrigger>
             </PermissionGuard>
-              <TabsTrigger value="database">Cơ Sở Dữ Liệu</TabsTrigger>
-              <TabsTrigger value="notifications">Thông Báo</TabsTrigger>
-              <TabsTrigger value="energy">Năng Lượng</TabsTrigger>
-              <TabsTrigger value="shifts">Ca Làm Việc</TabsTrigger>
-              <TabsTrigger value="backup">Sao Lưu</TabsTrigger>
+            <PermissionGuard permission="settings.view">
+              <TabsTrigger value="database">{t("settings.database")}</TabsTrigger>
+              <TabsTrigger value="notifications">{t("settings.notifications")}</TabsTrigger>
+              <TabsTrigger value="energy">{t("settings.energy")}</TabsTrigger>
+              <TabsTrigger value="shifts">{t("settings.shifts")}</TabsTrigger>
+              <TabsTrigger value="backup">{t("settings.backup")}</TabsTrigger>
+            </PermissionGuard>
             <PermissionGuard permission="log.view">
-              <TabsTrigger value="logs">Nhật Ký</TabsTrigger>
+              <TabsTrigger value="logs">{t("settings.logs")}</TabsTrigger>
             </PermissionGuard>
           </TabsList>
 

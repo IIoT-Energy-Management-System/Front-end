@@ -15,6 +15,7 @@ import {
     Map,
     Menu,
     Settings,
+    User,
     X
 } from "lucide-react"
 import Link from "next/link"
@@ -44,12 +45,12 @@ export function Sidebar() {
     
     // Admin role has access to everything
     if (user.role === "Admin") return navigation
-    console.log("user permission: ", user.permissions);
+    // console.log("user permission: ", user.permissions);
     // Filter navigation items based on permissions
     return navigation.filter(item => {
       // If no permission required, allow access
       if (!item.permission) return true
-      console.log("list permission: ", item.permission);
+    //   console.log("list permission: ", item.permission);
       // Check if user has the required permission
       return user.permissions?.includes(item.permission) || false
     })
@@ -85,11 +86,18 @@ export function Sidebar() {
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b">
-        <div className="text-sm font-medium">{user?.username}</div>
-        <div className="text-xs text-muted-foreground">{user?.role}</div>
-        {/* <div><PermissionGuard permission="user.view"><Button variant="ghost" size="sm" onClick={() => handleEdit(user.id, user.name, "người dùng")}>Edit</Button></PermissionGuard></div> */}
-        {/* <div className="text-xs text-muted-foreground">{user?.permissions?.join("| |")}</div> */}
+      <div className="p-4 border-b flex items-center gap-3 bg-blue-50 rounded-lg">
+      <div className="flex-shrink-0"></div>
+        <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-lg">
+        {user?.username?.charAt(0).toUpperCase() || "U"}
+        </div>
+      <div className="flex flex-col">
+        <span className="text-base font-semibold text-blue-900">{user?.username}</span>
+        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full w-fit mt-1">{user?.role}</span>
+        <Link href="/profile" className="text-xs text-blue-500 hover:underline mt-1 transition-colors">
+        {t("nav.profile")}
+        </Link>
+      </div>
       </div>
 
       {/* Language Selector */}
@@ -101,8 +109,8 @@ export function Sidebar() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="vi">Tiếng Việt</SelectItem>
+              <SelectItem value="en">{t("common.english")}</SelectItem>
+              <SelectItem value="vi">{t("common.vietnamese")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -139,20 +147,56 @@ export function Sidebar() {
     </div>
   )
 
-  return (
+//   return (
+//     <>
+//       {/* Mobile menu button */}
+//       <Button size="icon" className="lg:hidden fixed top-4 left-4 z-50" onClick={handleOpen}>
+//         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+//       </Button>
+
+//       {/* Desktop sidebar */}
+//       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r z-50">{sidebarContent}</div>
+
+//       {/* Mobile sidebar */}
+//       {isOpen && (
+//         <div className="lg:hidden fixed inset-0 z-40">
+//           <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleOpen} />
+//           <div className="fixed inset-y-0 left-0 w-64 bg-white border-r z-50">{sidebarContent}</div>
+//         </div>
+//       )}
+//     </>
+//   )
+return (
     <>
-      {/* Mobile menu button */}
-      <Button size="icon" className="lg:hidden fixed top-4 left-4 z-50" onClick={handleOpen}>
-        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
+      {/* Mobile header */}
+      <div className="lg:hidden sticky top-0 left-0 right-0 z-50 bg-white border-b shadow-sm flex justify-between items-center p-4">
+        <div className="flex items-center">
+          <div style={{ display: "block", margin: "auto", width: "135px" }} className="flex justify-center mb-4 w-40 overflow-hidden rounded">
+            <img
+              src="https://new-ocean.com.vn/wp-content/uploads/2021/12/z3070143378207_42659dfb864677b5188fb31a5e889811.jpg.webp"
+              alt="IIoT Logo"
+              className="h-full w-full object-cover object-center" 
+              style={{
+                    width: "200px",
+                    height: "50px",
+                    objectFit: "cover",
+                    objectPosition: "center"
+                }}
+            />
+          </div>
+        </div>
+        <Button size="icon" onClick={handleOpen}>
+          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r z-50">{sidebarContent}</div>
 
       {/* Mobile sidebar */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 z-40">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleOpen} />
+        <div className="lg:hidden fixed inset-0 z-50 pt-16"> {/* Add pt-16 to account for header */}
+          <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={handleOpen} />
           <div className="fixed inset-y-0 left-0 w-64 bg-white border-r z-50">{sidebarContent}</div>
         </div>
       )}

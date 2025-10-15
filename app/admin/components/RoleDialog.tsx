@@ -9,10 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import type { Role } from "@/lib/types";
 import React, { useEffect, useState } from 'react';
 import { toast } from "sonner";
+import { useTranslation } from "@/lib/i18n";
 
 interface RoleDialogProps {
   isOpen: boolean;
@@ -33,6 +33,7 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{name?: string; description?: string}>({});
+    const { t } = useTranslation();
 
   // Reset form when dialog opens/closes or role changes
   useEffect(() => {
@@ -52,19 +53,19 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
     const newErrors: {name?: string; description?: string} = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Tên vai trò không được để trống';
+      newErrors.name = `${t("role.requiredRoleName")}`;
     } else if (name.trim().length < 2) {
-      newErrors.name = 'Tên vai trò phải có ít nhất 2 ký tự';
+      newErrors.name = `${t("role.minRoleNameLength")}`;
     } else if (name.trim().length > 50) {
-      newErrors.name = 'Tên vai trò không được vượt quá 50 ký tự';
+      newErrors.name = `${t("role.maxRoleNameLength")}`;
     }
 
     if (!description.trim()) {
-      newErrors.description = 'Mô tả không được để trống';
+      newErrors.description = `${t("role.requiredDescription")}`;
     } else if (description.trim().length < 10) {
-      newErrors.description = 'Mô tả phải có ít nhất 10 ký tự';
+      newErrors.description = `${t("role.minDescriptionLength")}`;
     } else if (description.trim().length > 200) {
-      newErrors.description = 'Mô tả không được vượt quá 200 ký tự';
+      newErrors.description = `${t("role.maxDescriptionLength")}`;
     }
 
     setErrors(newErrors);
@@ -85,17 +86,12 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
 
       await onSave(roleData);
 
-      toast.success(
-        mode === 'add' ? 'Thêm vai trò thành công!' : 'Cập nhật vai trò thành công!',
-        {
-          description: `Vai trò "${name}" đã được ${mode === 'add' ? 'thêm' : 'cập nhật'}.`
-        }
-      );
+      toast.success( mode === 'add' ? t("role.addSuccess") : t("role.updateSuccess"));
 
       onClose();
     } catch (error) {
       toast.error(
-        mode === 'add' ? 'Thêm vai trò thất bại' : 'Cập nhật vai trò thất bại',
+        mode === 'add' ? t("role.addError") : t("role.updateError"),
         {
           description: error instanceof Error ? error.message : 'Có lỗi xảy ra'
         }
@@ -117,28 +113,28 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'add' ? 'Thêm vai trò mới' : 'Chỉnh sửa vai trò'}
+            {mode === 'add' ? t("role.addNew") : t("role.editRole")}
           </DialogTitle>
           <DialogDescription>
             {mode === 'add'
-              ? 'Tạo một vai trò mới với tên và mô tả phù hợp.'
-              : 'Cập nhật thông tin của vai trò hiện tại.'
+              ? t("role.addDescription")
+              : t("role.editDescription")
             }
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Tên vai trò *
+          <div className="grid grid-cols-6 items-center gap-4">
+            <Label htmlFor="name" className="text-right col-span-2">
+              {t("role.roleName")} *
             </Label>
-            <div className="col-span-3">
+            <div className="col-span-4">
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Nhập tên vai trò"
+                placeholder={t("role.roleNamePlaceholder")}
                 className={errors.name ? 'border-red-500' : ''}
                 maxLength={50}
                 disabled={mode === 'edit'} // Disable editing name in edit mode
@@ -149,17 +145,17 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right pt-2">
-              Mô tả *
+          <div className="grid grid-cols-6 items-start gap-4">
+            <Label htmlFor="description" className="text-right pt-2 col-span-2">
+              {t("role.roleDescription")} *
             </Label>
-            <div className="col-span-3">
+            <div className="col-span-4">
               <textarea
                 id="description"
                 value={description}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Nhập mô tả chi tiết về vai trò này"
+                placeholder={t("role.roleDescriptionPlaceholder")}
                 className={`min-h-[80px] w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
                 maxLength={200}
               />
@@ -168,7 +164,7 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
                   <p className="text-sm text-red-500">{errors.description}</p>
                 ) : (
                   <p className="text-sm text-gray-500">
-                    Mô tả vai trò và quyền hạn của nó
+                    {t("role.description")}
                   </p>
                 )}
                 <span className="text-xs text-gray-400">
@@ -186,7 +182,7 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
             onClick={onClose}
             disabled={loading}
           >
-            Hủy
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -197,10 +193,10 @@ const RoleDialog: React.FC<RoleDialogProps> = ({
             {loading ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Đang lưu...
+                {t("common.saving")}
               </div>
             ) : (
-              mode === 'add' ? 'Thêm vai trò' : 'Lưu thay đổi'
+              mode === 'add' ? t("common.add") : t("common.edit")
             )}
           </Button>
         </DialogFooter>

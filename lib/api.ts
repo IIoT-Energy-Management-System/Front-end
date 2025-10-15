@@ -1,4 +1,4 @@
-import type { Alert, AnalyticsData, ApiPermission, AuditLogEntry, Building, ConnectionLog, ConnectionLogEntry, DashboardStats, DbConfig, Device, Factory, Floor, Line, RankingData, Report, ReportData, Role, Shift, SmtpConfig, User } from './types';
+import type { Alert, AnalyticsData, ApiPermission, AuditLogEntry, Building, ConnectionLogEntry, DashboardStats, DbConfig, Device, EnergySettings, Factory, Floor, Line, RankingData, Report, ReportData, Role, Shift, SmtpConfig, User } from './types';
 
 const API_BASE_URL = 'http://localhost:5000'
 
@@ -30,13 +30,27 @@ function createAuthHeaders(additionalHeaders?: Record<string, string>): Record<s
 
 // Helper function để thực hiện authenticated fetch với retry
 async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const authHeaders = createAuthHeaders()
+  const token = getAccessToken()
+  const isFormData = options.body instanceof FormData
+  
+  // Tạo headers mới, không set Content-Type nếu là FormData
+  const headers: Record<string, string> = {}
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
+  // Nếu không phải FormData, set Content-Type mặc định
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json'
+  }
+  
+  // Merge với additional headers từ options
+  const finalHeaders = { ...headers, ...options.headers }
+  
   const finalOptions: RequestInit = {
     ...options,
-    headers: {
-      ...authHeaders,
-      ...options.headers
-    }
+    headers: finalHeaders
   }
   
   let response: Response
@@ -775,6 +789,41 @@ export class UserApiService {
     return result.data
   }
 
+  // PUT /api/users/:id/password - Đổi mật khẩu
+  static async changePassword(id: string, passwordData: {
+    currentPassword: string
+    newPassword: string
+  }): Promise<User[]> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/users/${id}/change-password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(passwordData),
+    })
+    
+    const result = await handleResponse<{ success: boolean; data: User[] }>(response)
+    return result.data
+  }
+
+  static async updateProfile(id: string, profileData: {
+    username?: string
+    email?: string
+    language?: "en" | "vi"
+    timezone?: string
+  }): Promise<User[]> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/users/${id}/update-profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profileData),
+    })
+
+    const result = await handleResponse<{ success: boolean; data: User[] }>(response)
+    return result.data
+  }
+
   // DELETE /api/users/:id - Xóa người dùng
   static async deleteUser(id: string): Promise<void> {
     const response = await authenticatedFetch(`${API_BASE_URL}/api/users/${id}`, {
@@ -883,15 +932,14 @@ export class DbConfigApiService {
     // PUT /api/db-config - Cập nhật cấu hình database
     static async updateDbConfig(dbConfig: DbConfig): Promise<any> {
         const response = await authenticatedFetch(`${API_BASE_URL}/api/db-config/config`, {
-            method: 'PUT',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(dbConfig),
         });
 
-        const result = await handleResponse<{ success: boolean; data: DbConfig }>(response);
-        return result.data;
+        return await handleResponse<{ success: boolean; data: any }>(response)
     }
 
     static async testDbConnection(dbConfig: DbConfig): Promise<any> {
@@ -903,8 +951,7 @@ export class DbConfigApiService {
             body: JSON.stringify(dbConfig),
         });
 
-        const result = await handleResponse<{ success: boolean; data: DbConfig }>(response);
-        return result.data;
+        return await handleResponse<{ success: boolean; data: any }>(response)
     }
 }
 
@@ -919,15 +966,14 @@ export class SmtpConfigApiService {
     // PUT /api/smtp-config - Cập nhật cấu hình SMTP
     static async updateSmtpConfig(smtpConfig: SmtpConfig): Promise<any> {
         const response = await authenticatedFetch(`${API_BASE_URL}/api/smtp-config/config`, {
-            method: 'PUT',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(smtpConfig),
         });
 
-        const result = await handleResponse<{ success: boolean; data: SmtpConfig }>(response);
-        return result.data;
+        return await handleResponse<{ success: boolean; data: any }>(response)
     }
 
     static async testSmtpConnection(smtpConfig: SmtpConfig): Promise<any> {
@@ -939,7 +985,36 @@ export class SmtpConfigApiService {
             body: JSON.stringify(smtpConfig),
         });
 
-        const result = await handleResponse<{ success: boolean; data: SmtpConfig }>(response);
+        return await handleResponse<{ success: boolean; data: any }>(response)
+    }
+}
+
+export class EnergySettingsApiService {
+    // GET /api/energy-settings - Lấy cài đặt năng lượng hiện tại
+    static async getEnergySettings(): Promise<EnergySettings> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/energy-settings`);
+        const result = await handleResponse<{ success: boolean; data: EnergySettings }>(response);
+        return result.data;
+    }
+
+    // PUT /api/energy-settings - Cập nhật cài đặt năng lượng
+    static async updateEnergySettings(settingsData: {
+        type: 'flat' | 'timeOfUse';
+        flatRate?: number;
+        timeOfUseData?: Array<{
+            startTime: string;
+            endTime: string;
+            rate: number;
+        }>;
+    }): Promise<EnergySettings> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/energy-settings`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(settingsData),
+        });
+        const result = await handleResponse<{ success: boolean; data: EnergySettings }>(response);
         return result.data;
     }
 }
@@ -995,6 +1070,61 @@ export class ReportApiService {
     }
 }
 
+export class LogApiService {
+    // GET /api/logs/audit - Lấy danh sách audit logs
+    static async getAuditLogs(): Promise<AuditLogEntry[]> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/audit`);
+        const result = await handleResponse<{ success: boolean; data: AuditLogEntry[] }>(response);
+        return result.data;
+    }
+
+    // GET /api/logs/connection - Lấy danh sách connection logs
+    static async getConnectionLogs(): Promise<ConnectionLogEntry[]> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/connection`);
+        const result = await handleResponse<{ success: boolean; data: ConnectionLogEntry[] }>(response);
+        return result.data;
+    }
+}
+
+export class BackupApiService {
+    // GET /api/backup/backup - Tạo bản sao lưu
+    static async createBackup(): Promise<Blob> {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/backup/backup`);
+        if (!response.ok) {
+            // Nếu lỗi HTTP, lấy error từ response
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { error: errorText };
+            }
+            throw new Error(errorData.error || 'Backup failed');
+        }
+        // Nếu API trả về success: false trong body (nhưng HTTP vẫn ok)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const result = await response.clone().json();
+            if (result && result.success === false) {
+                throw new Error(result.error || 'Backup failed');
+            }
+        }
+        return response.blob();
+    }
+
+    // POST /api/backup/restore - Khôi phục từ bản sao lưu
+    static async restoreBackup(backupFile: File): Promise<{ success: boolean; message?: string; error?: string }> {
+        const formData = new FormData();
+        formData.append('backupFile', backupFile);
+
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/backup/restore`, {
+            method: 'POST',
+            body: formData
+        });
+
+        return handleResponse<{ success: boolean; message?: string; error?: string }>(response);
+    }
+}
 // Hook để sử dụng trong React components
 export function useDeviceApi() {
   return {
@@ -1087,6 +1217,8 @@ export function useUserApi() {
     createUser: UserApiService.createUser,
     resetPassword: UserApiService.resetPassword,
     updateUser: UserApiService.updateUser,
+    changePassword: UserApiService.changePassword,
+    updateProfile: UserApiService.updateProfile,
     deleteUser: UserApiService.deleteUser,
   }
 }
@@ -1138,6 +1270,27 @@ export function useReportApi() {
         exportReport: ReportApiService.exportReport,
     }
 }
+
+export function useLogApi() {
+    return {
+        getAuditLogs: LogApiService.getAuditLogs,
+        getConnectionLogs: LogApiService.getConnectionLogs,
+    }
+}
+
+export function useBackupApi() {
+    return {
+        createBackup: BackupApiService.createBackup,
+    }
+}
+
+export function useEnergySettingsApi() {
+    return {
+        getEnergySettings: EnergySettingsApiService.getEnergySettings,
+        updateEnergySettings: EnergySettingsApiService.updateEnergySettings,
+    }
+}
+
 // Utility functions for error handling
 export function isAuthenticationError(error: any): boolean {
   return error && (
@@ -1148,26 +1301,6 @@ export function isAuthenticationError(error: any): boolean {
     error.status === 401 ||
     error.status === 403
   )
-}
-
-export async function getAuditLogs(): Promise<AuditLogEntry[]> {
-  try {
-    const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/audit`)
-    const result = await handleResponse<{ success: boolean; data: AuditLogEntry[] }>(response);
-        return result.data;
-  } catch (error) {
-    throw error
-  }
-}
-
-export async function getConnectionLogs(): Promise<ConnectionLogEntry[]> {
-  try {
-    const response = await authenticatedFetch(`${API_BASE_URL}/api/logs/connection`)
-    const result = await handleResponse<{ success: boolean; data: ConnectionLog[] }>(response);
-        return result.data;
-  } catch (error) {
-    throw error
-  }
 }
 
 export function handleApiError(error: any, defaultMessage: string = 'Có lỗi xảy ra'): string {

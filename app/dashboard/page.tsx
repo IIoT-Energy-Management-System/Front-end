@@ -45,6 +45,10 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [before, setBefore] = useState<DashboardStats[]>([])
   const [after, setAfter] = useState<DashboardStats[]>([])
+    // Thêm state cho kích thước màn hình
+  const [windowWidth, setWindowWidth] = useState<number>(0);
+  const [windowHeight, setWindowHeight] = useState<number>(0);
+
 //   const [factories, setFactories] = useState<typeFactory[]>([])
 //   const [buildings, setBuildings] = useState<typeBuilding[]>([])
 //   const [floors, setFloors] = useState<Floor[]>([])
@@ -81,6 +85,28 @@ export default function DashboardPage() {
       socket.disconnect();
     };
   }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
+    };
+
+    // Set giá trị ban đầu
+    handleResize();
+
+    // Lắng nghe sự kiện resize
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup khi unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Tính toán kích thước biểu đồ dựa trên màn hình (responsive)
+  const chartWidth = Math.min(windowWidth * 0.9, 1500); // Chiếm 90% width, max 1500px
+  const chartHeight = Math.max(chartWidth * 0.267, 400); // Giữ tỷ lệ aspect ratio ~3.75:1 (1500/400), min 400px
 
   useEffect(() => {
     if (selectedDataPoint && detailsPanelRef.current) {
@@ -236,9 +262,7 @@ export default function DashboardPage() {
   }
 
   // SVG Line Chart Component with Operational Status
-  const LineChartSVG = () => {
-    const chartWidth = 1500
-    const chartHeight = 400
+  const LineChartSVG = ({ chartWidth, chartHeight }: { chartWidth: number; chartHeight: number }) => {
     const padding = 60
 
     if (stats.trendLines.length === 0) return null
@@ -430,7 +454,7 @@ const timeToString = (time: string) => {
 
   return (
     <MainLayout>
-      <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6 -m-6">
+      <div className="space-y-6 min-h-screen p-2 sm:p-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -442,7 +466,7 @@ const timeToString = (time: string) => {
           <Button
             onClick={fetchDashboardData}
             disabled={isRefreshing}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+            className="hidden sm:flex bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             {t('common.refresh')}
@@ -625,7 +649,7 @@ const timeToString = (time: string) => {
           </CardHeader>
           <CardContent>
             {stats.trendLines.length > 0 ? (
-              <LineChartSVG />
+              <LineChartSVG chartWidth={chartWidth} chartHeight={chartHeight} />
             ) : (
               <div className="h-80 flex items-center justify-center text-gray-500">
                 <div className="text-center">
@@ -730,7 +754,7 @@ const timeToString = (time: string) => {
                     className="p-6 rounded-xl text-white shadow-lg"
                     style={{ background: backgroundColor }}
                   >
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                     <h3 className="text-xl font-bold">
                         {shift.name || "Unknown"} ({timeToString(shift.start) || "00:00"} - {timeToString(shift.end) || "00:00"})
                     </h3>
@@ -739,7 +763,7 @@ const timeToString = (time: string) => {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-rows-3 sm:grid-cols-3 sm:grid-rows-1 gap-6">
                     <div className="text-center">
                         <div className="flex items-center justify-center mb-2">
                         <Play className="h-6 w-6 mr-2" />
@@ -785,7 +809,7 @@ const timeToString = (time: string) => {
         </Card>
 
         {/* Real-time Device Operational Status */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+        <Card className="hidden sm:block bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Timer className="h-5 w-5 text-orange-600" />
@@ -852,7 +876,7 @@ const timeToString = (time: string) => {
           </CardContent>
         </Card>
 
-        {/* Power Usage by Building with Operational Time */}
+        {/* Power Usage by Factories with Operational Time */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

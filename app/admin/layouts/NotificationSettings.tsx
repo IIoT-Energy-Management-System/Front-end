@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { SmtpConfigApiService } from "@/lib/api"
+import { authService } from "@/lib/auth"
+import { useTranslation } from "@/lib/i18n"
 import { Mail } from "lucide-react"
-import { useState, useEffect } from "react"
-import { toast } from 'sonner';
+import { useEffect, useState } from "react"
+import { toast } from 'sonner'
 
 export default function NotificationSettings() {
+  const { t } = useTranslation()
   const [smtpSettings, setSmtpSettings] = useState({
     host: "",
     port: 587,
@@ -34,11 +37,11 @@ export default function NotificationSettings() {
         port: response.port || 587,
         username: response.username || "",
         password: "", // Don't load password for security
-        secure: response.secure || true,
+        secure: response.secure,
       })
     } catch (error) {
       console.error('Failed to load SMTP config:', error)
-      toast.error("Không thể tải cấu hình SMTP")
+      toast.error(t("notification.loadError"))
     }
   }
 
@@ -54,17 +57,15 @@ export default function NotificationSettings() {
       }
 
       const response = await SmtpConfigApiService.testSmtpConnection(testData)
-      console.log('Test SMTP connection result:', response)
 
       if (response.success === true) {
-        toast.success("Kết nối SMTP thành công!")
-        console.log('SMTP connection test succeeded')
+        toast.success(t("notification.connectionSuccess"))
       } else {
-        toast.error(response.error || "Không thể kết nối đến SMTP")
+        toast.error(response.error || t("notification.connectionFailed"))
       }
     } catch (error) {
       console.error('SMTP test error:', error)
-      toast.error("Có lỗi xảy ra khi kiểm tra kết nối")
+      toast.error(t("notification.testError"))
     } finally {
       setIsTesting(false)
     }
@@ -83,14 +84,14 @@ export default function NotificationSettings() {
 
       const response = await SmtpConfigApiService.updateSmtpConfig(configData)
 
-      if (response.ok) {
-        toast.success("Cấu hình SMTP đã được lưu!")
+      if (response.success === true) {
+        toast.success(t("notification.saveSuccess"))
       } else {
-        toast.error(response.error || "Không thể lưu cấu hình SMTP")
+        toast.error(response.error || t("notification.saveFailed"))
       }
     } catch (error) {
       console.error('Save config error:', error)
-      toast.error("Có lỗi xảy ra khi lưu cấu hình")
+      toast.error(t("notification.saveError"))
     } finally {
       setIsLoading(false)
     }
@@ -101,23 +102,24 @@ export default function NotificationSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="h-5 w-5" />
-          Cài Đặt Thông Báo Email
+          {t("notification.title")}
         </CardTitle>
-        <CardDescription>Cấu hình máy chủ SMTP cho cảnh báo và báo cáo qua email</CardDescription>
+        <CardDescription>{t("notification.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="smtpHost">Máy Chủ SMTP</Label>
+            <Label htmlFor="smtpHost">{t("notification.smtpHost")}</Label>
             <Input
               id="smtpHost"
               value={smtpSettings.host}
               onChange={(e) => setSmtpSettings({ ...smtpSettings, host: e.target.value })}
               placeholder="smtp.gmail.com"
+              disabled={!authService.hasPermission("settings.edit")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="smtpPort">Cổng</Label>
+            <Label htmlFor="smtpPort">{t("notification.port")}</Label>
             <Input
               id="smtpPort"
               type="number"
@@ -125,23 +127,26 @@ export default function NotificationSettings() {
               onChange={(e) =>
                 setSmtpSettings({ ...smtpSettings, port: Number.parseInt(e.target.value) || 587 })
               }
+              disabled={!authService.hasPermission("settings.edit")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="smtpUsername">Tên Đăng Nhập</Label>
+            <Label htmlFor="smtpUsername">{t("notification.username")}</Label>
             <Input
               id="smtpUsername"
               value={smtpSettings.username}
               onChange={(e) => setSmtpSettings({ ...smtpSettings, username: e.target.value })}
+              disabled={!authService.hasPermission("settings.edit")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="smtpPassword">Mật Khẩu</Label>
+            <Label htmlFor="smtpPassword">{t("notification.password")}</Label>
             <Input
               id="smtpPassword"
               type="password"
               value={smtpSettings.password}
               onChange={(e) => setSmtpSettings({ ...smtpSettings, password: e.target.value })}
+              disabled={!authService.hasPermission("settings.edit")}
             />
           </div>
         </div>
@@ -150,22 +155,23 @@ export default function NotificationSettings() {
             id="smtpSecure"
             checked={smtpSettings.secure}
             onCheckedChange={(checked) => setSmtpSettings({ ...smtpSettings, secure: checked })}
+            disabled={!authService.hasPermission("settings.edit")}
           />
-          <Label htmlFor="smtpSecure">Sử Dụng SSL/TLS</Label>
+          <Label htmlFor="smtpSecure">{t("notification.useSSL")}</Label>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 justify-center sm:justify-start">
           <Button 
             onClick={handleTestSmtpConnection} 
-            disabled={isTesting}
+            disabled={isTesting || !authService.hasPermission("settings.edit")}
           >
-            {isTesting ? "Đang kiểm tra..." : "Kiểm Tra Kết Nối"}
+            {isTesting ? t("notification.testing") : t("notification.testConnection")}
           </Button>
           <Button 
             variant="outline" 
             onClick={handleSaveSmtpConfig}
-            disabled={isLoading}
+            disabled={isLoading || !authService.hasPermission("settings.edit")}
           >
-            {isLoading ? "Đang lưu..." : "Lưu Cấu Hình"}
+            {isLoading ? t("notification.saving") : t("notification.saveConfig")}
           </Button>
         </div>
       </CardContent>

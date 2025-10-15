@@ -43,7 +43,6 @@ interface DeviceModalProps {
   device?: Device | null
   factories: Factory[]
   onSave: (deviceData: any) => Promise<void>
-  language: "vi" | "en"
   loading?: boolean
   onDeviceUpdated?: () => void
 }
@@ -55,7 +54,6 @@ export default function DeviceModal({
   device,
   factories,
   onSave,
-  language,
   loading: externalLoading = false,
   onDeviceUpdated
 }: DeviceModalProps) {
@@ -206,7 +204,7 @@ export default function DeviceModal({
   }
 
   useEffect(() => {
-      console.log("Selected Factory ID:", selectedFactoryId)
+    //   console.log("Selected Factory ID:", selectedFactoryId)
       if(selectedFactoryId) {
       loadBuildingsFromApi(selectedFactoryId)
       }
@@ -252,7 +250,7 @@ export default function DeviceModal({
       if (isReadOnly) return
 
       setLoading(true)
-      console.log(formData)
+    //   console.log(formData)
       try {
           await onSave(formData)
           
@@ -630,14 +628,14 @@ return (
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                 <Wifi className="h-5 w-5 text-orange-600" />
-                Connection Configuration
+                {t("devices.connectionConfiguration")}
                 {device.connections && device.connections.length > 0 ? (
                     <Badge variant="outline" className="ml-auto text-green-600 border-green-300">
-                    {device.connections.filter(c => c.isActive).length} Active
+                    {device.connections.filter(c => c.isActive).length} {t("common.active")}
                     </Badge>
                 ) : (
                     <Badge variant="outline" className="ml-auto text-gray-500 border-gray-300">
-                    Not Configured
+                    {t("common.notConfigured")}
                     </Badge>
                 )}
                 </CardTitle>
@@ -645,7 +643,7 @@ return (
                 <div className="flex gap-2 mt-2">
                     <Button size="sm" variant="outline" className="text-orange-600 border-orange-300" onClick={handleAddConnection}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Connection
+                    {t("devices.addConnection")}
                     </Button>
                 </div>
                 )}
@@ -693,18 +691,18 @@ return (
                         {/* Connection Details */}
                         <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                            <span className="font-medium">Priority:</span>
+                            <span className="font-medium">{t("devices.connectionPriority")}:</span>
                             <span>{connection.priority}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="font-medium">Status:</span>
+                            <span className="font-medium">{t("devices.connectionStatus")}:</span>
                             <span className={connection.isActive ? "text-green-600" : "text-gray-500"}>
                             {connection.isActive ? "Active" : "Inactive"}
                             </span>
                         </div>
                         {connection.lastConnected && (
                             <div className="flex justify-between">
-                            <span className="font-medium">Last Connected:</span>
+                            <span className="font-medium">{t("devices.lastConnected")}:</span>
                             <span>{new Date(connection.lastConnected).toLocaleString()}</span>
                             </div>
                         )}
@@ -713,7 +711,7 @@ return (
                         {/* Connection Config Details */}
                         {connection.config && (
                         <div className="mt-3 pt-3 border-t">
-                            <div className="text-xs font-medium text-gray-600 mb-2">Configuration:</div>
+                            <div className="text-xs font-medium text-gray-600 mb-2">{t("devices.connectionConfiguration")}:</div>
                             <div className="bg-gray-50 rounded p-2 text-xs font-mono space-y-1">
                             {connection.type === "MQTT" && (
                                 <>
@@ -751,14 +749,14 @@ return (
                 ) : (
                 <div className="bg-white rounded-lg p-6 shadow-sm border text-center">
                     <WifiOff className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No connections configured</p>
+                    <p className="text-gray-500 text-lg">{t("devices.noConnections")}</p>
                     <p className="text-gray-400 text-sm mt-2">
-                    Configure device connections to start receiving real-time data.
+                    {t("devices.addConnectionDescription")}
                     </p>
                     {mode === "edit" && (
                     <Button className="mt-4" variant="outline" onClick={handleAddConnection}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add First Connection
+                        {t("devices.addConnection")}
                     </Button>
                     )}
                 </div>
@@ -794,7 +792,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Zap className="h-4 w-4 text-yellow-600" />
-                          <span className="text-sm font-medium text-gray-600">Power</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.powerFactor")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.power?.toFixed(2) || '0'} kW
@@ -805,7 +803,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <TrendingUp className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-gray-600">Voltage</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.voltage")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.voltage?.toFixed(1) || '0'} V
@@ -816,7 +814,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Waves className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm font-medium text-gray-600">Current</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.current")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.current?.toFixed(2) || '0'} A
@@ -827,7 +825,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Gauge className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-gray-600">Energy</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.energy")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.energy?.toFixed(2) || '0'} kWh
@@ -838,7 +836,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Activity className="h-4 w-4 text-indigo-600" />
-                          <span className="text-sm font-medium text-gray-600">Frequency</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.frequency")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.frequency?.toFixed(1) || '0'} Hz
@@ -850,7 +848,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                           <div className="flex items-center gap-2 mb-1">
                           <Thermometer className="h-4 w-4 text-red-600" />
-                          <span className="text-sm font-medium text-gray-600">Temperature</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.temperature")}</span>
                           </div>
                           <div className="text-xl font-bold text-gray-900">
                           {device.latestData.temperature.toFixed(1)}°C
@@ -862,7 +860,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Activity className="h-4 w-4 text-cyan-600" />
-                          <span className="text-sm font-medium text-gray-600">Humidity</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.humidity")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.humidity?.toFixed(1) || '0'}%
@@ -873,7 +871,7 @@ return (
                       <div className="bg-white rounded-lg p-3 shadow-sm border">
                       <div className="flex items-center gap-2 mb-1">
                           <Gauge className="h-4 w-4 text-orange-600" />
-                          <span className="text-sm font-medium text-gray-600">Pressure</span>
+                          <span className="text-sm font-medium text-gray-600">{t("devices.pressure")}</span>
                       </div>
                       <div className="text-xl font-bold text-gray-900">
                           {device.latestData.pressure?.toFixed(2) || '0'} bar
@@ -955,7 +953,6 @@ return (
             mode={connectionModalMode}
             connection={editingConnection}
             onSave={handleConnectionSave}
-            language={language}
           />
       )}
       </Dialog>
