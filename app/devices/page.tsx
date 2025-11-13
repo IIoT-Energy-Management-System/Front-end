@@ -17,6 +17,7 @@ import { useAppStore } from "@/lib/store"
 import type { Device } from "@/lib/types"
 import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
+import { io, Socket } from "socket.io-client"
 import { toast } from "sonner"
 
 export default function DevicesPage() {
@@ -40,6 +41,45 @@ export default function DevicesPage() {
   // Load devices from API
   useEffect(() => {
     loadDevicesFromApi()
+  }, [])
+
+  // WebSocket connection for real-time device status updates
+  useEffect(() => {
+    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000')
+
+    socket.on('connect', () => {
+      console.log('✅ WebSocket connected for device status updates')
+    })
+
+    socket.on('device-status-update', (data: { deviceId: string; status: Device['status']; timestamp: string }) => {
+    //   console.log('📡 Received device status update:', data)
+      
+      // Update local devices state
+      setDevices(prevDevices => 
+        prevDevices.map(device => 
+          device.id === data.deviceId 
+            ? { ...device, status: data.status, lastSeen: data.timestamp }
+            : device
+        )
+      )
+
+    //   // Show toast notification
+    //   toast.info(`Device status updated: ${data.status}`, {
+    //     description: `Device ${data.deviceId} is now ${data.status}`
+    //   })
+    })
+
+    socket.on('disconnect', () => {
+      console.log('🔌 WebSocket disconnected')
+    })
+
+    socket.on('error', (error) => {
+      console.error('❌ WebSocket error:', error)
+    })
+
+    return () => {
+      socket.disconnect()
+    }
   }, [])
 
   const loadDevicesFromApi = async () => {
@@ -195,18 +235,25 @@ export default function DevicesPage() {
     }
   }
 
-  const handleStatusChange = async (device: Device, newStatus: Device['status']) => {
+  const handleToggleMaintenance = async (device: Device) => {
     try {
+      const newStatus = device.status === 'Maintenance' ? 'Online' : 'Maintenance'
+      const confirmation = newStatus === 'Maintenance' 
+        ? `${t("devices.setMaintenanceConfirm")}`
+        : `${t("devices.removeMaintenanceConfirm")}`
+      
+      if (!confirm(confirmation)) return
+
       await updateDeviceStatus(device.id, newStatus)
-      await loadDevicesFromApi() // Reload devices after status update
-      
-      // Hiển thị toast thành công khi thay đổi trạng thái
-      toast.success(`Trạng thái thiết bị "${device.name}" đã được cập nhật thành "${newStatus}"`)
+      toast.success(
+        newStatus === 'Maintenance' 
+          ? `Device "${device.name}" ${t("devices.setMaintenanceSuccess")}`
+          : `Device "${device.name}" ${t("devices.removeMaintenanceSuccess")}`
+      )
+      await loadDevicesFromApi()
     } catch (error) {
-      console.error("Failed to update device status:", error)
-      
-      // Hiển thị toast lỗi khi thay đổi trạng thái thất bại
-      toast.error("Không thể cập nhật trạng thái thiết bị. Vui lòng thử lại.")
+      console.error('Error toggling maintenance mode:', error)
+      toast.error((error as any).error || "Failed to update device maintenance status")
     }
   }
 
@@ -435,17 +482,18 @@ export default function DevicesPage() {
                             <PermissionGuard
                               permission="device.edit"
                             >
-                              <Select value={device.status} onValueChange={(value: Device['status']) => handleStatusChange(device, value)}>
-                                <SelectTrigger className="w-20 h-6 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Online">{t("devices.online")}</SelectItem>
-                                  <SelectItem value="Offline">{t("devices.offline")}</SelectItem>
-                                  <SelectItem value="Maintenance">{t("devices.maintenance")}</SelectItem>
-                                  <SelectItem value="Error">{t("devices.error")}</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={`h-6 text-xs ${
+                                  device.status === 'Maintenance' 
+                                    ? 'bg-blue-50 hover:bg-blue-100' 
+                                    : 'hover:bg-yellow-50'
+                                }`}
+                                onClick={() => handleToggleMaintenance(device)}
+                              >
+                                {device.status === 'Maintenance' ? '🔧 Exit Maintenance' : '🔧 Maintenance'}
+                              </Button>
                             </PermissionGuard>
                           </div>
                         </TableCell>

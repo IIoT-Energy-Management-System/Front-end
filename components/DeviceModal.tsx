@@ -32,7 +32,6 @@ import {
     Zap
 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { io, Socket } from 'socket.io-client'; // Import Socket.io client
 import { toast } from 'sonner'
 import ConnectionModal from "./ConnectionModal"
 
@@ -447,30 +446,13 @@ return (
                 )}
                 </div>
 
-                {/* Status (for edit/view mode) */}
+                {/* Status (read-only in both edit and view mode) */}
                 {(isEdit || isReadOnly) && (
                 <div className="space-y-2">
                     <Label htmlFor="status" className="text-sm font-semibold">{t("devices.status")}</Label>
-                    {isReadOnly ? (
                     <div className="px-3 py-2 border rounded-md bg-white shadow-sm">
                         <Badge className={getStatusColor(formData.status)}>{formData.status}</Badge>
                     </div>
-                    ) : (
-                    <Select
-                        value={formData.status}
-                        onValueChange={(value: Device["status"]) => setFormData({ ...formData, status: value })}
-                    >
-                        <SelectTrigger className="border-2 border-purple-200 focus:border-purple-400 bg-white">
-                        <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="Online">Online</SelectItem>
-                        <SelectItem value="Offline">Offline</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Error">Error</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    )}
                 </div>
                 )}
             </div>
