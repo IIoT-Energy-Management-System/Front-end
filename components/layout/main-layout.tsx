@@ -26,7 +26,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   }, [checkAuthStatus])
 
   useEffect(() => {
-    if (!isCheckingAuth && !isAuthenticated) {
+    if (!isCheckingAuth && !isAuthenticated || pathname === "/") {
       router.push("/login")
       return
     }

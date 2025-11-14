@@ -316,6 +316,16 @@ export default function DeviceModal({
           } else {
               await createDeviceConnection(connectionData)
               toast.success("Connection created successfully!")
+              
+              // Nếu là MQTT connection mới, đợi 3 giây để backend nhận data rồi refresh
+              if (connectionData.type === 'MQTT') {
+                  toast.info("Waiting for device to connect via MQTT...", { duration: 3000 })
+                  setTimeout(() => {
+                      if (onDeviceUpdated) {
+                          onDeviceUpdated()
+                      }
+                  }, 3000)
+              }
           }
           setRefreshKey(prev => prev + 1)
           if (onDeviceUpdated) {

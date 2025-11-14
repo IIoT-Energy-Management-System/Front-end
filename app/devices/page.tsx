@@ -237,7 +237,7 @@ export default function DevicesPage() {
 
   const handleToggleMaintenance = async (device: Device) => {
     try {
-      const newStatus = device.status === 'Maintenance' ? 'Online' : 'Maintenance'
+      const newStatus = device.status === 'Maintenance' ? 'Offline' : 'Maintenance'
       const confirmation = newStatus === 'Maintenance' 
         ? `${t("devices.setMaintenanceConfirm")}`
         : `${t("devices.removeMaintenanceConfirm")}`
@@ -492,7 +492,7 @@ export default function DevicesPage() {
                                 }`}
                                 onClick={() => handleToggleMaintenance(device)}
                               >
-                                {device.status === 'Maintenance' ? '🔧 Exit Maintenance' : '🔧 Maintenance'}
+                                {device.status === "Maintenance" ? `🔧 ${t("devices.exitMaintenance")}` : `🔧 ${t("devices.maintenance")}`}
                               </Button>
                             </PermissionGuard>
                           </div>

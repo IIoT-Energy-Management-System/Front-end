@@ -137,7 +137,7 @@ export default function UserManagement() {
                 <TableHead>{t("user.role")}</TableHead>
                 <TableHead>{t("user.accessLevel")}</TableHead>
                 <TableHead>{t("user.language")}</TableHead>
-                <TableHead>{t("devices.status")}</TableHead>
+                <TableHead>{t("alerts.status")}</TableHead>
                 <TableHead>{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
