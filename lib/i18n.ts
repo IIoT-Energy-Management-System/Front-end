@@ -500,6 +500,7 @@ export const translations = {
     "database.saveSuccess": "Database configuration saved!",
     "database.saveFailed": "Cannot save database configuration",
     "database.saveError": "Error occurred while saving configuration",
+    "database.saveWarning": "You can only save after a successful connection test!",
 
     // Notifications
     "notification.popupTitle": "Notifications",
@@ -1178,6 +1179,7 @@ export const translations = {
     "database.saveSuccess": "Cấu hình cơ sở dữ liệu đã được lưu!",
     "database.saveFailed": "Không thể lưu cấu hình cơ sở dữ liệu",
     "database.saveError": "Có lỗi xảy ra khi lưu cấu hình",
+    "database.saveWarning": "Chỉ khi kiểm tra kết nối thành công thì mới được lưu!",
 
     // Notifications
     "notification.popupTitle": "Thông báo",

@@ -15,7 +15,7 @@ import { useDeviceApi, useFactoryApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
 import type { Device } from "@/lib/types"
-import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Zap } from "lucide-react"
+import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Wrench, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
 import { toast } from "sonner"
@@ -492,7 +492,7 @@ export default function DevicesPage() {
                                 }`}
                                 onClick={() => handleToggleMaintenance(device)}
                               >
-                                {device.status === "Maintenance" ? `🔧 ${t("devices.exitMaintenance")}` : `🔧 ${t("devices.maintenance")}`}
+                                <Wrench className="h-4 w-4" />{device.status === "Maintenance" ? `${t("devices.exitMaintenance")}` : `${t("devices.maintenance")}`}
                               </Button>
                             </PermissionGuard>
                           </div>

@@ -9,7 +9,7 @@ import { DbConfigApiService } from "@/lib/api"
 import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
 import { Database } from "lucide-react"
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { toast } from 'sonner'
 
 export default function DatabaseSettings() {
@@ -24,11 +24,16 @@ export default function DatabaseSettings() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
+  const [doneInitialLoad, setDoneInitialLoad] = useState(false)
 
   // Load current config on component mount
   useEffect(() => {
     loadDatabaseConfig()
   }, [])
+
+  useEffect(() => {
+    setDoneInitialLoad(false)
+  }, [databaseSettings])
 
   const loadDatabaseConfig = async () => {
     try {
@@ -78,6 +83,7 @@ export default function DatabaseSettings() {
 
       if (response.success === true) {
         toast.success(t("database.connectionSuccess"))
+        setDoneInitialLoad(true)
       } else {
         toast.error(response.error || t("database.connectionFailed"))
       }
@@ -199,7 +205,7 @@ export default function DatabaseSettings() {
             </div>
           </div>
         )}
-
+        <p className="text-sm text-gray-500">(*) {t("database.saveWarning")}</p>
         <div className="flex gap-4 justify-center sm:justify-start">
           <Button 
             onClick={handleTestDatabaseConnection} 
@@ -210,7 +216,7 @@ export default function DatabaseSettings() {
           <Button 
             variant="outline" 
             onClick={handleSaveDatabaseConfig}
-            disabled={isLoading || !authService.hasPermission("settings.edit")}
+            disabled={isLoading || !authService.hasPermission("settings.edit") || !doneInitialLoad}
           >
             {isLoading ? t("database.saving") : t("database.saveConfig")}
           </Button>

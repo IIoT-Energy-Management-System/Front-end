@@ -23,11 +23,16 @@ export default function NotificationSettings() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
+  const [doneInitialLoad, setDoneInitialLoad] = useState(false)
 
   // Load current config on component mount
   useEffect(() => {
     loadSmtpConfig()
   }, [])
+
+  useEffect(() => {
+    setDoneInitialLoad(false)
+  }, [smtpSettings])
 
   const loadSmtpConfig = async () => {
     try {
@@ -60,6 +65,7 @@ export default function NotificationSettings() {
 
       if (response.success === true) {
         toast.success(t("notification.connectionSuccess"))
+        setDoneInitialLoad(true)
       } else {
         toast.error(response.error || t("notification.connectionFailed"))
       }
@@ -159,6 +165,7 @@ export default function NotificationSettings() {
           />
           <Label htmlFor="smtpSecure">{t("notification.useSSL")}</Label>
         </div>
+        <p className="text-sm text-gray-500">(*) {t("database.saveWarning")}</p>
         <div className="flex gap-4 justify-center sm:justify-start">
           <Button 
             onClick={handleTestSmtpConnection} 
@@ -169,7 +176,7 @@ export default function NotificationSettings() {
           <Button 
             variant="outline" 
             onClick={handleSaveSmtpConfig}
-            disabled={isLoading || !authService.hasPermission("settings.edit")}
+            disabled={isLoading || !authService.hasPermission("settings.edit") || !doneInitialLoad}
           >
             {isLoading ? t("notification.saving") : t("notification.saveConfig")}
           </Button>
