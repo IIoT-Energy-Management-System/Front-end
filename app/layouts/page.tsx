@@ -22,7 +22,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BuildingApiService, DeviceApiService, FactoryApiService, FloorApiService, LineApiService } from "@/lib/api"
 import { authService } from "@/lib/auth"
 import { useTranslation } from "@/lib/i18n"
@@ -32,18 +31,15 @@ import {
     AlertCircle,
     AlertTriangle,
     ArrowLeft,
-    Cable,
     Edit2,
     Move,
     Pause,
     Play,
     Plus,
     Search,
-    Settings,
     Users,
-    Wifi,
     X,
-    Zap,
+    Zap
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -320,18 +316,32 @@ const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
 
 const fetchData = async () => {
     try {
-        const [factories, buildings, floors, lines, devices] = await Promise.all([
+        const [factories, buildings, floors, lines, devicesData] = await Promise.all([
             FactoryApiService.getFactories(),
             BuildingApiService.getBuildings(),
             FloorApiService.getFloors(),
             LineApiService.getLines(),
-            DeviceApiService.getDevices()
+            // Load devices với minimal mode và limit 200 cho layouts view
+            DeviceApiService.getDevices({ limit: 200, minimal: true })
         ])
         setApiFactories(factories)
         setApiBuildings(buildings)
         setApiFloors(floors)
         setApiLines(lines)
-        setApiDevices(devices)
+        
+        // Handle devices response
+        let deviceArray: Device[] = []
+        if (Array.isArray(devicesData)) {
+            deviceArray = devicesData
+        } else if (devicesData && typeof devicesData === 'object') {
+            const deviceObj = devicesData as any
+            if ('data' in deviceObj && Array.isArray(deviceObj.data)) {
+                deviceArray = deviceObj.data
+            } else {
+                deviceArray = []
+            }
+        }
+        setApiDevices(deviceArray)
     } catch (error) {
         console.error('Error loading data:', error)
     }

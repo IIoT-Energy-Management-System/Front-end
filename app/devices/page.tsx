@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useDebounce } from "@/hooks/use-debounce"
 import { useDeviceApi, useFactoryApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
@@ -31,6 +32,15 @@ export default function DevicesPage() {
   const [loading, setLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
   const [apiFactories, setApiFactories] = useState<any[]>([])
+  const [totalDevices, setTotalDevices] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [deviceStats, setDeviceStats] = useState({
+    totalDevices: 0,
+    onlineDevices: 0,
+    offlineDevices: 0,
+    maintenanceDevices: 0,
+    errorDevices: 0
+  })
 
   const { factories, language } = useAppStore()
   const { getDevices, createDevice, updateDevice, deleteDevice, updateDeviceStatus, getDeviceById } = useDeviceApi()
@@ -38,10 +48,26 @@ export default function DevicesPage() {
   const { t } = useTranslation()
   const itemsPerPage = 10
 
-  // Load devices from API
+  // Debounce search term để giảm số lần gọi API (500ms delay)
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
+  // Load factories once on mount
   useEffect(() => {
-    loadDevicesFromApi()
+    const loadFactories = async () => {
+      try {
+        const factoriesData = await getFactories()
+        setApiFactories(factoriesData)
+      } catch (error) {
+        console.error('Error loading factories:', error)
+      }
+    }
+    loadFactories()
   }, [])
+
+  // Load devices when component mounts or page changes
+  useEffect(() => {
+    loadDevicesFromApi(currentPage, itemsPerPage)
+  }, [currentPage])
 
   // WebSocket connection for real-time device status updates
   useEffect(() => {
@@ -82,72 +108,77 @@ export default function DevicesPage() {
     }
   }, [])
 
-  const loadDevicesFromApi = async () => {
-    setLoading(true)
+  const loadDevicesFromApi = async (page: number = 1, limit: number = 10) => {
+    // setLoading(true)
     try {
-      // Load both devices and factories from API
-      const [devicesData, factoriesData] = await Promise.all([
-        getDevices(),
-        getFactories()
-      ])
+      // Load devices with pagination and search
+      // Use minimal mode for faster loading
+      const devicesData = await getDevices({ 
+        page: page, 
+        limit: limit,
+        search: debouncedSearchTerm, // Sử dụng debounced search term
+        status: statusFilter !== 'all' ? statusFilter : undefined, // Gửi status filter lên server
+        minimal: true // Chỉ lấy thông tin cơ bản, không load power và operational time
+      })
       
       // Handle devices response format
       let deviceArray: Device[] = []
+      let pagination: any = null
+        let stats: any = null
+      
       if (Array.isArray(devicesData)) {
         deviceArray = devicesData
       } else if (devicesData && typeof devicesData === 'object') {
-        // If response is an object, try to extract devices array from common properties
         const deviceObj = devicesData as any
         if ('data' in deviceObj && Array.isArray(deviceObj.data)) {
           deviceArray = deviceObj.data
+          pagination = deviceObj.pagination
+          stats = deviceObj.stats
         } else {
-          // If object doesn't contain array, convert to single item array
-          deviceArray = [devicesData as Device]
+          deviceArray = []
         }
       }
       
+      // Update state - mỗi page là data mới
       setDevices(deviceArray)
-      setApiFactories(factoriesData)
       
-      // Debug logging để kiểm tra dữ liệu từ API
-    //   console.log("Devices loaded from API:", deviceArray)
-    //   console.log("Sample device with latestData:", deviceArray[0])
+      // Update pagination info từ API
+      if (pagination) {
+        setTotalDevices(pagination.total)
+        setHasMore(pagination.hasMore)
+      }
       
-    //   // Hiển thị toast thành công khi load data
-    //   if (deviceArray.length > 0) {
-    //     toast.success(`Đã tải ${deviceArray.length} thiết bị thành công!`)
-    //   }
+      // Update stats từ API (nếu có)
+      if (stats) {
+        setDeviceStats({totalDevices: stats.totalDevices, onlineDevices: stats.onlineDevices, offlineDevices: stats.offlineDevices, maintenanceDevices: stats.maintenanceDevices, errorDevices: stats.errorDevices})
+      }
+      
     } catch (error) {
       console.error('Error loading data:', error)
-      
-      // Hiển thị toast lỗi khi load data thất bại
       toast.error("Không thể tải dữ liệu thiết bị. Vui lòng thử lại.")
-      
-      // Fallback to empty arrays
       setDevices([])
-      setApiFactories([])
+      setTotalDevices(0)
     } finally {
       setLoading(false)
     }
   }
 
+  // Reset về page 1 khi search/filter thay đổi
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter])
-  // Filter devices - ensure devices is always an array
-  const filteredDevices = (Array.isArray(devices) ? devices : []).filter((device) => {
-    const matchesSearch =
-      device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || device.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }, [debouncedSearchTerm, statusFilter]) // Sử dụng debouncedSearchTerm thay vì searchTerm
 
-  // Pagination - ensure safe array operations
-  const safeFilteredDevices = Array.isArray(filteredDevices) ? filteredDevices : []
-  const totalPages = Math.ceil(safeFilteredDevices.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedDevices = safeFilteredDevices.slice(startIndex, startIndex + itemsPerPage)
+  // Load devices khi page, debounced search hoặc filter thay đổi
+  useEffect(() => {
+    loadDevicesFromApi(currentPage, itemsPerPage)
+  }, [currentPage, debouncedSearchTerm, statusFilter]) // Sử dụng debouncedSearchTerm
+  
+  // Server-side search và filter, không cần filter client-side nữa
+  const paginatedDevices = devices
+  // Calculate total pages từ API total
+  const totalPages = totalDevices > 0 ? Math.ceil(totalDevices / itemsPerPage) : 1
 
   const handleAddDevice = async () => {
     setModalMode("add")
@@ -207,11 +238,13 @@ export default function DevicesPage() {
         await createDevice({
           ...deviceData,
         })
+        // Sau khi thêm mới, về page 1
+        setCurrentPage(1)
       } else if (modalMode === "edit" && selectedDevice) {
         await updateDevice(selectedDevice.id, deviceData)
+        // Sau khi edit, reload page hiện tại
+        await loadDevicesFromApi(currentPage, itemsPerPage)
       }
-      
-      await loadDevicesFromApi() // Reload devices after saving
     } catch (error) {
       console.error("Failed to save device:", error)
       throw error // Re-throw to let modal handle it
@@ -223,6 +256,7 @@ export default function DevicesPage() {
       try {
         await deleteDevice(deviceId)
         await loadDevicesFromApi() // Reload devices after deleting
+        setSearchTerm("") // Reset search term after deletion
         setCurrentPage(1) // Reset to first page after deletion
         // Hiển thị toast thành công khi xóa
         toast.success(`${t("devices.deleteSuccess")}`)
@@ -250,7 +284,7 @@ export default function DevicesPage() {
           ? `Device "${device.name}" ${t("devices.setMaintenanceSuccess")}`
           : `Device "${device.name}" ${t("devices.removeMaintenanceSuccess")}`
       )
-      await loadDevicesFromApi()
+      await loadDevicesFromApi(currentPage, itemsPerPage)
     } catch (error) {
       console.error('Error toggling maintenance mode:', error)
       toast.error((error as any).error || "Failed to update device maintenance status")
@@ -300,12 +334,11 @@ export default function DevicesPage() {
     return colors[type] || colors["Other"]
   }
 
-  // Ensure devices is always an array for counting
-  const deviceArray = Array.isArray(devices) ? devices : []
-  const onlineCount = deviceArray.filter((d) => d.status === "Online").length
-  const offlineCount = deviceArray.filter((d) => d.status === "Offline").length
-  const maintenanceCount = deviceArray.filter((d) => d.status === "Maintenance").length
-  const errorCount = deviceArray.filter((d) => d.status === "Error").length
+  // Sử dụng stats từ API thay vì đếm client-side
+  const onlineCount = deviceStats.onlineDevices
+  const offlineCount = deviceStats.offlineDevices
+  const maintenanceCount = deviceStats.maintenanceDevices
+  const errorCount = deviceStats.errorDevices
 
   return (
     <MainLayout>
@@ -392,7 +425,7 @@ export default function DevicesPage() {
           <CardHeader>
             <CardTitle className="text-xl">{t("devices.overview")}</CardTitle>
             <CardDescription>
-              {t("common.total")}: {deviceArray.length} {t("devices")} | {t("devices.online")}: {onlineCount} | {t("devices.offline")}: {offlineCount}
+              {t("common.total")}: {deviceStats.totalDevices} {t("devices")} | {t("devices.online")}: {onlineCount} | {t("devices.offline")}: {offlineCount}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -401,11 +434,16 @@ export default function DevicesPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder={t("common.search")}
+                    placeholder={`${t("common.search")} (${t("devices.deviceName")} / ID)...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 border-2 border-purple-200 focus:border-purple-400"
                   />
+                  {searchTerm && searchTerm !== debouncedSearchTerm && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin h-4 w-4 border-2 border-purple-600 rounded-full border-t-transparent"></div>
+                    </div>
+                  )}
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -586,7 +624,7 @@ export default function DevicesPage() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           itemsPerPage={itemsPerPage}
-          totalItems={safeFilteredDevices.length}
+          totalItems={totalDevices}
           showInfo={true}
           t={t}
           itemName={t("devices")}

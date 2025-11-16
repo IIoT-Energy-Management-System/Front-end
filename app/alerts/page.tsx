@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { useDebounce } from "@/hooks/use-debounce"
+import { useToast } from "@/hooks/use-toast"
 import { useAlertApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
@@ -36,18 +38,48 @@ export default function AlertsPage() {
   const [isSolveDialogOpen, setIsSolveDialogOpen] = useState(false)
   const [acknowledgmentNote, setAcknowledgmentNote] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalAlerts, setTotalAlerts] = useState(0)
+  const [alertStats, setAlertStats] = useState({
+    total: 0,
+    active: 0,
+    acknowledged: 0,
+    resolved: 0,
+    critical: 0,
+    high: 0
+  })
   const { user } = useAppStore()
   const { t } = useTranslation()
+  const { toast } = useToast()
   const itemsPerPage = 10
+
+  // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
   const {getAlerts, confirmAcknowledgeAlert, confirmResolveAlert} = useAlertApi()
   const searchParams = useSearchParams()
   const router = useRouter()
   // Generate sample alerts
-    const fetchAlerts = async () => {
+    const fetchAlerts = async (page: number = 1) => {
       try {
-        const response = await getAlerts();
+        const response = await getAlerts({
+          page: page,
+          limit: itemsPerPage,
+          search: debouncedSearchTerm,
+          severity: severityFilter !== 'all' ? severityFilter : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        });
+        
         setAlerts(response.data);
+        
+        // Update pagination info
+        if (response.pagination) {
+          setTotalAlerts(response.pagination.total);
+        }
+        
+        // Update stats
+        if (response.stats) {
+          setAlertStats(response.stats);
+        }
 
         // If we have alertId in query params, open dialog for that alert
         const alertId = searchParams?.get?.('alertId')
@@ -62,63 +94,29 @@ export default function AlertsPage() {
         }
       } catch (error) {
         console.error("Failed to fetch alerts:", error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể tải dữ liệu cảnh báo. Vui lòng thử lại.",
+          variant: "destructive"
+        });
+        setAlerts([]);
+        setTotalAlerts(0);
       }
     };
+  // Reset về page 1 khi search/filter thay đổi
   useEffect(() => {
-    fetchAlerts();
-    // Simulate new alerts
-    // const interval = setInterval(() => {
-    //   if (Math.random() < 0.1) {
-    //     // 10% chance every 30 seconds
-    //     const randomDevice = devices[Math.floor(Math.random() * devices.length)]
-    //     const alertTypes = ["Power Threshold", "Device Offline", "Low Power Factor", "Temperature"]
-    //     const severities: Alert["severity"][] = ["Info", "Warning", "Critical"]
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }, [debouncedSearchTerm, severityFilter, statusFilter])
 
-    //     const newAlert: Alert = {
-    //       id: `alert-${Date.now()}`,
-    //       deviceId: randomDevice?.id || "device-1",
-    //       type: alertTypes[Math.floor(Math.random() * alertTypes.length)] as Alert["type"],
-    //       severity: severities[Math.floor(Math.random() * severities.length)],
-    //       message: `Automated alert for ${randomDevice?.name || "Unknown Device"}`,
-    //       timestamp: new Date().toISOString(),
-    //       acknowledged: false,
-    //       resolved: false,
-    //     }
-
-    //     setAlerts((prev) => [newAlert, ...prev])
-    //   }
-    // }, 30000)
-
-    // return () => clearInterval(interval)
-  }, [])
-
+  // Load alerts khi page, search hoặc filter thay đổi
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, severityFilter, statusFilter])
-  // Filter alerts
-  const filteredAlerts = alerts.filter((alert) => {
-    const deviceName = alert?.deviceName || "Unknown Device"
-
-    const matchesSearch =
-      deviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alert.type.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesSeverity = severityFilter === "all" || alert.severity === severityFilter
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "unacknowledged" && !alert.acknowledged) ||
-      (statusFilter === "acknowledged" && alert.acknowledged && !alert.resolved) ||
-      (statusFilter === "resolved" && alert.resolved)
-
-    return matchesSearch && matchesSeverity && matchesStatus
-  })
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAlerts.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedAlerts = filteredAlerts.slice(startIndex, startIndex + itemsPerPage)
+    fetchAlerts(currentPage);
+  }, [currentPage, debouncedSearchTerm, severityFilter, statusFilter])
+  // Server-side search và filter, không cần filter client-side
+  const paginatedAlerts = alerts
+  const totalPages = totalAlerts > 0 ? Math.ceil(totalAlerts / itemsPerPage) : 1
 
   const handleAcknowledgeAlert = (alert: Alert) => {
     setSelectedAlert(alert)
@@ -130,10 +128,19 @@ export default function AlertsPage() {
     
     try {
         await confirmAcknowledgeAlert(selectedAlert.id, { userId: user.id ?? "", acknowledgmentNote })
+        toast({
+          title: "Thành công",
+          description: "Đã xác nhận cảnh báo thành công"
+        })
     } catch (error) {
         console.error("Failed to acknowledge alert:", error)
+        toast({
+          title: "Lỗi",
+          description: "Không thể xác nhận cảnh báo",
+          variant: "destructive"
+        })
     }
-    fetchAlerts()
+    fetchAlerts(currentPage)
 
     setIsAcknowledgeDialogOpen(false)
     setSelectedAlert(null)
@@ -149,11 +156,19 @@ export default function AlertsPage() {
     if (!selectedAlert || !user) return
     try {
         await confirmResolveAlert(selectedAlert.id)
+        toast({
+          title: "Thành công",
+          description: "Đã giải quyết cảnh báo thành công"
+        })
     } catch (error) {
         console.error("Failed to resolve alert:", error)
-
+        toast({
+          title: "Lỗi",
+          description: "Không thể giải quyết cảnh báo",
+          variant: "destructive"
+        })
     }
-    fetchAlerts()
+    fetchAlerts(currentPage)
     setIsSolveDialogOpen(false)
     setSelectedAlert(null)
     }
@@ -193,8 +208,11 @@ export default function AlertsPage() {
     }
   }
 
-  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length
-  const criticalCount = alerts.filter((a) => a.severity === "Critical" && !a.resolved).length
+  const totalCount = alertStats.total
+  const unacknowledgedCount = alertStats.active
+  const criticalCount = alertStats.critical
+  const acknowledgedCount = alertStats.acknowledged
+  const resolvedCount = alertStats.resolved
 
   return (
     <MainLayout>
@@ -225,7 +243,7 @@ export default function AlertsPage() {
               <Bell className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{alerts.length}</div>
+              <div className="text-3xl font-bold">{totalCount}</div>
               <p className="text-xs text-white/80">{t("alerts.last24Hours")}</p>
             </CardContent>
           </Card>
@@ -258,7 +276,7 @@ export default function AlertsPage() {
               <CheckCircle className="h-6 w-6 text-white/80" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{alerts.filter((a) => a.resolved).length}</div>
+              <div className="text-3xl font-bold">{resolvedCount}</div>
               <p className="text-xs text-white/80">{t("alerts.resolvedDescription")}</p>
             </CardContent>
           </Card>
@@ -316,7 +334,7 @@ export default function AlertsPage() {
               {t("alerts.history")}
             </CardTitle>
             <CardDescription>
-              {t("common.showing")} {startIndex + 1} {t("common.to")} {Math.min(startIndex + itemsPerPage, filteredAlerts.length)} {t("common.of")} {filteredAlerts.length} {t("alerts")}
+              {t("common.showing")} {((currentPage - 1) * itemsPerPage) + 1} {t("common.to")} {Math.min(currentPage * itemsPerPage, totalAlerts)} {t("common.of")} {totalAlerts} {t("alerts")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -416,7 +434,7 @@ export default function AlertsPage() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           itemsPerPage={itemsPerPage}
-          totalItems={filteredAlerts.length}
+          totalItems={totalAlerts}
           showInfo={true}
           t={t}
           itemName={t("alerts")}

@@ -184,22 +184,45 @@ async function handleResponse<T>(response: Response): Promise<T> {
 // Device API Service
 export class DeviceApiService {
     // GET /api/devices - Lấy danh sách thiết bị (có filter)
-  static async getDevices(filters?: {
+static async getDevices(filters?: {
     factoryId?: string
     buildingId?: string
     floorId?: string
     lineId?: string
     status?: string
-    type?: string
-  }): Promise<Device[]> {
-    const searchParams = new URLSearchParams()
+    search?: string
+    page?: number
+    limit?: number
+    minimal?: boolean
+}): Promise<Device[] | { data: Device[], pagination: any, stats: any }> {
+    const searchParams = new URLSearchParams();
     
-    if (filters) {/* Lines 34-39 omitted */}
+    if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                searchParams.append(key, String(value));
+            }
+        });
+    }
     
-    const url = `${API_BASE_URL}/api/devices${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    const url = `${API_BASE_URL}/api/devices${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const response = await authenticatedFetch(url)
-    const result = await handleResponse<{ success: boolean; data: Device[] }>(response)
+    const result = await handleResponse<{ success: boolean; data: Device[], pagination?: any, stats?: any }>(response)
+    
+    // Return với pagination info nếu có
+    if (result.pagination) {
+        return { data: result.data || [], pagination: result.pagination, stats: result.stats || {} }
+    }
     return result.data || []
+  }
+
+  // GET /api/devices?minimal=true - Lấy danh sách thiết bị minimal (nhanh hơn)
+  static async getDevicesMinimal(page: number = 1, limit: number = 50): Promise<{ data: Device[], pagination: any }> {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/api/devices?page=${page}&limit=${limit}&minimal=true`
+    );
+    const result = await handleResponse<{ success: boolean; data: Device[], pagination: any }>(response);
+    return { data: result.data || [], pagination: result.pagination };
   }
 
   // GET /api/devices/:id - Lấy chi tiết thiết bị
@@ -610,9 +633,27 @@ export class LineApiService {
 }
 
 export class AlertApiService {
-    static async getAlerts(): Promise<Alert[]>{
-        const response = await authenticatedFetch(`${API_BASE_URL}/api/alerts`)
-        return handleResponse(response)
+    static async getAlerts(filters?: {
+        deviceId?: string
+        severity?: string
+        status?: string
+        search?: string
+        page?: number
+        limit?: number
+    }): Promise<{ data: Alert[], pagination?: any, stats?: any }> {
+        const searchParams = new URLSearchParams();
+        
+        if (filters) {
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    searchParams.append(key, String(value));
+                }
+            });
+        }
+        
+        const url = `${API_BASE_URL}/api/alerts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+        const response = await authenticatedFetch(url);
+        return handleResponse<{ data: Alert[], pagination?: any, stats?: any }>(response);
     }
 
     static async getAlertsActive(): Promise<Alert[]>{
