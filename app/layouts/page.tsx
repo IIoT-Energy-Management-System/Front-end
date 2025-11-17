@@ -1240,7 +1240,7 @@ const renderFloorView = () => {
                     </Badge>
                     <div className="text-right">
                         <div className="text-sm text-white/80">{t("layouts.efficiency")}</div>
-                        <div className="font-bold text-white">{floorStats?.efficiency.toFixed(1) || 0}%</div>
+                        <div className="font-bold text-white">{floor?.operationalTime.uptimePercentage?.toFixed(1) || 0}%</div>
                     </div>
                     </div>
                 </div>
