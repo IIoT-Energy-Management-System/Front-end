@@ -315,6 +315,7 @@ const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
 // }
 
 const fetchData = async () => {
+    setLoading(true)
     try {
         const [factories, buildings, floors, lines, devicesData] = await Promise.all([
             FactoryApiService.getFactories(),
@@ -322,7 +323,7 @@ const fetchData = async () => {
             FloorApiService.getFloors(),
             LineApiService.getLines(),
             // Load devices với minimal mode và limit 200 cho layouts view
-            DeviceApiService.getDevices({ limit: 200, minimal: true })
+            DeviceApiService.getDevices({ limit: 200, minimal: false})
         ])
         setApiFactories(factories)
         setApiBuildings(buildings)
@@ -344,6 +345,8 @@ const fetchData = async () => {
         setApiDevices(deviceArray)
     } catch (error) {
         console.error('Error loading data:', error)
+    } finally {
+        setLoading(false)
     }
 }
 const loadStats = async () => {
