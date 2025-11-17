@@ -943,7 +943,7 @@ const renderFactoryView = () => {
                             <div className="flex items-center space-x-2">
                             <Pause className="h-4 w-4 text-white/80" />
                             <div>
-                                <div className="text-sm text-white/80">{t("layouts.downtime")}</div>
+                                <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                                 <div className="font-medium text-white">
                                 {factoryStats?.downtime || 0} {t("layouts.devices")}
                                 </div>
