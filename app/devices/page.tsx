@@ -189,7 +189,7 @@ export default function DevicesPage() {
     
     try {
       // Lấy chi tiết device từ API để có đầy đủ thông tin including latestData và connections
-      const fullDeviceData = await getDeviceById(device.id)
+      const fullDeviceData = await getDeviceById(device.id ? device.id : "")
       
     //   console.log("Full device data for edit:", fullDeviceData)
       setSelectedDevice(fullDeviceData)
@@ -212,7 +212,7 @@ export default function DevicesPage() {
     
     try {
       // Lấy chi tiết device từ API để có đầy đủ thông tin including latestData
-      const fullDeviceData = await getDeviceById(device.id)
+      const fullDeviceData = await getDeviceById(device.id ? device.id : "")
       
     //   console.log("Full device data from API:", fullDeviceData)
       setSelectedDevice(fullDeviceData)
@@ -238,7 +238,7 @@ export default function DevicesPage() {
         // Sau khi thêm mới, về page 1
         setCurrentPage(1)
       } else if (modalMode === "edit" && selectedDevice) {
-        await updateDevice(selectedDevice.id, deviceData)
+        await updateDevice(selectedDevice.id ? selectedDevice.id : "", deviceData)
         // Sau khi edit, reload page hiện tại
         await loadDevicesFromApi(currentPage, itemsPerPage)
       }
@@ -275,7 +275,7 @@ export default function DevicesPage() {
       
       if (!confirm(confirmation)) return
 
-      await updateDeviceStatus(device.id, newStatus)
+      await updateDeviceStatus(device.id ? device.id : "", newStatus)
       toast.success(
         newStatus === 'Maintenance' 
           ? `Device "${device.name}" ${t("devices.setMaintenanceSuccess")}`
@@ -315,7 +315,7 @@ export default function DevicesPage() {
       Conveyor: "from-green-500 to-green-600",
       Other: "from-gray-500 to-gray-600",
     }
-    return colors[type] || colors["Other"]
+    return colors[type ? type : "Other"] || colors["Other"]
   }
 
   // Sử dụng stats từ API thay vì đếm client-side
@@ -492,7 +492,7 @@ export default function DevicesPage() {
                         <TableCell>
                           <div className="space-y-1">
                             <div className="font-medium">
-                              {device.ratedPower.toFixed(2)} {t("units.kw")}
+                              {device.ratedPower ? device.ratedPower.toFixed(2) : "0.00"} {t("units.kw")}
                             </div>
                             <Progress value={efficiency} className="h-1" />
                             <div className="text-xs text-gray-500">{efficiency.toFixed(1)}% efficiency</div>
@@ -585,7 +585,7 @@ export default function DevicesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDeleteDevice(device.id)}
+                                onClick={() => handleDeleteDevice(device.id ? device.id : "")}
                                 className="hover:bg-red-100"
                               >
                                 <Trash2 className="h-4 w-4" />

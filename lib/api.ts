@@ -1,7 +1,7 @@
-import type { Alert, AnalyticsData, ApiPermission, AuditLogEntry, Building, ConnectionLogEntry, DashboardStats, DbConfig, Device, EnergySettings, Factory, Floor, Line, RankingData, Report, ReportData, Role, Shift, SmtpConfig, User } from './types';
+import type { ApiPermission, AuditLogEntry, ConnectionLogEntry, DbConfig, Device, EnergySettings, Report, Shift, SmtpConfig, User } from './types';
 
-import axios from "axios"
-import { useAppStore } from "./store"
+import axios from "axios";
+import { useAppStore } from "./store";
 
 const api = axios.create({
   baseURL: "http://localhost:5000/api",
@@ -148,11 +148,11 @@ export class DeviceApiService {
     }
 
     // PUT /devices/:id/status - Cập nhật trạng thái thiết bị
-    static async updateDeviceStatus(id: string, status: Device['status']) {
-        const response = await api.put(`/devices/${id}/status`, status)
+    static async updateDeviceStatus(id: string, status: string) {
+        const response = await api.put(`/devices/${id}/status`, { status })
         // const result = await handleResponse<{ success: boolean; data: Device }>(response)
         if (response.data.success === false) return [];
-        return response.data.data;
+        return response.data.message;
     }
 
     // POST /device-connections - Thêm kết nối cho thiết bị
