@@ -403,8 +403,8 @@ export class AnalyticApiService {
     return response.data.data;
   }
 
-  static async getReports() {
-    const response = await api.get(`/analytics/reports`);
+  static async getReports(period: string) {
+    const response = await api.get(`/analytics/reports?period=${period}`);
     return response.data.data;
   }
 }

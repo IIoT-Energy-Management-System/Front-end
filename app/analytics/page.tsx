@@ -106,14 +106,9 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
         const [analyticsData, rankingsData, reportsData] = await Promise.all([
-            getAnalytics({
-                timeRange,
-                factoryId: selectedFactory ?? undefined,
-                buildingId: selectedBuilding ?? undefined,
-                floorId: selectedFloor ?? undefined,
-            }),
+            getAnalytics(),
             getRankings(),
-            getReports({ period: reportPeriod }),
+            getReports(reportPeriod),
         ])
         setAnalytics(analyticsData)
         setRankings(rankingsData)
