@@ -139,14 +139,14 @@ export default function NotificationPopup() {
     <div className="relative" ref={ref}>
   <button aria-label="Open notifications" className="p-2 hover:bg-blue-100 hover:text-blue-800 rounded-lg border-gray-200 border" onClick={async () => { await toggle(); notificationsSeen = true; setHasNotifications(false); }}>
         <Bell className="h-6 w-6" />
-        <div className={`absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs z-10 ${unread > 0 ? 'block' : 'hidden'}`}>{unread || 0}</div>
+        <div className={`absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-7 w-7 flex items-center justify-center text-xs z-10 ${unread > 0 ? 'block' : 'hidden'}`}>{unread || 0}</div>
         {unread > 0 && (
-          <div className={`absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs z-10`}>
-            {unread}
+          <div className={`absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-7 w-7 flex items-center justify-center text-xs z-10`}>
+            {unread}{unread === 99 ? '+' : ''}
           </div>
         )}
         {unread > 0 && hasNotifications && (
-          <div className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-6 w-6 animate-ping z-9"></div>
+          <div className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full h-7 w-7 animate-ping z-9"></div>
         )}
         </button>
 
