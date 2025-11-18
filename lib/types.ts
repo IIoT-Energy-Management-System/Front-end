@@ -76,17 +76,17 @@ export interface User {
 }
 
 export interface Device {
-    id: string
-    name: string
-    type: "Sewing Machine" | "Cutting Machine" | "Press" | "Conveyor" | "Other"
+    id?: string
+    name?: string
+    type?: "Sewing Machine" | "Cutting Machine" | "Press" | "Conveyor" | "Other"
     factoryId: string
     buildingId: string
     floorId: string
     lineId: string
-    ratedPower: number
-    status: "Online" | "Offline" | "Maintenance" | "Error"
+    ratedPower?: number
+    status?: "Online" | "Offline" | "Maintenance" | "Error"
     connections?: DeviceConnection[]
-    createdAt: string
+    createdAt?: string
     lastSeen?: string
     factoryName?: string
     buildingName?: string
@@ -152,6 +152,7 @@ export interface Factory {
     buildingCount: number
     deviceCount: number
     onlineDeviceCount: number
+    offlineDeviceCount: number
     buildings?: Building[]
     power: number
     operationalTime: {
@@ -168,6 +169,7 @@ export interface Building {
     factoryName?: string
     floors?: Floor[]
     floorCount: number
+    offlineDeviceCount: number
     power: number
     operationalTime: {
         runningTime: number
@@ -183,6 +185,7 @@ export interface Floor {
     buildingName?: string
     lines?: Line[]
     lineCount: number
+    offlineDeviceCount: number
     power: number
     operationalTime: {
         runningTime: number
@@ -197,6 +200,7 @@ export interface Line {
     floorId: string
     floorName?: string
     devices: Device[]
+    offlineDeviceCount: number
     power: number
     operationalTime: {
         runningTime: number

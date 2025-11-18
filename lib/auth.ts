@@ -1,5 +1,5 @@
 import { jwtDecode } from 'jwt-decode'
-import { UserApiService } from './api'
+import api from './axios'
 import type { User } from "./types"
 
 interface AuthState {
@@ -10,61 +10,12 @@ interface AuthState {
 class AuthService {
   private currentUser: User | null = null
 
-  constructor() {
-    // Load basic user info từ localStorage khi khởi tạo
-    this.loadBasicUserFromStorage()
-  }
-
-  private loadBasicUserFromStorage(): Partial<User> | null {
-    if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("currentUserBasic")
-      if (savedUser) {
-        try {
-          return JSON.parse(savedUser)
-        } catch (error) {
-          console.error("Failed to parse basic user:", error)
-          localStorage.removeItem("currentUserBasic")
-        }
-      }
-    }
-    return null
-  }
-
-  private saveUserToStorage(basicUser: Partial<User>): void {
-    if (typeof window !== "undefined") {
-      // Chỉ lưu các field cơ bản, không lưu permissions/role/access
-      const safeUser = {
-        id: basicUser.id,
-        username: basicUser.username,
-        email: basicUser.email,
-        language: basicUser.language || 'vi',
-        timezone: basicUser.timezone || 'UTC',
-      }
-      localStorage.setItem("currentUserBasic", JSON.stringify(safeUser))
-    }
-  }
-
-  private removeUserFromStorage(): void {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("currentUserBasic")
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
-    }
-  }
-
-  async login(email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; user?: User; error?: string }> {
+  async login(email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; user?: User; accessToken?: string; error?: string }> {
     try {
-      const response = await fetch('http://localhost:5000/api/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
+      const response = await api.post('/users/login', { email, password })
+      const data = response.data
 
-      const data = await response.json()
-
-      if (!response.ok || !data.success || data.error) {
+      if (!data.success || data.error) {
         return { success: false, error: data.error || 'Login failed' }
       }
 
@@ -78,7 +29,9 @@ class AuthService {
       }
 
       // Fetch full user từ API
-      const dataUser = await UserApiService.getUserById(data.data.id)
+      const userResponse = await api.get(`/users/${data.data.id}`)
+      const dataUser = userResponse.data.data
+      
       const user: User = {
         id: dataUser.id,
         username: dataUser.username,
@@ -97,25 +50,19 @@ class AuthService {
 
       this.currentUser = user
 
-      // Lưu tokens
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', data.data.accessToken)
-        localStorage.setItem('refreshToken', data.data.refreshToken)
-      }
+      // accessToken sẽ được lưu vào store bởi caller (store.login)
+      // refreshToken đã được lưu trong httpOnly cookie
 
-      // Lưu basic user nếu rememberMe
-      if (rememberMe) {
-        this.saveUserToStorage(user)
+      return { success: true, user, accessToken: data.data.accessToken }
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Network error or server unavailable' 
       }
-
-      return { success: true, user }
-    } catch (error) {
-      return { success: false, error: 'Network error or server unavailable' }
     }
   }
 
-  async fetchCurrentUser(): Promise<User | null> {
-    const token = localStorage.getItem('accessToken')
+  async fetchCurrentUser(token: string): Promise<User | null> {
     if (!token) {
       await this.logout()
       return null
@@ -131,7 +78,8 @@ class AuthService {
       }
 
       // Fetch full user từ server
-      const fullUser = await UserApiService.getUserById(userId)
+      const response = await api.get(`/users/${userId}`)
+      const fullUser = response.data.data
       fullUser.permissions = decoded.permissions || []
       this.currentUser = fullUser
       return fullUser
@@ -142,44 +90,41 @@ class AuthService {
     }
   }
 
-  async refreshToken(): Promise<boolean> {
+  async refreshToken(): Promise<{ success: boolean; accessToken?: string }> {
     try {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (!refreshToken) return false
+      // refreshToken được tự động gửi qua cookie
+      const response = await api.post('/users/refresh')
 
-      const response = await fetch('http://localhost:5000/api/users/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.data.accessToken) {
-          localStorage.setItem('accessToken', data.data.accessToken)
-          try {
-            const decoded: any = jwtDecode(data.data.accessToken)
-            if (this.currentUser) {
-              this.currentUser.permissions = decoded.permissions || []
-            }
-          } catch (error) {
-            console.error('Failed to decode refreshed token:', error)
+      if (response.data.success && response.data.data.accessToken) {
+        const newToken = response.data.data.accessToken
+        try {
+          const decoded: any = jwtDecode(newToken)
+          if (this.currentUser) {
+            this.currentUser.permissions = decoded.permissions || []
           }
-          return true
+        } catch (error) {
+          console.error('Failed to decode refreshed token:', error)
         }
+        return { success: true, accessToken: newToken }
       }
-      return false
+      return { success: false }
     } catch (error) {
       console.error('Token refresh failed:', error)
-      return false
+      return { success: false }
     }
   }
 
   async logout(): Promise<void> {
-    this.currentUser = null
-    this.removeUserFromStorage()
+    try {
+      // Gọi API logout để xóa refreshToken cookie
+      await api.post('/users/logout')
+    } catch (error) {
+      console.error('Logout API call failed:', error)
+    } finally {
+      // Dù API có lỗi hay không, vẫn clear local state
+      this.currentUser = null
+      // Store sẽ clear accessToken
+    }
   }
 
   getCurrentUser(): User | null {

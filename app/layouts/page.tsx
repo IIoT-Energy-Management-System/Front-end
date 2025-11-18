@@ -43,6 +43,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { useAppStore } from "@/lib/store"
 
 interface LayoutStats {
 uptime: number
@@ -113,108 +114,106 @@ const [apiDevices, setApiDevices] = useState<Device[]>([])
 const [loading, setLoading] = useState(false)
 
     // Local state for user and language
-const [currentUser, setCurrentUser] = useState<any>(null)
+// const [currentUser, setCurrentUser] = useState<any>(null)
+const { user } = useAppStore()
 
 const { t } = useTranslation()
 
 // Helper functions for access control
 const filterFactoriesByAccess = (factories: Factory[]) => {
-    if (!currentUser?.factoryAccess || currentUser.factoryAccess.length === 0) {
+    if (!user?.factoryAccess || user.factoryAccess.length === 0) {
         return factories // No restrictions if no access defined
     }
-    return factories.filter(factory => currentUser.factoryAccess.includes(factory.id))
+    return factories.filter(factory => user.factoryAccess.includes(factory.id))
 }
 
 const filterBuildingsByAccess = (buildings: Building[]) => {
-    if (!currentUser?.buildingAccess || currentUser.buildingAccess.length === 0) {
+    if (!user?.buildingAccess || user.buildingAccess.length === 0) {
         return buildings // No restrictions if no access defined
     }
-    return buildings.filter(building => currentUser.buildingAccess.includes(building.id))
+    return buildings.filter(building => user.buildingAccess.includes(building.id))
 }
 
 const filterFloorsByAccess = (floors: Floor[]) => {
-    if (!currentUser?.floorAccess || currentUser.floorAccess.length === 0) {
+    if (!user?.floorAccess || user.floorAccess.length === 0) {
         return floors // No restrictions if no access defined
     }
-    return floors.filter(floor => currentUser.floorAccess.includes(floor.id))
+    return floors.filter(floor => user.floorAccess.includes(floor.id))
 }
 
 const filterLinesByAccess = (lines: Line[]) => {
-    if (!currentUser?.lineAccess || currentUser.lineAccess.length === 0) {
+    if (!user?.lineAccess || user.lineAccess.length === 0) {
         return lines // No restrictions if no access defined
     }
-    return lines.filter(line => currentUser.lineAccess.includes(line.id))
+    return lines.filter(line => user.lineAccess.includes(line.id))
 }
 
 const filterDevicesByAccess = (devices: Device[]) => {
     // Devices are filtered based on line access since devices belong to lines
-    if (!currentUser?.lineAccess || currentUser.lineAccess.length === 0) {
+    if (!user?.lineAccess || user.lineAccess.length === 0) {
         return devices // No restrictions if no access defined
     }
-    return devices.filter(device => currentUser.lineAccess.includes(device.lineId))
+    return devices.filter(device => user.lineAccess.includes(device.lineId))
 }
 
 // Calculate operational time for devices
 const calculateOperationalTime = (device: Device) => {
-    const totalShiftTime = 480 // 8 hours in minutes
-
-    if (device.status === "Online") {
-    const runningTime = totalShiftTime * (0.75 + Math.random() * 0.15) // 75-90%
-    const errorTime = totalShiftTime * (0.02 + Math.random() * 0.08) // 2-10%
-    const downtime = totalShiftTime - runningTime - errorTime
-    return { runningTime, downtime, errorTime, totalShiftTime }
-    } else if (device.status === "Error") {
-    const errorTime = totalShiftTime * (0.3 + Math.random() * 0.4) // 30-70%
-    const runningTime = totalShiftTime * (0.1 + Math.random() * 0.2) // 10-30%
-    const downtime = totalShiftTime - runningTime - errorTime
-    return { runningTime, downtime, errorTime, totalShiftTime }
-    } else if (device.status === "Maintenance") {
-    const downtime = totalShiftTime * (0.5 + Math.random() * 0.3) // 50-80%
-    const runningTime = totalShiftTime * (0.1 + Math.random() * 0.2) // 10-30%
-    const errorTime = totalShiftTime - runningTime - downtime
-    return { runningTime, downtime, errorTime, totalShiftTime }
-    } else {
-    // Offline
-    return { runningTime: 0, downtime: totalShiftTime, errorTime: 0, totalShiftTime }
+    // Sử dụng dữ liệu thực tế từ device.operationalTime nếu có
+    if (device.operationalTime) {
+        const totalShiftTime = 480 // 8 hours in minutes
+        return {
+            runningTime: device.operationalTime.runningTime || 0,
+            downtime: 0, // Backend không trả downtime riêng
+            errorTime: device.operationalTime.errorTime || 0,
+            totalShiftTime
+        }
     }
-}
-
-const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
-    let totalPower = 0
-    let totalRunningTime = 0
-    let totalDowntime = 0
-    let totalErrorTime = 0
-    let onlineDevices = 0
-
-    for (const device of deviceList) {
-    const operationalTime = calculateOperationalTime(device)
-    totalRunningTime += operationalTime.runningTime
-    totalDowntime += operationalTime.downtime
-    totalErrorTime += operationalTime.errorTime
-
-    if (device.status === "Online") {
-        onlineDevices++
-        // Mock power data since we're using API instead of database
-        const mockPower = device.ratedPower * (0.7 + Math.random() * 0.3) // 70-100% of rated power
-        totalPower += mockPower
-    }
-    }
-
-    const avgRunningTime = deviceList.length > 0 ? totalRunningTime / deviceList.length : 0
-    const avgDowntime = deviceList.length > 0 ? totalDowntime / deviceList.length : 0
-    const avgErrorTime = deviceList.length > 0 ? totalErrorTime / deviceList.length : 0
-    const efficiency = deviceList.length > 0 ? (avgRunningTime / 480) * 100 : 0
-
+    
+    // Fallback nếu không có dữ liệu
+    const totalShiftTime = 480
     return {
-    uptime: onlineDevices,
-    downtime: deviceList.length - onlineDevices,
-    errorTime: avgErrorTime,
-    runningTime: avgRunningTime,
-    powerConsumption: totalPower * 24,
-    deviceCount: deviceList.length,
-    efficiency,
+        runningTime: 0,
+        downtime: totalShiftTime,
+        errorTime: 0,
+        totalShiftTime
     }
 }
+
+// const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
+//     let totalPower = 0
+//     let totalRunningTime = 0
+//     let totalDowntime = 0
+//     let totalErrorTime = 0
+//     let onlineDevices = 0
+
+//     for (const device of deviceList) {
+//         const operationalTime = calculateOperationalTime(device)
+//         totalRunningTime += operationalTime.runningTime
+//         totalDowntime += operationalTime.downtime
+//         totalErrorTime += operationalTime.errorTime
+
+//         if (device.status === "Online") {
+//             onlineDevices++
+//             // Sử dụng power thực tế từ device nếu có
+//             totalPower += device.power || 0
+//         }
+//     }
+
+//     const avgRunningTime = deviceList.length > 0 ? totalRunningTime / deviceList.length : 0
+//     const avgDowntime = deviceList.length > 0 ? totalDowntime / deviceList.length : 0
+//     const avgErrorTime = deviceList.length > 0 ? totalErrorTime / deviceList.length : 0
+//     const efficiency = deviceList.length > 0 ? (avgRunningTime / 480) * 100 : 0
+
+//     return {
+//         uptime: onlineDevices,
+//         downtime: deviceList.length - onlineDevices,
+//         errorTime: avgErrorTime,
+//         runningTime: avgRunningTime,
+//         powerConsumption: totalPower * 24,
+//         deviceCount: deviceList.length,
+//         efficiency,
+//     }
+// }
 
 // Load data from APIs
 // Generic function to load data from API
@@ -317,32 +316,15 @@ const calculateStats = async (deviceList: Device[]): Promise<LayoutStats> => {
 const fetchData = async () => {
     setLoading(true)
     try {
-        const [factories, buildings, floors, lines, devicesData] = await Promise.all([
-            FactoryApiService.getFactories(),
-            BuildingApiService.getBuildings(),
-            FloorApiService.getFloors(),
-            LineApiService.getLines(),
-            // Load devices với minimal mode và limit 200 cho layouts view
-            DeviceApiService.getDevices({ limit: 200, minimal: false})
-        ])
+        // Chỉ load factories ban đầu
+        const factories = await FactoryApiService.getFactories()
         setApiFactories(factories)
-        setApiBuildings(buildings)
-        setApiFloors(floors)
-        setApiLines(lines)
         
-        // Handle devices response
-        let deviceArray: Device[] = []
-        if (Array.isArray(devicesData)) {
-            deviceArray = devicesData
-        } else if (devicesData && typeof devicesData === 'object') {
-            const deviceObj = devicesData as any
-            if ('data' in deviceObj && Array.isArray(deviceObj.data)) {
-                deviceArray = deviceObj.data
-            } else {
-                deviceArray = []
-            }
-        }
-        setApiDevices(deviceArray)
+        // Reset các state khác
+        setApiBuildings([])
+        setApiFloors([])
+        setApiLines([])
+        setApiDevices([])
     } catch (error) {
         console.error('Error loading data:', error)
     } finally {
@@ -350,46 +332,9 @@ const fetchData = async () => {
     }
 }
 const loadStats = async () => {
-    const newStats = new Map<string, LayoutStats>()
-
-    // Use only API data now
-    const currentFactories = apiFactories
-    const currentDevices = apiDevices
-
-    for (const factory of currentFactories) {
-    const factoryDevices = currentDevices.filter((d) => d.factoryId === factory.id)
-    newStats.set(`factory-${factory.id}`, await calculateStats(factoryDevices))
-
-    // For API data, we need to load buildings, floors, lines separately
-    if (apiFactories.length > 0) {
-        try {
-        const buildingsResponse = await BuildingApiService.getBuildingsByFactory(factory.id)
-        
-        for (const building of buildingsResponse) {
-            const buildingDevices = currentDevices.filter((d) => d.buildingId === building.id)
-            newStats.set(`building-${building.id}`, await calculateStats(buildingDevices))
-
-            const floorsResponse = await FloorApiService.getFloorsByBuilding(building.id)
-            
-            for (const floor of floorsResponse) {
-            const floorDevices = currentDevices.filter((d) => d.floorId === floor.id)
-            newStats.set(`floor-${floor.id}`, await calculateStats(floorDevices))
-
-            const linesResponse = await LineApiService.getLinesByFloor(floor.id)
-            
-            for (const line of linesResponse) {
-                const lineDevices = currentDevices.filter((d) => d.lineId === line.id)
-                newStats.set(`line-${line.id}`, await calculateStats(lineDevices))
-            }
-            }
-        }
-        } catch (error) {
-        console.error('Error loading nested data for factory:', factory.id, error)
-        }
-    }
-    }
-
-    setStats(newStats)
+    // Không cần tính toán stats phức tạp nữa
+    // Vì data đã được tính toán sẵn từ backend
+    // Chỉ giữ lại function này để không bị lỗi reference
 }
 
 const loadExternalDevices = async () => {
@@ -423,41 +368,40 @@ const loadLineDetails = async (lineId: string) => {
     let totalErrorTime = 0
 
     for (const device of lineDevices) {
-    const operationalTime = calculateOperationalTime(device)
-    totalRunningTime += operationalTime.runningTime
-    totalDowntime += operationalTime.downtime
-    totalErrorTime += operationalTime.errorTime
+        const operationalTime = calculateOperationalTime(device)
+        totalRunningTime += operationalTime.runningTime
+        totalDowntime += operationalTime.downtime
+        totalErrorTime += operationalTime.errorTime
 
-    if (device.status === "Online") {
-        // Mock power data since we're using API instead of database
-        const mockPower = device.ratedPower * (0.7 + Math.random() * 0.3) // 70-100% of rated power
-        totalPower += mockPower
-    }
+        if (device.status === "Online") {
+            // Sử dụng power thực tế từ device
+            totalPower += device.power || 0
+        }
     }
 
-    // Generate power trend for last 24 hours
+    // Generate power trend for last 24 hours - sử dụng data thực tế nếu có
     const powerTrend = []
     for (let i = 23; i >= 0; i--) {
-    const time = new Date(Date.now() - i * 60 * 60 * 1000)
-    const hourlyPower = totalPower * (0.8 + Math.random() * 0.4)
-    powerTrend.push({
-        time: time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        power: hourlyPower,
-    })
+        const time = new Date(Date.now() - i * 60 * 60 * 1000)
+        // Sử dụng totalPower hiện tại cho mỗi giờ
+        powerTrend.push({
+            time: time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            power: totalPower,
+        })
     }
 
     const lineDetails: LineDetails = {
-    id: lineId,
-    name: line.name,
-    devices: lineDevices,
-    totalPower,
-    uptime: onlineDevices.length,
-    downtime: lineDevices.length - onlineDevices.length,
-    errorTime: totalErrorTime / lineDevices.length,
-    runningTime: totalRunningTime / lineDevices.length,
-    alerts: Math.floor(Math.random() * 3),
-    efficiency: lineDevices.length > 0 ? (totalRunningTime / lineDevices.length / 480) * 100 : 0,
-    powerTrend,
+        id: lineId,
+        name: line.name,
+        devices: lineDevices,
+        totalPower,
+        uptime: onlineDevices.length,
+        downtime: lineDevices.length - onlineDevices.length,
+        errorTime: totalErrorTime / lineDevices.length,
+        runningTime: totalRunningTime / lineDevices.length,
+        alerts: 0, // Sẽ lấy từ API alerts nếu cần
+        efficiency: lineDevices.length > 0 ? (totalRunningTime / lineDevices.length / 480) * 100 : 0,
+        powerTrend,
     }
 
     setSelectedLineDetails(lineDetails)
@@ -466,23 +410,19 @@ const loadLineDetails = async (lineId: string) => {
 useEffect(() => {
     // Load initial data from APIs
     fetchData()
-    // Load current user
-    const loadCurrentUser = async () => {
-        try {
-            const user = await authService.fetchCurrentUser()
-            setCurrentUser(user)
-        } catch (error) {
-            console.error('Error loading current user:', error)
-        }
-    }
-    loadCurrentUser()
+    // // Load current user
+    // const loadCurrentUser = async () => {
+    //     try {
+    //         const user = await 
+    //         setCurrentUser(user)
+    //     } catch (error) {
+    //         console.error('Error loading current user:', error)
+    //     }
+    // }
+    // loadCurrentUser()
 }, [])
 
-useEffect(() => {
-    loadStats()
-    const interval = setInterval(loadStats, 10000)
-    return () => clearInterval(interval)
-}, [apiDevices, apiFactories]) // Only depend on API data now
+// Không cần reload stats nữa vì data đã có sẵn từ backend
 
 // useEffect(() => {
 //     if (currentLevel === "building" && selectedFactoryId) {
@@ -497,6 +437,7 @@ useEffect(() => {
 // }, [currentLevel, selectedBuildingId])
 
 useEffect(() => {
+    setSearchTerm("")
     if (currentLevel === "line" && selectedFloorId) {
     // loadLinesFromApi(selectedFloorId)
     loadExternalDevices()
@@ -568,7 +509,7 @@ const handleSave = async () => {
     try {
         switch (editingItem.type) {
             case "nhà máy":
-                if (!currentUser?.permissions?.includes("layout.edit")) {
+                if (!user?.permissions?.includes("layout.edit")) {
                     toast.error("Bạn không có quyền chỉnh sửa nhà máy")
                     return
                 }
@@ -580,7 +521,7 @@ const handleSave = async () => {
                 break
 
             case "tòa nhà":
-                if (!currentUser?.permissions?.includes("layout.edit")) {
+                if (!user?.permissions?.includes("layout.edit")) {
                     toast.error("Bạn không có quyền chỉnh sửa tòa nhà")
                     return
                 }
@@ -592,7 +533,7 @@ const handleSave = async () => {
                 break
 
             case "tầng":
-                if (!currentUser?.permissions?.includes("layout.edit")) {
+                if (!user?.permissions?.includes("layout.edit")) {
                     toast.error("Bạn không có quyền chỉnh sửa tầng")
                     return
                 }
@@ -603,7 +544,7 @@ const handleSave = async () => {
                 setApiFloors(floors)
                 break
             case "dây chuyền":
-                if (!currentUser?.permissions?.includes("layout.edit")) {
+                if (!user?.permissions?.includes("layout.edit")) {
                     toast.error("Bạn không có quyền chỉnh sửa dây chuyền")
                     return
                 }
@@ -639,7 +580,7 @@ const handleLineDetails = async (lineId: string) => {
 }
 
 const confirmDeviceMove = async () => {
-    if (!selectedDeviceForMove || !currentUser) return
+    if (!selectedDeviceForMove || !user) return
 
     // Mock device move operation since we're using API instead of database
     // In real implementation, you would call an API to move the device
@@ -703,7 +644,7 @@ const handleDragStart = (e: React.DragEvent, device: Device) => {
     //         lineId: device.lineId
     //     }
     // })
-    e.dataTransfer.setData("text/plain", device.id)
+    e.dataTransfer.setData("text/plain", device?.id || "")
     setDraggedDevice(device)
 }
 
@@ -728,7 +669,7 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     const device = apiDevices.find((d) => d.id === deviceId) // Use apiDevices instead of devices
     // console.log('Found device:', device)
 
-    if (!device || !currentUser) {
+    if (!device || !user) {
         // console.log('No device found or no current user')
         toast.error('Không thể di chuyển thiết bị')
         return
@@ -756,7 +697,7 @@ const handleDrop = async (e: React.DragEvent, targetFactoryId: string, targetBui
     setApiDevices(updatedDevices)
     
     // Update device via API
-    await DeviceApiService.updateDevice(device.id, { factoryId: targetFactoryId, buildingId: targetBuildingId, floorId: targetFloorId, lineId: targetLineId })
+    await DeviceApiService.updateDevice(device?.id || "", { factoryId: targetFactoryId, buildingId: targetBuildingId, floorId: targetFloorId, lineId: targetLineId })
     // console.log('Device updated via API')
     // // Mock audit log (in real implementation, this would be sent to API)
     // console.log('Device drag-dropped:', {
@@ -893,7 +834,6 @@ const renderFactoryView = () => {
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredFactories.map((factory, index) => {
-                const factoryStats = stats.get(`factory-${factory.id}`)
                 const colors = [
                     "from-blue-500 to-blue-600",
                     "from-green-500 to-green-600",
@@ -907,9 +847,19 @@ const renderFactoryView = () => {
                     <Card
                     key={factory.id}
                     className={`cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br ${colorClass} text-white border-0`}
-                    onClick={() => {
+                    onClick={async () => {
                         setSelectedFactoryId(factory.id)
                         setCurrentLevel("building")
+                        // Load buildings cho factory này
+                        try {
+                            setLoading(true)
+                            const buildings = await BuildingApiService.getBuildingsByFactory(factory.id)
+                            setApiBuildings(buildings)
+                        } catch (error) {
+                            console.error('Error loading buildings:', error)
+                        } finally {
+                            setLoading(false)
+                        }
                     }}
                     >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -945,7 +895,7 @@ const renderFactoryView = () => {
                             <div>
                                 <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                                 <div className="font-medium text-white">
-                                {factoryStats?.downtime || 0} {t("layouts.devices")}
+                                {factory.offlineDeviceCount || 0} {t("layouts.devices")}
                                 </div>
                             </div>
                             </div>
@@ -1024,7 +974,6 @@ const renderBuildingView = () => {
     return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBuildings.map((building, index) => {
-        const buildingStats = stats.get(`building-${building.id}`)
         const colors = [
             "from-indigo-500 to-indigo-600",
             "from-teal-500 to-teal-600",
@@ -1038,9 +987,19 @@ const renderBuildingView = () => {
             <Card
             key={building.id}
             className={`cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br ${colorClass} text-white border-0`}
-            onClick={() => {
+            onClick={async () => {
                 setSelectedBuildingId(building.id)
                 setCurrentLevel("floor")
+                // Load floors cho building này
+                try {
+                    setLoading(true)
+                    const floors = await FloorApiService.getFloorsByBuilding(building.id)
+                    setApiFloors(floors)
+                } catch (error) {
+                    console.error('Error loading floors:', error)
+                } finally {
+                    setLoading(false)
+                }
             }}
             >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1076,7 +1035,7 @@ const renderBuildingView = () => {
                     <div>
                         <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                         <div className="font-medium text-white">
-                        {buildingStats?.downtime || 0} {t("layouts.devices")}
+                        {building.offlineDeviceCount || 0} {t("layouts.devices")}
                         </div>
                     </div>
                     </div>
@@ -1154,7 +1113,6 @@ const renderFloorView = () => {
     return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFloors.map((floor, index) => {
-        const floorStats = stats.get(`floor-${floor.id}`)
         const colors = [
             "from-emerald-500 to-emerald-600",
             "from-violet-500 to-violet-600",
@@ -1168,9 +1126,33 @@ const renderFloorView = () => {
             <Card
             key={floor.id}
             className={`cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br ${colorClass} text-white border-0`}
-            onClick={() => {
+            onClick={async () => {
                 setSelectedFloorId(floor.id)
                 setCurrentLevel("line")
+                // Load lines và devices cho floor này
+                try {
+                    setLoading(true)
+                    const [lines, devicesData] = await Promise.all([
+                        LineApiService.getLinesByFloor(floor.id),
+                        DeviceApiService.getDevices({limit: 200, minimal: false })
+                    ])
+                    setApiLines(lines)
+                    // Handle devices response
+                    let deviceArray: Device[] = []
+                    if (Array.isArray(devicesData)) {
+                        deviceArray = devicesData
+                    } else if (devicesData && typeof devicesData === 'object') {
+                        const deviceObj = devicesData as any
+                        if ('data' in deviceObj && Array.isArray(deviceObj.data)) {
+                            deviceArray = deviceObj.data
+                        }
+                    }
+                    setApiDevices(deviceArray)
+                } catch (error) {
+                    console.error('Error loading lines and devices:', error)
+                } finally {
+                    setLoading(false)
+                }
             }}
             >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1206,7 +1188,7 @@ const renderFloorView = () => {
                     <div>
                         <div className="text-sm text-white/80">{t("layouts.deviceDownTime")}</div>
                         <div className="font-medium text-white">
-                        {floorStats?.downtime || 0} {t("layouts.devices")}
+                        {floor?.offlineDeviceCount || 0} {t("layouts.devices")}
                         </div>
                     </div>
                     </div>
@@ -1302,7 +1284,6 @@ const renderLineView = () => {
             </div>
             ) : (
             filteredLines.map((line) => {
-                const lineStats = stats.get(`line-${line.id}`);
                 const lineDevices = currentDevices.filter((d) => d.lineId === line.id);
 
                 // Derive the correct target IDs from the relationships (line -> floor -> building -> factory)
@@ -1342,7 +1323,7 @@ const renderLineView = () => {
                             </div>
                             <div className="flex items-center space-x-1">
                             <Pause className="h-4 w-4 text-blue-600" />
-                            <span>{t("layouts.stop")}: {lineStats?.downtime || 0} {t("building.devicesLabel")}</span>
+                            <span>{t("layouts.stop")}: {line?.offlineDeviceCount || 0} {t("building.devicesLabel")}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                             <AlertCircle className="h-4 w-4 text-red-600" />
@@ -1529,7 +1510,7 @@ const renderLineView = () => {
                 <div className="space-y-2">
                 {externalDevices
                     .filter((device) => 
-                    device.name.toLowerCase().includes(externalDeviceSearchTerm.toLowerCase())
+                    device.name?.toLowerCase().includes(externalDeviceSearchTerm.toLowerCase())
                     )
                     .map((device) => {
                     // // Get factory info from API instead of using simplified text
@@ -1537,7 +1518,7 @@ const renderLineView = () => {
                     // const deviceBuilding = apiBuildings.find((b) => b.id === device.buildingId)
                     // const deviceFloor = apiFloors.find((f) => f.id === device.floorId)
                     // const deviceLine = apiLines.find((l) => l.id === device.lineId)
-                    const devicePower = device.status === "Online" ? device.ratedPower * (0.7 + Math.random() * 0.3) : 0
+                    const devicePower = device.status === "Online" ? device.ratedPower ? device.ratedPower * (0.7 + Math.random() * 0.3) : 0 : 0
 
                     return (
                     <div
@@ -1580,7 +1561,7 @@ const renderLineView = () => {
 
                         <div className="flex justify-between items-center mt-2">
                         <span className="text-xs text-muted-foreground">
-                            {t("devices.ratedPower")} : {device.ratedPower.toFixed(2)} kW
+                            {t("devices.ratedPower")} : {device.ratedPower ? device.ratedPower.toFixed(2) : "0.00"} kW
                         </span>
                         <PermissionGuard permission="layout.edit"
                         fallback={
@@ -1610,7 +1591,7 @@ const renderLineView = () => {
                 })}
 
                 {externalDevices.filter((device) => 
-                    device.name.toLowerCase().includes(externalDeviceSearchTerm.toLowerCase())
+                    device.name?.toLowerCase().includes(externalDeviceSearchTerm.toLowerCase())
                 ).length === 0 && externalDevices.length > 0 && externalDeviceSearchTerm && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                     {t("layouts.noDevice")} "{externalDeviceSearchTerm}"
@@ -1633,7 +1614,7 @@ const renderLineView = () => {
 
 const renderDeviceView = () => {
     const lineDevices = filterDevicesByAccess(apiDevices).filter((d) => d.lineId === selectedLineId) // Use apiDevices instead of devices
-    const filteredDevices = lineDevices.filter((device) => device.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filteredDevices = lineDevices.filter((device) => device.name?.toLowerCase().includes(searchTerm.toLowerCase()))
 
     return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2034,12 +2015,12 @@ return (
                             <div className="text-right">
                             <p className="font-medium">
                                 {device.status === "Online"
-                                ? (device.ratedPower * (0.7 + Math.random() * 0.3)).toFixed(2)
+                                ? (device.ratedPower ? device.ratedPower * (0.7 + Math.random() * 0.3) : 0).toFixed(2)
                                 : "0.00"}{" "}
                                 kW
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                {t("devices.ratedPower")} : {device.ratedPower.toFixed(2)} kW
+                                {t("devices.ratedPower")} : {device.ratedPower ? device.ratedPower.toFixed(2) : "0.00"} kW
                             </p>
                             </div>
                         </div>

@@ -81,7 +81,7 @@ export default function ReportsPage() {
         ])
         setFactories(factoriesRes)
         setBuildings(buildingsRes)
-        setDevices(devicesRes)
+        setDevices(devicesRes.data)
       } catch (err) {
         toast.error('Network error while fetching data')
         console.error('Error fetching data:', err)

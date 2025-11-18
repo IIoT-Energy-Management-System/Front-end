@@ -15,7 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { useDeviceApi, useFactoryApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import { useAppStore } from "@/lib/store"
-import type { Device } from "@/lib/types"
+import type { Device, Factory } from "@/lib/types"
 import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Wrench, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
@@ -31,9 +31,8 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
-  const [apiFactories, setApiFactories] = useState<any[]>([])
+    const [apiFactories, setApiFactories] = useState<Factory[]>([])
   const [totalDevices, setTotalDevices] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
   const [deviceStats, setDeviceStats] = useState({
     totalDevices: 0,
     onlineDevices: 0,
@@ -42,7 +41,6 @@ export default function DevicesPage() {
     errorDevices: 0
   })
 
-  const { factories, language } = useAppStore()
   const { getDevices, createDevice, updateDevice, deleteDevice, updateDeviceStatus, getDeviceById } = useDeviceApi()
   const { getFactories } = useFactoryApi()
   const { t } = useTranslation()
@@ -145,7 +143,6 @@ export default function DevicesPage() {
       // Update pagination info từ API
       if (pagination) {
         setTotalDevices(pagination.total)
-        setHasMore(pagination.hasMore)
       }
       
       // Update stats từ API (nếu có)
@@ -292,20 +289,7 @@ export default function DevicesPage() {
   }
 
   const getLocationString = (device: Device) => {
-    // Use API factories if available, fallback to store factories
-    const factoriesSource = apiFactories.length > 0 ? apiFactories : factories
-    const factory = factoriesSource.find((f: any) => f.id === device.factoryId)
-    
-    if (apiFactories.length > 0) {
-      return `${factory?.name || device.factoryId} → ${device.buildingName} → ${device.floorName} → ${device.lineName}`
-    }
-    
-    // Original logic for store factories with full structure
-    const building = factory?.buildings?.find((b: any) => b.id === device.buildingId)
-    const floor = building?.floors?.find((f: any) => f.id === device.floorId)
-    const line = floor?.lines?.find((l: any) => l.id === device.lineId)
-
-    return `${factory?.name || "Unknown"} → ${building?.name || "Unknown"} → ${floor?.name || "Unknown"} → ${line?.name || "Unknown"}`
+    return `${device?.factoryName || "Unknown"} → ${device?.buildingName || "Unknown"} → ${device?.floorName || "Unknown"} → ${device?.lineName || "Unknown"}`
   }
 
   const getStatusColor = (status: Device["status"]) => {
@@ -637,7 +621,7 @@ export default function DevicesPage() {
         onClose={() => setIsModalOpen(false)}
         mode={modalMode}
         device={selectedDevice}
-        factories={apiFactories.length > 0 ? apiFactories : factories}
+        factories={apiFactories}
         onSave={handleModalSave}
         loading={modalLoading}
         onDeviceUpdated={async () => {
