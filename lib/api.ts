@@ -3,8 +3,10 @@ import type { ApiPermission, AuditLogEntry, ConnectionLogEntry, DbConfig, Device
 import axios from "axios";
 import { useAppStore } from "./store";
 
-const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+export const BASE_API_URL = "http://localhost:5000"
+
+export const api = axios.create({
+  baseURL: `${BASE_API_URL}/api`,
   withCredentials: true, // Gửi cookies
 })
 
@@ -190,12 +192,14 @@ export class DeviceApiService {
 // Dashboard API Service
 export class DashboardApiService {
     // GET /dashboard/overview - Tổng quan dashboard
-    static async getDashboardOverview() {
-        const response = await api.get(`/dashboard/overview`)
-        if (response.data.success === false) return [];
+    static async getDashboardOverview(
+        factoryId?: string,
+        shiftId?: string
+    ) {
+        const response = await api.get(`/dashboard/overview?${factoryId ? `factoryId=${factoryId}&` : ''}${shiftId ? `shiftId=${shiftId}` : ''}`)
+        if (response.data.success === false) return null;
         return response.data.data;
     }
-
     // GET /dashboard/factory/:factoryId - Dashboard theo nhà máy
     static async getFactoryDashboard(factoryId: string): Promise<any> {
         const response = await api.get(`/dashboard/factory/${factoryId}`)
@@ -405,6 +409,16 @@ export class AnalyticApiService {
 
   static async getReports(period: string) {
     const response = await api.get(`/analytics/reports?period=${period}`);
+    return response.data.data;
+  }
+
+  static async getHierarchy(timeRange: string, type: string, id: string) {
+    const response = await api.get(`/v2/analytics/hierarchy-metrics/${type}/${id}?timeRange=${timeRange}`);
+    return response.data.data;
+  }
+
+  static async getPowerTrendDevice(deviceId: string, timeRange: string) {
+    const response = await api.get(`/v2/analytics/power-trend-device/${deviceId}?timeRange=${timeRange}`);
     return response.data.data;
   }
 }

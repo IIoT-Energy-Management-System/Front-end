@@ -1,59 +1,45 @@
 export interface DashboardStats {
-    totalPower: number
-    totalDevices: number
-    onlineDevices: number
+    currentPower: number
+    powerTrend: number
+    monthlyCost: number
+    costTrend: number
     activeAlerts: number
-    operationalTime: {
-        runningTime: number
-        breakTime: number
-        errorTime: number
-        totalShiftTime: number
-    }
-    powerByBuilding: Array<{
-        name: string
-        power: number
-        devices: number
-        operationalTime: {
-            runningTime: number
-            breakTime: number
-            errorTime: number
-            totalShiftTime: number
-        }
+    uptime: Array<{
+        uptime: number
+        runningMinutes: number
+        totalMinutes: number
+        shiftName: string
     }>
-    powerTrend: Array<{ time: string; power: number; efficiency: number }>
-    trendLines: Array<{
+    buildings: Array<{
         id: string
         name: string
-        data: Array<{
-        time: string
         power: number
-        efficiency: number
-        operationalStatus: "running" | "break" | "error" | "idle"
+        status: 'normal' | 'warning' | 'critical'
+        devices: number
+        warningDevices?: Array<{
+            id: string
+            name: string
+            type: string
+            factoryId: string
+            buildingId: string
+            floorId: string
+            lineId: string
+            ratedPower: number
+            status: string
+            createdAt: string
+            lastSeen: string
         }>
     }>
-    operationalByShift: Array<{
-        name: string,
-        start: string,
-        end: string,
-        runningMinutes: number,
-        breakMinutes: number,
-        errorMinutes: number,
-        shiftLengthMinutes: number,
-        totalMinutesReturned: number,
-        runningPercentOfShift: number,
-        breakPercentOfShift: number,
-        errorPercentOfShift: number,
+    recentAlerts: Array<{
+        id: string
+        message: string
+        time: string
+        severity: 'low' | 'medium' | 'high' | 'critical'
     }>
-    realTimeOperationalStatus: Array<{
-        deviceId: string
-        deviceName: string
-        status: "running" | "break" | "error" | "idle"
-        runningMinutes: number
-        breakMinutes: number
-        errorMinutes: number
-        totalMinutesReturned: number
-        runningPercent: number
-    }>;
+    powerHistory: Array<{
+        time: string
+        value: number
+    }>
 }
 
 export interface User {
@@ -237,8 +223,41 @@ export interface Report {
     dateRange: { start: string; end: string }
     generatedAt?: string
     generatedBy: string
-    data?: any
+    data?: {
+        summary?: {
+            totalEnergyConsumption: number
+            averagePowerFactor: number
+            peakDemand: number
+            totalCost: number
+            uptimePercentage: number
+        }
+        devices?: {
+            total: number
+            topConsumers?: Array<{
+                deviceId: string
+                name: string
+                type: string
+                location: {
+                    factory: string
+                    building: string
+                    floor: string
+                    line: string
+                }
+                energy: number
+                percentage: number
+            }>
+        }
+        trends?: any
+        timeAnalysis?: any
+        anomalies?: any
+        alerts?: any
+        costBreakdown?: any
+        recommendations?: any
+        executiveSummary?: string[]
+        periodInfo?: any
+    }
 }
+
 
 export interface SystemSettings {
     databaseMode: "simulation" | "mysql" | "mssql" | "postgresql"

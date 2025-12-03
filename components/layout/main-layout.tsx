@@ -56,7 +56,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
       <Sidebar />
       <div className="lg:pl-64">
         <main className="p-4 lg:p-8">{children}</main>

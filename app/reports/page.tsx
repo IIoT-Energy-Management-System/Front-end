@@ -424,7 +424,7 @@ export default function ReportsPage() {
                       </TableCell>
                       <TableCell>{report?.generatedAt ? new Date(report?.generatedAt).toLocaleString() : 'N/A'}</TableCell>
                         <TableCell>{report?.generatedBy || 'N/A'}</TableCell>
-                      <TableCell>{report.data?.devices || 0}</TableCell>
+                      <TableCell>{typeof report.data?.devices === 'object' ? report.data?.devices?.total || 0 : report.data?.devices || 0}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="sm" onClick={() => downloadReport(report, "pdf")}>

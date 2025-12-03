@@ -12,11 +12,11 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDebounce } from "@/hooks/use-debounce"
-import { useDeviceApi, useFactoryApi } from "@/lib/api"
+import { BASE_API_URL, useDeviceApi, useFactoryApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
-import { useAppStore } from "@/lib/store"
 import type { Device, Factory } from "@/lib/types"
 import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Wrench, Zap } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
 import { toast } from "sonner"
@@ -44,6 +44,7 @@ export default function DevicesPage() {
   const { getDevices, createDevice, updateDevice, deleteDevice, updateDeviceStatus, getDeviceById } = useDeviceApi()
   const { getFactories } = useFactoryApi()
   const { t } = useTranslation()
+  const searchParams = useSearchParams()
   const itemsPerPage = 10
 
   // Debounce search term để giảm số lần gọi API (500ms delay)
@@ -67,9 +68,36 @@ export default function DevicesPage() {
     loadDevicesFromApi(currentPage, itemsPerPage)
   }, [currentPage])
 
+  // Handle deviceId from URL parameter
+  useEffect(() => {
+    const deviceId = searchParams.get('deviceId')
+    if (deviceId) {
+      // Load device details and open modal
+      const loadDeviceFromUrl = async () => {
+        setModalLoading(true)
+        try {
+          const deviceData = await getDeviceById(deviceId)
+          setSelectedDevice(deviceData)
+          setModalMode("view")
+          setIsModalOpen(true)
+          
+          // Remove deviceId from URL after opening modal (optional)
+          window.history.replaceState({}, '', '/devices')
+        } catch (error) {
+          console.error('Failed to load device from URL:', error)
+          toast.error('Không thể tải thông tin thiết bị từ link')
+        } finally {
+          setModalLoading(false)
+        }
+      }
+      
+      loadDeviceFromUrl()
+    }
+  }, [searchParams])
+
   // WebSocket connection for real-time device status updates
   useEffect(() => {
-    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000')
+    const socket: Socket = io(BASE_API_URL)
 
     socket.on('connect', () => {
       console.log('✅ WebSocket connected for device status updates')
@@ -624,6 +652,7 @@ export default function DevicesPage() {
         factories={apiFactories}
         onSave={handleModalSave}
         loading={modalLoading}
+        onModeChange={(newMode) => setModalMode(newMode)}
         onDeviceUpdated={async () => {
           // Refresh device data sau khi thêm/xóa connections
           if (selectedDevice?.id) {

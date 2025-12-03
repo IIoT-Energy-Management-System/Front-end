@@ -44,6 +44,7 @@ interface DeviceModalProps {
   onSave: (deviceData: any) => Promise<void>
   loading?: boolean
   onDeviceUpdated?: () => void
+  onModeChange?: (mode: "add" | "edit" | "view") => void
 }
 
 export default function DeviceModal({
@@ -54,7 +55,8 @@ export default function DeviceModal({
   factories,
   onSave,
   loading: externalLoading = false,
-  onDeviceUpdated
+  onDeviceUpdated,
+  onModeChange
 }: DeviceModalProps) {
   const { t } = useTranslation()
   const { createDeviceConnection, updateDeviceConnection, deleteDeviceConnection } = useDeviceApi()
@@ -921,6 +923,16 @@ return (
         </div>
 
         <DialogFooter className="gap-2">
+        {mode === "view" && (
+          <Button 
+            variant="default" 
+            onClick={() => onModeChange && onModeChange("edit")}
+            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+          >
+            <Edit2 className="h-4 w-4 mr-2" />
+            {t("common.edit") || "Edit"}
+          </Button>
+        )}
         <Button variant="outline" onClick={onClose}>
             {isReadOnly ? (t("common.close") || "Close") : (t("common.cancel") || "Cancel")}
         </Button>

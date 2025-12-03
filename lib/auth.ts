@@ -1,5 +1,5 @@
 import { jwtDecode } from 'jwt-decode'
-import api from './axios'
+import {api} from './api'
 import type { User } from "./types"
 
 interface AuthState {

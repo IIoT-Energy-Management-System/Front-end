@@ -3,13 +3,14 @@
 let notificationsSeen = false
 
 import { Badge } from "@/components/ui/badge"
-import { useAlertApi } from "@/lib/api"
+import { BASE_API_URL, useAlertApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import type { Alert } from "@/lib/types"
-import { AlertTriangle, Bell, RotateCcw, X } from "lucide-react"
+import { AlertTriangle, Bell, RotateCcw } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { io } from "socket.io-client"
+import AlertDetailModal from "./AlertDetailModal"
 type AlertItem = {
   id: string
   deviceId?: string
@@ -60,7 +61,7 @@ export default function NotificationPopup() {
   useEffect(() => {
     fetchAlerts();
     
-    const socket = io("http://localhost:5000", {
+    const socket = io(BASE_API_URL, {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
@@ -179,28 +180,13 @@ export default function NotificationPopup() {
         </div>
       )}
       {/* Alert detail modal */}
-      {selectedAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black opacity-40" onClick={() => setSelectedAlert(null)} />
-          <div className="relative bg-white rounded p-6 w-11/12 max-w-lg shadow-lg z-50">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">{selectedAlert.type}</h3>
-                <div className="text-sm text-gray-500">{new Date(selectedAlert.timestamp).toLocaleString()}</div>
-              </div>
-              <button className="text-gray-500 hover:bg-gray-100 p-1 rounded" onClick={() => setSelectedAlert(null)}><X /></button>
-            </div>
-            <div className="mt-4 text-sm text-gray-700">
-              <p><strong>{t("notification.severity")}:</strong> <Badge className={getSeverityColor(selectedAlert.severity as Alert["severity"])}>{selectedAlert.severity}</Badge></p>
-              <p className="mt-2"><strong>{t("notification.message")}:</strong> {selectedAlert.message}</p>
-              <p className="mt-2"><strong>{t("notification.device")}:</strong> {selectedAlert.deviceName}</p>
-            </div>
-            <div className="mt-4 text-right">
-              <Link href={`/alerts?alertId=${selectedAlert?.id}`} className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => { setShow(false); setSelectedAlert(null); }} >{t("notification.goToAcknowledge")}</Link>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDetailModal 
+        alert={selectedAlert} 
+        onClose={() => {
+          setShow(false)
+          setSelectedAlert(null)
+        }} 
+      />
     </div>
   )
 }
