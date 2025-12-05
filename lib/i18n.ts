@@ -1217,6 +1217,12 @@ export const translations = {
     "devices.allLocations": "Trên tất cả vị trí",
     "alerts.needsAttention": "Cần xử lý",
 
+    // Time Ago
+    "common.timeAgo.justNow": "Vừa xong",
+    "common.timeAgo.minutes": "{{value}} phút trước",
+    "common.timeAgo.hours": "{{value}} giờ trước",
+    "common.timeAgo.days": "{{value}} ngày trước",
+
     // factories
     "factories.addNew": "Thêm nhà máy mới",
     "factories.enterInfo": "Nhập thông tin nhà máy",
@@ -1572,12 +1578,24 @@ export const translations = {
 // Accept keys that appear in either language object
 type TranslationKey = keyof typeof translations['en'] | keyof typeof translations['vi']
 
-// Hook đơn giản và hiệu quả
+// Hook đơn giản và hiệu quả với hỗ trợ parameter interpolation
 export function useTranslation() {
   if (typeof window === 'undefined') {
     // Server-side rendering: trả về tiếng Việt
     return {
-      t: (key: TranslationKey): string => (translations.vi as any)[key] || (key as string),
+      t: (key: TranslationKey, params?: Record<string, any>): string => {
+        let translation = (translations.vi as any)[key] || (key as string)
+        
+        // Replace parameters if provided
+        if (params && typeof params === 'object') {
+          Object.keys(params).forEach(paramKey => {
+            const placeholder = `{{${paramKey}}}`
+            translation = translation.replace(new RegExp(placeholder, 'g'), String(params[paramKey]))
+          })
+        }
+        
+        return translation
+      },
       currentLanguage: 'vi' as const
     }
   }
@@ -1586,8 +1604,17 @@ export function useTranslation() {
   const { useAppStore } = require('./store')
   const language = useAppStore((state: any) => state.language) as keyof typeof translations
 
-  const t = (key: TranslationKey): string => {
-    const translation = (translations[language] as any)?.[key] || (translations.vi as any)[key] || (key as string)
+  const t = (key: TranslationKey, params?: Record<string, any>): string => {
+    let translation = (translations[language] as any)?.[key] || (translations.vi as any)[key] || (key as string)
+    
+    // Replace parameters if provided
+    if (params && typeof params === 'object') {
+      Object.keys(params).forEach(paramKey => {
+        const placeholder = `{{${paramKey}}}`
+        translation = translation.replace(new RegExp(placeholder, 'g'), String(params[paramKey]))
+      })
+    }
+    
     return translation
   }
 
