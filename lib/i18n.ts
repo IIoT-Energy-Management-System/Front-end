@@ -399,7 +399,7 @@ export const translations = {
 
     // Cost Optimization Tab
     "analytics.cost.costBreakdown": "Cost Breakdown",
-    "analytics.cost.energyCostDistribution": "Energy cost distribution",
+    "analytics.cost.energyCostDistribution": "Energy cost distribution in 7 days",
     "analytics.cost.total": "Total",
     "analytics.cost.optimizationOpportunities": "Optimization Opportunities",
     "analytics.cost.actionableInsights": "Actionable insights to reduce costs",
@@ -1190,38 +1190,17 @@ export const translations = {
     "analytics.performance.maintenance": "Bảo trì",
 
     "analytics.cost.costBreakdown": "Phân tích chi phí",
-    "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng",
+    "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng trong 7 ngày",
     "analytics.cost.total": "Tổng",
     "analytics.cost.optimizationOpportunities": "Cơ hội tối ưu hóa",
     "analytics.cost.actionableInsights": "Thông tin chi tiết để giảm chi phí",
     "analytics.cost.potentialSavings": "Tiết kiệm tiềm năng",
     "analytics.cost.loadingCostData": "Đang tải dữ liệu chi phí...",
 
-    // Analytics Root Causes & Recommendations
-    "analytics.rootCause.lowPF": "Hệ số công suất thấp ({{value}})",
-    "analytics.rootCause.overload": "Hoạt động quá tải ({{value}}% công suất định mức)",
-    "analytics.rootCause.underload": "Hoạt động dưới tải ({{value}}%)",
-    "analytics.rootCause.highTemp": "Nhiệt độ hoạt động cao ({{value}}°C)",
-    "analytics.rootCause.maintenance": "Bảo trì quá hạn ({{days}} ngày)",
-    
-    "analytics.recommendation.maintenance": "Thực hiện bảo trì định kỳ ngay lập tức",
-    "analytics.recommendation.capacitor": "Lắp đặt tụ bù công suất",
-    "analytics.recommendation.load": "Điều chỉnh tải hoặc nâng cấp thiết bị",
-    
-    "analytics.timeline.48h": "Trong vòng 48h",
-    "analytics.timeline.week": "Tuần này",
-    "analytics.timeline.month": "Tháng này",
-
     // Trend / small labels
     "trend.deltaFromPrevHour": "từ giờ trước",
     "devices.allLocations": "Trên tất cả vị trí",
     "alerts.needsAttention": "Cần xử lý",
-
-    // Time Ago
-    "common.timeAgo.justNow": "Vừa xong",
-    "common.timeAgo.minutes": "{{value}} phút trước",
-    "common.timeAgo.hours": "{{value}} giờ trước",
-    "common.timeAgo.days": "{{value}} ngày trước",
 
     // factories
     "factories.addNew": "Thêm nhà máy mới",

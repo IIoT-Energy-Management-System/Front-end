@@ -1413,7 +1413,7 @@ export default function AnalyticsPage() {
                     <Card className="lg:col-span-2">
                       <CardHeader>
                         <CardTitle>Energy Consumption Trend</CardTitle>
-                        <CardDescription>Daily energy usage over time</CardDescription>
+                        <CardDescription>Daily energy usage in 7 days</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="h-[300px] w-full">
@@ -1506,7 +1506,7 @@ export default function AnalyticsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Building Performance Comparison</CardTitle>
-                    <CardDescription>Efficiency and consumption metrics (Average: {(analyticsData.buildingComparison.reduce((total, building) => total + building.consumption, 0) / analyticsData.buildingComparison.length).toFixed(2)} kWh)</CardDescription>
+                    <CardDescription>Efficiency and consumption metrics (Average: {(analyticsData.buildingComparison.reduce((total, building) => total + building.consumption, 0) / analyticsData.buildingComparison.length).toFixed(2)} kWh) in 7 days</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
