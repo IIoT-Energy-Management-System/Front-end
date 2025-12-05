@@ -1189,7 +1189,6 @@ export const translations = {
     "analytics.performance.viewDetails": "Xem chi tiết",
     "analytics.performance.maintenance": "Bảo trì",
 
-    // Cost Optimization Tab
     "analytics.cost.costBreakdown": "Phân tích chi phí",
     "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng",
     "analytics.cost.total": "Tổng",
@@ -1197,6 +1196,21 @@ export const translations = {
     "analytics.cost.actionableInsights": "Thông tin chi tiết để giảm chi phí",
     "analytics.cost.potentialSavings": "Tiết kiệm tiềm năng",
     "analytics.cost.loadingCostData": "Đang tải dữ liệu chi phí...",
+
+    // Analytics Root Causes & Recommendations
+    "analytics.rootCause.lowPF": "Hệ số công suất thấp ({{value}})",
+    "analytics.rootCause.overload": "Hoạt động quá tải ({{value}}% công suất định mức)",
+    "analytics.rootCause.underload": "Hoạt động dưới tải ({{value}}%)",
+    "analytics.rootCause.highTemp": "Nhiệt độ hoạt động cao ({{value}}°C)",
+    "analytics.rootCause.maintenance": "Bảo trì quá hạn ({{days}} ngày)",
+    
+    "analytics.recommendation.maintenance": "Thực hiện bảo trì định kỳ ngay lập tức",
+    "analytics.recommendation.capacitor": "Lắp đặt tụ bù công suất",
+    "analytics.recommendation.load": "Điều chỉnh tải hoặc nâng cấp thiết bị",
+    
+    "analytics.timeline.48h": "Trong vòng 48h",
+    "analytics.timeline.week": "Tuần này",
+    "analytics.timeline.month": "Tháng này",
 
     // Trend / small labels
     "trend.deltaFromPrevHour": "từ giờ trước",

@@ -5,6 +5,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BASE_API_URL, DashboardApiService, FactoryApiService, ShiftApiService } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { DashboardStats } from "@/lib/types";
@@ -250,77 +251,43 @@ export default function DashboardPage() {
                         <p className="text-gray-600 mt-2">{t('dashboard.pageSubtitle')}</p>
                         <p>{currentTime.toLocaleString("vi-VN")}</p>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-4 my-8">
-                        {/* 1. Chọn xem Toàn bộ hay từng nhà máy */}
-                        <div className="flex items-center gap-3 bg-white rounded-2xl shadow-lg p-2">
-                            <button 
-                                onClick={() => setSelectedFactory(null)}
-                                className={`px-8 py-4 rounded-xl text-lg font-semibold transition-all ${
-                                    selectedFactory === null 
-                                    ? "bg-blue-600 text-white shadow-xl" 
-                                    : "text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                                {t('dashboard.allCompany')}
-                            </button>
-                            {factories.map(f => (
-                                <button 
-                                    key={f.id} 
-                                    onClick={() => setSelectedFactory(f.id)}
-                                    className={`px-6 py-4 rounded-xl text-lg font-semibold transition-all ${
-                                        selectedFactory === f.id 
-                                        ? "bg-blue-600 text-white shadow-xl" 
-                                        : "text-gray-600 hover:bg-gray-100"
-                                    }`}
-                                >
-                                    {f.name}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="flex items-center gap-4">
+                        {/* Factory Select */}
+                        <Select 
+                            value={selectedFactory || "all"} 
+                            onValueChange={(value) => setSelectedFactory(value === "all" ? null : value)}
+                        >
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder={t('dashboard.allCompany')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t('dashboard.allCompany')}</SelectItem>
+                                {factories.map(f => (
+                                    <SelectItem key={f.id} value={f.id}>
+                                        {f.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                        {/* 2. Chọn xem Ca nào */}
-                        <div className="flex gap-3 bg-white rounded-2xl shadow-lg p-2">
-                            <button 
-                                onClick={() => setSelectedShift(null)}
-                                className={`px-10 py-5 rounded-xl text-xl font-bold transition-all ${
-                                    selectedShift === null 
-                                    ? "bg-green-600 text-white shadow-xl" 
-                                    : "text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                                {t('dashboard.allShifts')}
-                            </button>
-                            {shifts.map(s => (
-                                <button 
-                                    key={s.id}
-                                    onClick={() => setSelectedShift(s.id)}
-                                    className={`px-8 py-5 rounded-xl text-lg font-bold transition-all ${
-                                        selectedShift === s.id 
-                                        ? "bg-green-600 text-white shadow-xl" 
-                                        : "text-gray-600 hover:bg-gray-100"
-                                    }`}
-                                >
-                                    {s.name}
-                                </button>
-                            ))}
-                        </div>
+                        {/* Shift Select */}
+                        <Select 
+                            value={selectedShift || "all"} 
+                            onValueChange={(value) => setSelectedShift(value === "all" ? null : value)}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder={t('dashboard.allShifts')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t('dashboard.allShifts')}</SelectItem>
+                                {shifts.map(s => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                        {s.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    {/* <Select>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select Building" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="building1">
-                                <SelectItemText>Building 1</SelectItemText>
-                            </SelectItem>
-                            <SelectItem value="building2">
-                                <SelectItemText>Building 2</SelectItemText>
-                            </SelectItem>
-                            <SelectItem value="all">
-                                <SelectItemText>All Buildings</SelectItemText>
-                            </SelectItem>
-                        </SelectContent>
-                    </Select> */}
                     <Button
                         onClick={fetchDashboardData}
                         disabled={isRefreshing}

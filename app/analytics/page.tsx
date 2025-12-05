@@ -130,6 +130,54 @@ export default function AnalyticsPage() {
 
   const { t } = useTranslation()
 
+  // Helper function to safely get translation text with parameter interpolation
+  const getTranslationText = (value: any): string => {
+    if (!value) return ''
+    
+    // If value is an object with 'code' property, use the code as translation key
+    if (typeof value === 'object' && value.code) {
+      let translated = t(value.code)
+      
+      // If translation exists and is different from the key, use it
+      if (translated !== value.code) {
+        // Replace parameters like {{value}}, {{days}}, etc.
+        if (value.params && typeof value.params === 'object') {
+          Object.keys(value.params).forEach(key => {
+            const placeholder = `{{${key}}}`
+            translated = translated.replace(placeholder, String(value.params[key]))
+          })
+        }
+        return translated
+      }
+      
+      // Otherwise return the code itself with params if available
+      if (value.params && typeof value.params === 'object') {
+        let result = value.code
+        Object.keys(value.params).forEach(key => {
+          const placeholder = `{{${key}}}`
+          result = result.replace(placeholder, String(value.params[key]))
+        })
+        return result
+      }
+      
+      return value.code
+    }
+    
+    // If value is a string, try to translate it
+    if (typeof value === 'string') {
+      const translated = t(value)
+      // If translation exists and is different from the key, use it
+      if (translated !== value) {
+        return translated
+      }
+      // Otherwise return the original value
+      return value
+    }
+    
+    // Fallback: convert to string
+    return String(value)
+  }
+
 
   // Hierarchy navigation functions
   const fetchHierarchyData = async (currentLevel: HierarchyLevel) => {
@@ -324,9 +372,9 @@ export default function AnalyticsPage() {
       console.log("✅ Connected to WebSocket, socket ID:", socketInstance.id)
       
       // Subscribe to initial tab (performance)
-      console.log("📤 Subscribing to initial section:", { section: "hierarchy", filters: { timeRange, factoryId: selectedFactory, page, limit } })
+      console.log("📤 Subscribing to initial section:", { section: "performance", filters: { timeRange, factoryId: selectedFactory, page, limit } })
       socketInstance.emit("subscribe-analytics-section", {
-        section: "hierarchy",
+        section: "performance",
         filters: {
           timeRange,
           factoryId: selectedFactory,
@@ -966,7 +1014,7 @@ export default function AnalyticsPage() {
                               {issue.rootCauses.map((cause, idx) => (
                                 <div key={idx} className="flex items-start gap-2 text-sm">
                                   <div className="h-1.5 w-1.5 rounded-full bg-red-600 mt-1.5" />
-                                  <span className="text-slate-700">{cause}</span>
+                                  <span className="text-slate-700">{getTranslationText(cause)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1196,24 +1244,24 @@ export default function AnalyticsPage() {
                               </div>
 
                               <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                                {t(rec.title) !== rec.title ? t(rec.title) : rec.title}
+                                {getTranslationText(rec.title)}
                               </h3>
 
                               <p className="text-slate-700 mb-4">
-                                {t(rec.description) !== rec.description ? t(rec.description) : rec.description}
+                                {getTranslationText(rec.description)}
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div className="flex items-center gap-2">
                                   <Zap className="h-4 w-4 text-blue-600" />
                                   <span className="text-slate-600">Impact:</span>
-                                  <span className="font-medium text-slate-900">{rec.impact}</span>
+                                  <span className="font-medium text-slate-900">{getTranslationText(rec.impact)}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2">
                                   <BarChart3 className="h-4 w-4 text-green-600" />
                                   <span className="text-slate-600">Action:</span>
-                                  <span className="font-medium text-slate-900">{t(rec.action)}</span>
+                                  <span className="font-medium text-slate-900">{getTranslationText(rec.action)}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2">
@@ -1550,7 +1598,7 @@ export default function AnalyticsPage() {
                       <div className="mt-4 space-y-2">
                         {analyticsData.costOptimization.costBreakdown.map((item: any, index: number) => (
                           <div key={index} className="flex justify-between text-sm">
-                            <span className="text-slate-600">{item.category}</span>
+                            <span className="text-slate-600">{getTranslationText(item.category)}</span>
                             <span className="font-medium">{(item.amount >= 100000 ? `${(item.amount / 1000000).toFixed(2)}M` : `${(item.amount).toFixed(2)}`)} VND</span>
                           </div>
                         ))}
@@ -1569,8 +1617,8 @@ export default function AnalyticsPage() {
                           <div key={index} className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                             <div className="flex justify-between items-start mb-2">
                               <div>
-                                <h4 className="font-semibold text-slate-900">{opt.title}</h4>
-                                <p className="text-sm text-slate-600 mt-1">{opt.description}</p>
+                                <h4 className="font-semibold text-slate-900">{getTranslationText(opt.title)}</h4>
+                                <p className="text-sm text-slate-600 mt-1">{getTranslationText(opt.description)}</p>
                               </div>
                               <Badge className={opt.priority === 'high' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}>
                                 {opt.priority.toUpperCase()}
@@ -1579,7 +1627,7 @@ export default function AnalyticsPage() {
                             <div className="flex items-center justify-between mt-4">
                               <div className="flex items-center gap-2 text-sm text-slate-600">
                                 <Zap className="h-4 w-4 text-amber-500" />
-                                <span>{opt.implementation}</span>
+                                <span>{getTranslationText(opt.implementation)}</span>
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-medium text-green-600">
@@ -1790,7 +1838,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-slate-700">Time Range:</span>
                   <div className="flex gap-2">
-                    {['1d', '7d', '30d'].map((range) => (
+                    {['1d', '7d'].map((range) => (
                       <Button
                         key={range}
                         variant={powerTrendTimeRange === range ? 'default' : 'outline'}
@@ -1938,7 +1986,7 @@ export default function AnalyticsPage() {
                         {selectedDeviceForTrend.rootCauses.map((cause, idx) => (
                           <div key={idx} className="flex items-start gap-2 text-sm">
                             <div className="h-1.5 w-1.5 rounded-full bg-red-600 mt-1.5" />
-                            <span className="text-red-900">{cause}</span>
+                            <span className="text-red-900">{getTranslationText(cause)}</span>
                           </div>
                         ))}
                       </div>

@@ -38,7 +38,7 @@ export default function ReportsPage() {
     name: "",
     factoryId: "",
     buildingId: "",
-    timeRange: "30d",
+    timeRange: "1d",
   })
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -115,7 +115,7 @@ export default function ReportsPage() {
       name: "",
       factoryId: "",
       buildingId: "",
-      timeRange: "30d",
+      timeRange: "1d",
     })
   }
 
