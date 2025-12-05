@@ -324,9 +324,9 @@ export default function AnalyticsPage() {
       console.log("✅ Connected to WebSocket, socket ID:", socketInstance.id)
       
       // Subscribe to initial tab (performance)
-      console.log("📤 Subscribing to initial section:", { section: "performance", filters: { timeRange, factoryId: selectedFactory, page, limit } })
+      console.log("📤 Subscribing to initial section:", { section: "hierarchy", filters: { timeRange, factoryId: selectedFactory, page, limit } })
       socketInstance.emit("subscribe-analytics-section", {
-        section: "performance",
+        section: "hierarchy",
         filters: {
           timeRange,
           factoryId: selectedFactory,
