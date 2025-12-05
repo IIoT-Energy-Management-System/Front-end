@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AnalyticApiService, BASE_API_URL, BuildingApiService, DeviceApiService, FactoryApiService, FloorApiService, LineApiService } from "@/lib/api"
+import { useTranslation } from "@/lib/i18n"
 import {
     AlertTriangle,
     BarChart3,
@@ -79,6 +80,11 @@ interface AnalyticsData {
     factoryId: string
     generatedAt: string
   }
+  hierarchyMetrics?: {
+    totalDevices: number
+    avgEfficiency: number
+    totalEnergy: number
+  }
 }
 
 // Hierarchy types
@@ -121,6 +127,8 @@ export default function AnalyticsPage() {
   const [powerTrendData, setPowerTrendData] = useState<any[]>([])
   const [isLoadingPowerTrend, setIsLoadingPowerTrend] = useState(false)
   const [powerTrendTimeRange, setPowerTrendTimeRange] = useState("1d")
+
+  const { t } = useTranslation()
 
 
   // Hierarchy navigation functions
@@ -272,6 +280,24 @@ export default function AnalyticsPage() {
     setPowerTrendTimeRange(newTimeRange)
     if (selectedDeviceForTrend) {
       fetchPowerTrendData(selectedDeviceForTrend.deviceId, newTimeRange)
+    }
+  }
+
+  // Handle setting device to maintenance mode
+  const handleSetMaintenance = async (issue: PerformanceIssue) => {
+    if (!confirm(`Set device "${issue.device}" to Maintenance mode?\n\nThis will prevent the device from generating alerts while it's being serviced.`)) {
+      return
+    }
+    
+    try {
+      await DeviceApiService.updateDeviceStatus(issue.deviceId, 'Maintenance')
+      alert(`Device "${issue.device}" has been set to Maintenance mode.`)
+      // Optionally refresh the data
+      // You might want to remove this device from the performance issues list
+      // or update its status in the UI
+    } catch (error) {
+      console.error('Error setting device to maintenance:', error)
+      alert('Failed to set device to maintenance mode. Please try again.')
     }
   }
 
@@ -435,6 +461,24 @@ export default function AnalyticsPage() {
     }
   }, [hierarchyPath, socket, timeRange, limit])
 
+  // Subscribe to hierarchy metrics when path changes
+  useEffect(() => {
+    const currentLevel = hierarchyPath[hierarchyPath.length - 1]
+    
+    if (socket && socket.connected && currentLevel.type !== 'all' && currentLevel.type !== 'line') {
+      console.log(`🔍 Subscribing to hierarchy metrics for: ${currentLevel.type} ${currentLevel.id}`)
+      
+      socket.emit("subscribe-analytics-section", {
+          section: "hierarchy",
+          filters: {
+              timeRange,
+              hierarchyType: currentLevel.type,
+              hierarchyId: currentLevel.id
+          }
+      })
+    }
+  }, [hierarchyPath, socket, timeRange])
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -563,12 +607,12 @@ export default function AnalyticsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-700">Power Factor</p>
+                    <p className="text-sm font-medium text-blue-700">{t('analytics.kpi.powerFactor')}</p>
                     <p className="text-3xl font-bold text-blue-800 mt-1">
                       {analyticsData?.kpiData?.powerFactor?.overallAveragePF!.toFixed(2) || 0.85}
                     </p>
                     <p className="text-xs text-blue-600 mt-2">
-                      Target: ≥0.85
+                      {t('analytics.kpi.target')}: ≥0.85
                     </p>
                   </div>
                   <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
@@ -577,7 +621,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-blue-700 mb-1">
-                    <span>Low PF Readings</span>
+                    <span>{t('analytics.kpi.lowPFReadings')}</span>
                     <span>{analyticsData?.kpiData?.powerFactor?.lowPFPercentage!.toFixed(1) || 0}%</span>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-2">
@@ -595,12 +639,12 @@ export default function AnalyticsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-amber-700">Overload Risk</p>
+                    <p className="text-sm font-medium text-amber-700">{t('analytics.kpi.overloadRisk')}</p>
                     <p className="text-3xl font-bold text-amber-800 mt-1">
                       {analyticsData?.kpiData?.overload?.downtimePercentage!.toFixed(1) || 0}%
                     </p>
                     <p className="text-xs text-amber-600 mt-2">
-                      Downtime hours: {analyticsData?.kpiData?.overload?.totalDowntimeHours!.toFixed(1) || 0}h
+                      {t('analytics.kpi.downtimeHours')}: {analyticsData?.kpiData?.overload?.totalDowntimeHours!.toFixed(1) || 0}h
                     </p>
                   </div>
                   <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
@@ -609,7 +653,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-amber-700 mb-1">
-                    <span>Critical Alerts</span>
+                    <span>{t('analytics.kpi.criticalAlerts')}</span>
                     <span>{analyticsData?.kpiData?.overload?.criticalAlertsCount || 0}</span>
                   </div>
                   <div className="w-full bg-amber-200 rounded-full h-2">
@@ -627,12 +671,12 @@ export default function AnalyticsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-700">Energy Consumption</p>
+                    <p className="text-sm font-medium text-slate-700">{t('analytics.kpi.energyConsumption')}</p>
                     <p className="text-3xl font-bold text-slate-800 mt-1">
                       {analyticsData?.kpiData?.energyConsumption?.totalEnergyConsumption?.toFixed(2) || 0}
                     </p>
                     <p className="text-xs text-slate-600 mt-2">
-                      kWh this period
+                      {t('analytics.kpi.kwhThisPeriod')}
                     </p>
                   </div>
                   <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
@@ -641,7 +685,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-slate-700 mb-1">
-                    <span>Cost</span>
+                    <span>{t('analytics.kpi.cost')}</span>
                     <span>{( analyticsData?.kpiData?.energyConsumption?.totalCost > 1000000 ? `${(analyticsData?.kpiData?.energyConsumption?.totalCost / 1000000).toFixed(1)}M` : `${(analyticsData?.kpiData?.energyConsumption?.totalCost || 0).toFixed(1)}K`)} VND</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-2">
@@ -654,12 +698,12 @@ export default function AnalyticsPage() {
 
           <Tabs defaultValue="performance" className="w-full" onValueChange={handleTabChange}>
             <TabsList className="bg-white border-0 shadow-sm">
-              <TabsTrigger value="performance">Performance Issues</TabsTrigger>
-              {/* <TabsTrigger value="recommendations">Action Recommendations</TabsTrigger> */}
-              <TabsTrigger value="trends">Trend Analysis</TabsTrigger>
-              <TabsTrigger value="comparison">Comparison</TabsTrigger>
-              <TabsTrigger value="cost">Cost Optimization</TabsTrigger>
-              {/* <TabsTrigger value="carbon">Carbon & Sustainability</TabsTrigger>
+              <TabsTrigger value="performance">{t('analytics.tabs.performance')}</TabsTrigger>
+              {/* <TabsTrigger value="recommendations">{t('analytics.tabs.recommendations')}</TabsTrigger> */}
+              <TabsTrigger value="trends">{t('analytics.tabs.trends')}</TabsTrigger>
+              <TabsTrigger value="comparison">{t('analytics.tabs.comparison')}</TabsTrigger>
+              <TabsTrigger value="cost">{t('analytics.tabs.cost')}</TabsTrigger>
+              {/* <TabsTrigger value="carbon">{t('analytics.tabs.carbon')}</TabsTrigger>
               <TabsTrigger value="forecast">Forecasting</TabsTrigger> */}
             </TabsList>
 
@@ -883,7 +927,7 @@ export default function AnalyticsPage() {
                                 }`}>
                                   {issue.efficiency}%
                                 </span> 
-                                (Target: ≥85%)
+                                ({t('analytics.performance.target')}: ≥85%)
                               </CardDescription>
                             </div>
                             <div className="flex flex-col items-end gap-2">
@@ -894,7 +938,7 @@ export default function AnalyticsPage() {
                                 }`}>
                                   {issue.efficiency}%
                                 </div>
-                                <div className="text-xs text-slate-600 mt-1">Efficiency Score</div>
+                                <div className="text-xs text-slate-600 mt-1">{t('analytics.performance.efficiencyScore')}</div>
                               </div>
                               {/* <div className="flex gap-2">
                                 <Button size="sm" variant="outline" className="text-xs">
@@ -916,7 +960,7 @@ export default function AnalyticsPage() {
                           <div>
                             <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                               <AlertTriangle className="h-4 w-4 text-red-600" />
-                              Root Causes Identified
+                              {t('analytics.performance.rootCausesIdentified')}
                             </h4>
                             <div className="space-y-2">
                               {issue.rootCauses.map((cause, idx) => (
@@ -937,15 +981,20 @@ export default function AnalyticsPage() {
                               onClick={() => handleViewPowerTrend(issue)}
                             >
                               <Search className="h-4 w-4 mr-2" />
-                              View Details
+                              {t('analytics.performance.viewDetails')}
                             </Button>
                             {/* <Button variant="outline" size="sm" className="flex-1">
                               <Download className="h-4 w-4 mr-2" />
                               Export Data
                             </Button> */}
-                            <Button variant="outline" size="sm" className="flex-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => handleSetMaintenance(issue)}
+                            >
                               <AlertTriangle className="h-4 w-4 mr-2" />
-                              Maintenance
+                              {t('analytics.performance.maintenance')}
                             </Button>
                           </div>
                         </CardContent>
@@ -974,8 +1023,8 @@ export default function AnalyticsPage() {
                         <Leaf className="h-8 w-8 text-green-600" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-green-900">All Systems Operating Normally</h3>
-                        <p className="text-slate-600">No performance issues detected in the selected time range.</p>
+                        <h3 className="text-lg font-semibold text-green-900">{t('analytics.performance.allSystemsNormal')}</h3>
+                        <p className="text-slate-600">{t('analytics.performance.noIssues')}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -987,7 +1036,7 @@ export default function AnalyticsPage() {
                 {isLoadingHierarchy ? (
                   <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-slate-600 mt-4">Loading...</p>
+                    <p className="text-slate-600 mt-4">{t('analytics.performance.loadingHierarchy')}</p>
                   </div>
                 ) : hierarchyItems.length > 0 ? (
                   <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -1016,15 +1065,15 @@ export default function AnalyticsPage() {
                         <CardContent>
                           <div className={`grid grid-cols-3 gap-2 text-center`}>
                             <div className={`rounded p-2 ${!item.avgEfficiency ? 'bg-red-100 border-red-300' : item.avgEfficiency >= 85 ? 'bg-green-100 text-green-600' : item.avgEfficiency >= 65 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                              <div className="text-xs">Devices</div>
+                              <div className="text-xs">{t('analytics.performance.devices')}</div>
                               <div className="text-lg font-bold">{item.totalDevices || 0}</div>
                             </div>
                             <div className={`rounded p-2 ${!item.avgEfficiency ? 'bg-red-100 border-red-300' : item.avgEfficiency >= 85 ? 'bg-green-100 text-green-600' : item.avgEfficiency >= 65 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                              <div className="text-xs">Efficiency</div>
+                              <div className="text-xs">{t('analytics.performance.efficiency')}</div>
                               <div className="text-lg font-bold">{item.avgEfficiency || 0}%</div>
                             </div>
                             <div className={`rounded p-2 ${!item.avgEfficiency ? 'bg-red-100 border-red-300' : item.avgEfficiency >= 85 ? 'bg-green-100 text-green-600' : item.avgEfficiency >= 65 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                              <div className="text-xs">Energy</div>
+                              <div className="text-xs">{t('analytics.performance.energy')}</div>
                               <div className="text-lg font-bold">{item.totalEnergy || 0}</div>
                             </div>
                           </div>
@@ -1035,8 +1084,8 @@ export default function AnalyticsPage() {
                 ) : (
                   <div className="text-center py-12">
                     <AlertTriangle className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-slate-900 mb-2">No Items Found</h3>
-                    <p className="text-slate-600">No {hierarchyPath[hierarchyPath.length - 1].type}s available at this level</p>
+                    <h3 className="text-xl font-semibold text-slate-900 mb-2">{t('analytics.performance.noItems')}</h3>
+                    <p className="text-slate-600">No {hierarchyPath[hierarchyPath.length - 1].type}s {t('analytics.performance.noItemsAtLevel')}</p>
                   </div>
                 )}
               </div>
@@ -1147,11 +1196,11 @@ export default function AnalyticsPage() {
                               </div>
 
                               <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                                {rec.title}
+                                {t(rec.title) !== rec.title ? t(rec.title) : rec.title}
                               </h3>
 
                               <p className="text-slate-700 mb-4">
-                                {rec.description}
+                                {t(rec.description) !== rec.description ? t(rec.description) : rec.description}
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -1164,7 +1213,7 @@ export default function AnalyticsPage() {
                                 <div className="flex items-center gap-2">
                                   <BarChart3 className="h-4 w-4 text-green-600" />
                                   <span className="text-slate-600">Action:</span>
-                                  <span className="font-medium text-slate-900">{rec.action}</span>
+                                  <span className="font-medium text-slate-900">{t(rec.action)}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2">
@@ -1464,8 +1513,8 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <Card className="lg:col-span-1">
                     <CardHeader>
-                      <CardTitle>Cost Breakdown</CardTitle>
-                      <CardDescription>Energy cost distribution</CardDescription>
+                      <CardTitle>{t('analytics.cost.costBreakdown')}</CardTitle>
+                      <CardDescription>{t('analytics.cost.energyCostDistribution')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="h-[300px] w-full relative">
@@ -1493,7 +1542,7 @@ export default function AnalyticsPage() {
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <div className="text-center">
-                            <p className="text-sm text-slate-500">Total</p>
+                            <p className="text-sm text-slate-500">{t('analytics.cost.total')}</p>
                             <p className="text-xl font-bold text-slate-900">100%</p>
                           </div>
                         </div>
@@ -1511,8 +1560,8 @@ export default function AnalyticsPage() {
 
                   <Card className="lg:col-span-2">
                     <CardHeader>
-                      <CardTitle>Optimization Opportunities</CardTitle>
-                      <CardDescription>Actionable insights to reduce costs</CardDescription>
+                      <CardTitle>{t('analytics.cost.optimizationOpportunities')}</CardTitle>
+                      <CardDescription>{t('analytics.cost.actionableInsights')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
@@ -1534,7 +1583,7 @@ export default function AnalyticsPage() {
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-medium text-green-600">
-                                  Potential Savings
+                                  {t('analytics.cost.potentialSavings')}
                                 </p>
                                 <p className="text-lg font-bold text-green-700">
                                   {opt.savings.toLocaleString()} k VND
@@ -1550,7 +1599,7 @@ export default function AnalyticsPage() {
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <p className="text-slate-600">Loading cost data...</p>
+                    <p className="text-slate-600">{t('analytics.cost.loadingCostData')}</p>
                   </CardContent>
                 </Card>
               )}

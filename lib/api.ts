@@ -558,17 +558,30 @@ export class ShiftApiService {
 
 export class ReportApiService {
   static async getReports(): Promise<Report[]> {
-    const response = await api.get(`/reports`);
+    const response = await api.get(`/v2/reports`);
     return response.data.data;
   }
 
-  static async createReport(reportData: Report): Promise<Report> {
-    const response = await api.post(`/reports`, reportData);
+  static async createReport(reportData: {
+    name: string;
+    factoryId: string;
+    buildingId?: string;
+    timeRange?: string;
+    generatedBy: string;
+  }): Promise<Report> {
+    const payload = {
+      name: reportData.name,
+      factoryId: reportData.factoryId,
+      buildingId: reportData.buildingId,
+      timeRange: reportData.timeRange || '30d',
+      generatedBy: reportData.generatedBy
+    };
+    const response = await api.post(`/v2/reports`, payload);
     return response.data.data;
   }
 
   static async exportReport(id: string, format: 'pdf' | 'excel'): Promise<Blob> {
-    const response = await api.get(`/reports/export/${id}?format=${format}`, { responseType: 'blob' });
+    const response = await api.get(`/v2/reports/${id}/export?format=${format}`, { responseType: 'blob' });
     return response.data;
   }
 }

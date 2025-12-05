@@ -245,9 +245,9 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Energy Management Dashboard
+                            {t('dashboard.pageTitle')}
                         </h1>
-                        <p className="text-gray-600 mt-2">Real-time monitoring and analytics</p>
+                        <p className="text-gray-600 mt-2">{t('dashboard.pageSubtitle')}</p>
                         <p>{currentTime.toLocaleString("vi-VN")}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-4 my-8">
@@ -261,7 +261,7 @@ export default function DashboardPage() {
                                     : "text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Toàn công ty
+                                {t('dashboard.allCompany')}
                             </button>
                             {factories.map(f => (
                                 <button 
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                                     : "text-gray-600 hover:bg-gray-100"
                                 }`}
                             >
-                                Tất cả ca
+                                {t('dashboard.allShifts')}
                             </button>
                             {shifts.map(s => (
                                 <button 
@@ -353,7 +353,7 @@ export default function DashboardPage() {
                     </Card> */}
 
                     <KPICard
-                      title="Current Power"
+                      title={t('dashboard.currentPower')}
                       value={(stats.currentPower || 0).toFixed(2)}
                       unit="kW"
                       trend={Number(stats.powerTrend) || 0}
@@ -382,7 +382,7 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card> */}
                     <KPICard
-                      title="Monthly Cost"
+                      title={t('dashboard.monthlyC')}
                       value={stats.monthlyCost > 1000000 ? stats.monthlyCost / 1000000 : (new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.monthlyCost || 0))}
                       unit={stats.monthlyCost > 1000000 ? 'triệu' : ''}
                       trend={Number(stats.costTrend) || 0}
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card> */}
                     <KPICard
-                      title="Active Alerts"
+                      title={t('dashboard.activeAlerts')}
                       value={stats.activeAlerts || 0}
                       unit=""
                       icon={AlertTriangle}
@@ -423,10 +423,10 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card> */}
                     <KPICard
-                      title="System Uptime"
+                      title={t('dashboard.systemUptime')}
                       value={(stats.uptime.uptime || 0).toFixed(1)}
                       unit="%"
-                      description={"Hoat dong: " + (stats.uptime.runningMinutes || 0) + " phut / " + (stats.uptime.totalMinutes || 0) + " phut"}
+                      description={t('dashboard.operatingTime') + ": " + (stats.uptime.runningMinutes || 0) + " " + t('dashboard.minutes') + " / " + (stats.uptime.totalMinutes || 0) + " " + t('dashboard.minutes')}
                       icon={Activity}
                       color="border-purple-500"
                       onClick={() => window.location.href = '/devices'}
@@ -439,10 +439,10 @@ export default function DashboardPage() {
                     <CardHeader>
                         <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle>Power Consumption History</CardTitle>
-                            <CardDescription>Last 24 hours power trend</CardDescription>
+                            <CardTitle>{t('dashboard.powerHistory')}</CardTitle>
+                            <CardDescription>{t('dashboard.last24HoursTrend')}</CardDescription>
                         </div>
-                        <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => window.location.href = '/analytics'}>Xem chi tiet</span>
+                        <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => window.location.href = '/analytics'}>{t('dashboard.viewDetails')}</span>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -473,11 +473,11 @@ export default function DashboardPage() {
                             <div>
                                 <CardTitle className="flex items-center gap-2">
                                     <AlertTriangle className="h-5 w-5 text-red-600" />
-                                    Recent Alerts
+                                    {t('dashboard.recentAlerts')}
                                 </CardTitle>
-                                <CardDescription>Latest system alerts and warnings</CardDescription>
+                                <CardDescription>{t('dashboard.latestAlerts')}</CardDescription>
                             </div>
-                            <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => window.location.href = '/alerts'}>Xem chi tiet</span>
+                            <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => window.location.href = '/alerts'}>{t('dashboard.viewDetails')}</span>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -494,7 +494,23 @@ export default function DashboardPage() {
                                                 <Badge className={getSeverityColor(alert.severity)}>
                                                     {alert.severity}
                                                 </Badge>
-                                                <span className="text-sm text-gray-500">{alert.time}</span>
+                                                <span className="text-sm text-gray-500">
+                                                    {(() => {
+                                                        const date = new Date(alert.timestamp || new Date());
+                                                        const now = new Date();
+                                                        const diffMs = now.getTime() - date.getTime();
+                                                        const diffMins = Math.floor(diffMs / 60000);
+                                                        
+                                                        if (diffMins < 1) return t('common.timeAgo.justNow');
+                                                        if (diffMins < 60) return t('common.timeAgo.minutes', { value: diffMins });
+                                                        
+                                                        const diffHours = Math.floor(diffMins / 60);
+                                                        if (diffHours < 24) return t('common.timeAgo.hours', { value: diffHours });
+                                                        
+                                                        const diffDays = Math.floor(diffHours / 24);
+                                                        return t('common.timeAgo.days', { value: diffDays });
+                                                    })()}
+                                                </span>
                                             </div>
                                             <p className="text-sm font-medium text-gray-900">{alert.message}</p>
                                         </div>
@@ -503,7 +519,7 @@ export default function DashboardPage() {
                             ) : (
                                 <div className="text-center py-8 text-gray-500">
                                     <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                    <p>No recent alerts</p>
+                                    <p>{t('dashboard.noRecentAlerts')}</p>
                                 </div>
                             )}
                         </div>
@@ -517,9 +533,9 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Building className="h-5 w-5 text-blue-600" />
-                            Buildings Overview
+                            {t('dashboard.buildingsOverview')}
                         </CardTitle>
-                        <CardDescription>Power consumption by building</CardDescription>
+                        <CardDescription>{t('dashboard.powerByBuilding')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -535,17 +551,17 @@ export default function DashboardPage() {
                                         
                                         <div className="space-y-2 mb-4">
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">Power:</span>
+                                                <span className="text-gray-600">{t('dashboard.power')}:</span>
                                                 <span className="font-medium text-blue-600">{(Number(building.power) || 0).toFixed(1)} kW</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">Total Devices:</span>
+                                                <span className="text-gray-600">{t('dashboard.totalDevices')}:</span>
                                                 <span className="font-medium">{building.devices}</span>
                                             </div>
                                             {building.warningDevices && building.warningDevices.length > 0 && (
                                                 <>
                                                     <div className="flex justify-between text-sm">
-                                                        <span className="text-gray-600">Offline Devices:</span>
+                                                        <span className="text-gray-600">{t('dashboard.offlineDevices')}:</span>
                                                         <span className="font-medium text-red-600">{building.warningDevices.length}</span>
                                                     </div>
                                                     <button
@@ -553,7 +569,7 @@ export default function DashboardPage() {
                                                         className="w-full flex items-center justify-center gap-2 mt-2 px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-sm font-medium text-red-700"
                                                     >
                                                         <AlertTriangle className="h-4 w-4" />
-                                                        <span>{expandedBuildings.has(building.id) ? 'Hide' : 'Show'} Offline Devices</span>
+                                                        <span>{expandedBuildings.has(building.id) ? t('dashboard.hideOfflineDevices') : t('dashboard.showOfflineDevices')}</span>
                                                         {expandedBuildings.has(building.id) ? (
                                                             <ChevronUp className="h-4 w-4" />
                                                         ) : (

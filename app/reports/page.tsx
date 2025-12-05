@@ -6,7 +6,6 @@ import { PermissionGuard } from "@/components/PermissionGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
     Dialog,
     DialogContent,
@@ -37,16 +36,9 @@ export default function ReportsPage() {
 
   const [newReport, setNewReport] = useState({
     name: "",
-    type: "Daily" as Report["type"],
-    factoryIds: [] as string[],
-    buildingIds: [] as string[],
-    floorIds: [] as string[],
-    lineIds: [] as string[],
-    deviceIds: [] as string[],
-    dateRange: {
-      start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      end: new Date().toISOString().split("T")[0],
-    },
+    factoryId: "",
+    buildingId: "",
+    timeRange: "30d",
   })
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -96,22 +88,14 @@ export default function ReportsPage() {
   const handleCreateReport = async () => {
     const user = authService.getCurrentUser()
     try {
-      const reportPayload = {
+      await ReportApiService.createReport({
         name: newReport.name,
-        type: newReport.type,
-        factoryIds: newReport.factoryIds,
-        buildingIds: newReport.buildingIds,
-        floorIds: newReport.floorIds,
-        lineIds: newReport.lineIds,
-        deviceIds: newReport.deviceIds,
-        dateRange: {
-          start: new Date(newReport.dateRange.start).toISOString(),
-          end: new Date(newReport.dateRange.end).toISOString(),
-        },
+        factoryId: newReport.factoryId,
+        buildingId: newReport.buildingId || undefined,
+        timeRange: newReport.timeRange,
         generatedBy: user?.id ?? ""
-      }
-
-      await ReportApiService.createReport(reportPayload)
+      })
+      
       fetchReports()
       setIsCreateDialogOpen(false)
       resetNewReport()
@@ -129,35 +113,28 @@ export default function ReportsPage() {
   const resetNewReport = () => {
     setNewReport({
       name: "",
-      type: "Daily",
-      factoryIds: [],
-      buildingIds: [],
-      floorIds: [],
-      lineIds: [],
-      deviceIds: [],
-      dateRange: {
-        start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        end: new Date().toISOString().split("T")[0],
-      },
+      factoryId: "",
+      buildingId: "",
+      timeRange: "30d",
     })
   }
 
-  const getFilteredDevices = () => {
-    let filtered = devices
-    if (newReport.factoryIds.length > 0) {
-      filtered = filtered.filter((d) => newReport.factoryIds.includes(d.factoryId))
-    }
-    if (newReport.buildingIds.length > 0) {
-      filtered = filtered.filter((d) => newReport.buildingIds.includes(d.buildingId))
-    }
-    if (newReport.floorIds.length > 0) {
-      filtered = filtered.filter((d) => newReport.floorIds.includes(d.floorId))
-    }
-    if (newReport.lineIds.length > 0) {
-      filtered = filtered.filter((d) => newReport.lineIds.includes(d.lineId))
-    }
-    return filtered
-  }
+//   const getFilteredDevices = () => {
+//     let filtered = devices
+//     if (newReport.factoryIds.length > 0) {
+//       filtered = filtered.filter((d) => newReport.factoryIds.includes(d.factoryId))
+//     }
+//     if (newReport.buildingIds.length > 0) {
+//       filtered = filtered.filter((d) => newReport.buildingIds.includes(d.buildingId))
+//     }
+//     if (newReport.floorIds.length > 0) {
+//       filtered = filtered.filter((d) => newReport.floorIds.includes(d.floorId))
+//     }
+//     if (newReport.lineIds.length > 0) {
+//       filtered = filtered.filter((d) => newReport.lineIds.includes(d.lineId))
+//     }
+//     return filtered
+//   }
 
   const downloadReport = async (report: Report, format: "pdf" | "excel") => {
     try {
@@ -221,8 +198,7 @@ export default function ReportsPage() {
                 <DialogDescription>{t("reports.generateReportDescription")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <Label htmlFor="reportName">{t("reports.reportName")}</Label>
                     <Input
                       id="reportName"
@@ -231,133 +207,76 @@ export default function ReportsPage() {
                       placeholder={t("reports.reportNamePlaceholder")}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reportType">{t("reports.reportType")}</Label>
-                    <Select
-                      value={newReport.type}
-                      onValueChange={(value: Report["type"]) => setNewReport({ ...newReport, type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Daily">{t("analytics.daily")}</SelectItem>
-                        <SelectItem value="Weekly">{t("analytics.weekly")}</SelectItem>
-                        <SelectItem value="Monthly">{t("analytics.monthly")}</SelectItem>
-                        <SelectItem value="Custom">{t("analytics.custom")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startDate">{t("reports.startDate")}</Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      value={newReport.dateRange.start}
-                      onChange={(e) =>
-                        setNewReport({
-                          ...newReport,
-                          dateRange: { ...newReport.dateRange, start: e.target.value },
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endDate">{t("reports.endDate")}</Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={newReport.dateRange.end}
-                      onChange={(e) =>
-                        setNewReport({
-                          ...newReport,
-                          dateRange: { ...newReport.dateRange, end: e.target.value },
-                        })
-                      }
-                    />
-                  </div>
+                {/* Time Range Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="timeRange">{t("reports.timeRange")}</Label>
+                  <Select
+                    value={newReport.timeRange}
+                    onValueChange={(value) => setNewReport({ ...newReport, timeRange: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1d">Last 24 Hours</SelectItem>
+                      <SelectItem value="7d">Last 7 Days</SelectItem>
+                      <SelectItem value="30d">Last 30 Days</SelectItem>
+                      <SelectItem value="90d">Last 90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Factory Selection */}
                 <div className="space-y-2">
-                  <Label>{t("filters.selectFactory")}</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {factories.map((factory) => (
-                      <div key={factory.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`factory-${factory.id}`}
-                          checked={newReport.factoryIds.includes(factory.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setNewReport((prev) => ({
-                                ...prev,
-                                factoryIds: [...prev.factoryIds, factory.id],
-                              }))
-                            } else {
-                              setNewReport((prev) => ({
-                                ...prev,
-                                factoryIds: prev.factoryIds.filter((id) => id !== factory.id),
-                                buildingIds: prev.buildingIds.filter((id) => {
-                                    const building = buildings.find((b) => b.id === id)
-                                    return building?.factoryId !== factory.id
-                                }),
-                              }))
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`factory-${factory.id}`} className="text-sm">
+                  <Label htmlFor="factory">{t("filters.selectFactory")}</Label>
+                  <Select
+                    value={newReport.factoryId}
+                    onValueChange={(value) => setNewReport({ ...newReport, factoryId: value, buildingId: "" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select factory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {factories.map((factory) => (
+                        <SelectItem key={factory.id} value={factory.id}>
                           {factory.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Building Selection */}
-                {newReport.factoryIds.length > 0 && (
+                {newReport.factoryId && (
                   <div className="space-y-2">
-                    <Label>{t("filters.selectBuilding")} ({t("filters.optional")})</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {buildings
-                        .filter((building) => newReport.factoryIds.includes(building.factoryId))
-                        .map((building) => (
-                          <div key={building.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`building-${building.id}`}
-                              checked={newReport.buildingIds.includes(building.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setNewReport((prev) => ({
-                                    ...prev,
-                                    buildingIds: [...prev.buildingIds, building.id],
-                                  }))
-                                } else {
-                                  setNewReport((prev) => ({
-                                    ...prev,
-                                    buildingIds: prev.buildingIds.filter((id) => id !== building.id),
-                                  }))
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`building-${building.id}`} className="text-sm">
+                    <Label htmlFor="building">{t("filters.selectBuilding")} ({t("filters.optional")})</Label>
+                    <Select
+                      value={newReport.buildingId || undefined}
+                      onValueChange={(value) => setNewReport({ ...newReport, buildingId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select building (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {buildings
+                          .filter((building) => building.factoryId === newReport.factoryId)
+                          .map((building) => (
+                            <SelectItem key={building.id} value={building.id}>
                               {building.name}
-                            </Label>
-                          </div>
-                        ))}
-                    </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
-                <div className="text-sm text-gray-600">{t("filters.range")}: {getFilteredDevices().length} {t("layouts.devices")}</div>
+                {/* <div className="text-sm text-gray-600">{t("filters.range")}: {getFilteredDevices().length} {t("layouts.devices")}</div> */}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button onClick={handleCreateReport} disabled={!newReport.name || newReport.factoryIds.length === 0}>
+                <Button onClick={handleCreateReport} disabled={!newReport.name || !newReport.factoryId}>
                   {t("reports.generateReport")}
                 </Button>
               </DialogFooter>
