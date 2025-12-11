@@ -2,11 +2,11 @@
 
 import type React from "react"
 
+import { authService } from "@/lib/auth"
 import { useAppStore } from "@/lib/store"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Sidebar, navigation } from "./sidebar"
-import { authService } from "@/lib/auth"
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -26,22 +26,27 @@ export function MainLayout({ children }: MainLayoutProps) {
   }, [checkAuthStatus])
 
   useEffect(() => {
-    if (!isCheckingAuth && !isAuthenticated || pathname === "/") {
+    // Chờ auth check hoàn thành trước
+    if (isCheckingAuth) {
+      return
+    }
+
+    // Redirect về login nếu chưa authenticated
+    if (!isAuthenticated) {
       router.push("/login")
       return
     }
 
-    if (!isCheckingAuth && isAuthenticated) {
-      const currentRoute = navigation.find(item => item.href === pathname)
-      if (currentRoute && currentRoute.permission) {
-        const access = authService.hasPermission(currentRoute.permission)
-        setHasAccess(access)
-        if (!access) {
-          router.push("/dashboard")
-        }
+    // Kiểm tra quyền truy cập cho route hiện tại
+    const currentRoute = navigation.find(item => item.href === pathname)
+    if (currentRoute && currentRoute.permission) {
+      const access = authService.hasPermission(currentRoute.permission)
+      setHasAccess(access)
+      if (!access) {
+        router.push("/dashboard")
       }
-      setIsCheckingAccess(false)
     }
+    setIsCheckingAccess(false)
   }, [isAuthenticated, isCheckingAuth, pathname, router])
 
   if (isCheckingAuth || isCheckingAccess) {

@@ -421,6 +421,68 @@ export class AnalyticApiService {
     const response = await api.get(`/v2/analytics/power-trend-device/${deviceId}?timeRange=${timeRange}`);
     return response.data.data;
   }
+
+  static async getPerformanceIssues(filters: {
+    timeRange?: string
+    factoryId?: string
+    lineId?: string
+    page?: number
+    limit?: number
+  }) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
+    }
+    const response = await api.get(`/v2/analytics/performance-issues?${params.toString()}`);
+    return response.data.data;
+  }
+
+  static async getKPIData(filters: {
+    timeRange?: string
+    factoryId?: string
+    lineId?: string
+  }) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
+    }
+    const response = await api.get(`/v2/analytics/kpi-data?${params.toString()}`);
+    return response.data.data;
+  }
+
+  static async getTrendAnalysis(filters: {
+    timeRange?: string
+    factoryId?: string
+  }) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
+    }
+    const response = await api.get(`/v2/analytics/trends?${params.toString()}`);
+    return response.data.data;
+  }
+
+  static async getBuildingComparison(filters: {
+    timeRange?: string
+  }) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
+    }
+    const response = await api.get(`/v2/analytics/comparison?${params.toString()}`);
+    return response.data.data;
+  }
+
+  static async getCostOptimization(filters: {
+    factoryId?: string
+  }) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
+    }
+    const response = await api.get(`/v2/analytics/cost-optimization?${params.toString()}`);
+    return response.data.data;
+  }
 }
 
 // ==================== USER ====================
@@ -480,7 +542,7 @@ export class RoleApiService {
     return response.data.data;
   }
 
-  static async updateRole(id: string, roleData: { description?: string }) {
+  static async updateRole(id: string, roleData: { description?: string; alertSeverity?: string[] }) {
     const response = await api.put(`/roles/${id}`, roleData);
     return response.data.data;
   }

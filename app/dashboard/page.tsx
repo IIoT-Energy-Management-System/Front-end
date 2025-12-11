@@ -250,6 +250,36 @@ export default function DashboardPage() {
                         </h1>
                         <p className="text-gray-600 mt-2">{t('dashboard.pageSubtitle')}</p>
                         <p>{currentTime.toLocaleString("vi-VN")}</p>
+                        <p>Công ty: {factories.find(f => f.id === selectedFactory)?.name || "Tất cả"}</p>
+                        <p>Ca: {shifts.find(s => s.id === selectedShift)?.name || "Tất cả"} - ({(() => {
+                          const shift = shifts.find(s => s.id === selectedShift);
+                          if (!shift) return "00:00 - 23:59";
+                          
+                          // Helper function to format time - handles both ISO datetime and time string
+                          const formatTimeToHHMM = (timeString: string): string => {
+                                if (!timeString) return "00:00"
+                                
+                                // Nếu đã là HH:MM, trả về luôn
+                                if (/^\d{2}:\d{2}$/.test(timeString)) {
+                                return timeString
+                                }
+                                
+                                // Nếu là ISO string, parse và format
+                                try {
+                                const date = new Date(timeString)
+                                const hours = date.getUTCHours().toString().padStart(2, '0')
+                                const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+                                return `${hours}:${minutes}`
+                                } catch (error) {
+                                console.error('Error parsing time:', timeString, error)
+                                return "00:00"
+                                }
+                            }
+                          
+                          const startTime = formatTimeToHHMM(shift.startTime);
+                          const endTime = formatTimeToHHMM(shift.endTime);
+                          return `${startTime} - ${endTime}`;
+                        })()})</p>
                     </div>
                     <div className="flex items-center gap-4">
                         {/* Factory Select */}
@@ -321,7 +351,7 @@ export default function DashboardPage() {
 
                     <KPICard
                       title={t('dashboard.currentPower')}
-                      value={(stats.currentPower || 0).toFixed(2)}
+                      value={(stats.currentPower.toLocaleString('vi-VN', { style: 'decimal'}) || 0)}
                       unit="kW"
                       trend={Number(stats.powerTrend) || 0}
                       icon={Zap}
@@ -350,8 +380,8 @@ export default function DashboardPage() {
                     </Card> */}
                     <KPICard
                       title={t('dashboard.monthlyC')}
-                      value={stats.monthlyCost > 1000000 ? stats.monthlyCost / 1000000 : (new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.monthlyCost || 0))}
-                      unit={stats.monthlyCost > 1000000 ? 'triệu' : ''}
+                      value={stats.monthlyCost > 1000000 ? (stats.monthlyCost / 1000000).toLocaleString('vi-VN') : (new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.monthlyCost || 0))}
+                      unit={stats.monthlyCost > 1000000 ? 'triệu VND' : ''}
                       trend={Number(stats.costTrend) || 0}
                       icon={Activity}
                       color="border-green-500"

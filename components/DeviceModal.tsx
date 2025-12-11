@@ -34,6 +34,7 @@ import {
 import { useEffect, useState } from "react"
 import { toast } from 'sonner'
 import ConnectionModal from "./ConnectionModal"
+import { PermissionGuard } from "./PermissionGuard"
 
 interface DeviceModalProps {
   isOpen: boolean
@@ -924,14 +925,16 @@ return (
 
         <DialogFooter className="gap-2">
         {mode === "view" && (
-          <Button 
-            variant="default" 
-            onClick={() => onModeChange && onModeChange("edit")}
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            {t("common.edit") || "Edit"}
-          </Button>
+            <PermissionGuard permission="device.edit">
+                <Button 
+                    variant="default" 
+                    onClick={() => onModeChange && onModeChange("edit")}
+                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    {t("common.edit") || "Edit"}
+                </Button>
+            </PermissionGuard>
         )}
         <Button variant="outline" onClick={onClose}>
             {isReadOnly ? (t("common.close") || "Close") : (t("common.cancel") || "Cancel")}

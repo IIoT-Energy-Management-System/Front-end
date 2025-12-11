@@ -434,6 +434,7 @@ export interface Role {
     permissions?: string[];
     permissionCount?: number;
     userCount?: number;
+    alertSeverity?: string[];
 }
 
 export interface ApiPermission {

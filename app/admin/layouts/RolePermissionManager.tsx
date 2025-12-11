@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePermissionApi, useRoleApi } from '@/lib/api';
 import { authService } from '@/lib/auth';
+import { useTranslation } from '@/lib/i18n';
 import type { ApiPermission, Permission, Role } from '@/lib/types';
 import {
     AlertTriangle,
@@ -22,7 +23,6 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { useTranslation } from '@/lib/i18n';
 
 
 const inferCategory = (key: string): 'Devices' | 'Layouts' | 'Analytics' | 'Reports' | 'Alerts' | 'Admin' | 'Users' | 'Settings' => {
@@ -159,6 +159,24 @@ const RolePermissionManager: React.FC = () => {
     setHasChanges(true);
   };
 
+  const handleAlertSeverityChange = (severity: string, checked: boolean) => {
+    if (!currentRole) return;
+    
+    setRoles(prev => prev.map(role => {
+      if (role.id === selectedRole) {
+        const currentSeverities = role.alertSeverity || [];
+        const newSeverities = checked
+          ? [...currentSeverities, severity]
+          : currentSeverities.filter(s => s !== severity);
+        
+        return { ...role, alertSeverity: newSeverities };
+      }
+      return role;
+    }));
+    
+    setHasChanges(true);
+  };
+
   const handleSelectAllCategory = (category: string, checked: boolean) => {
     const categoryPermissions = getPermissionsByCategory(category).map(p => p.key);
     
@@ -201,20 +219,23 @@ const RolePermissionManager: React.FC = () => {
             throw new Error('Vai trò không hợp lệ');
         }
         
-        const response = await usePermissionApi().updateRolePermissions(currentRole.id, currentRole.permissions || []);
-        if (response) {
-            setHasChanges(false);
-            // Optionally, refetch roles to ensure data consistency
-            const updatedRole = await getRoleDetail(currentRole.id);
-            setRoles(prevRoles => prevRoles.map(r => r.id === updatedRole.id ? updatedRole : r));
+        // Update permissions
+        await usePermissionApi().updateRolePermissions(currentRole.id, currentRole.permissions || []);
+        
+        // Update role (including alertSeverity)
+        await useRoleApi().updateRole(currentRole.id, {
+            description: currentRole.description,
+            alertSeverity: currentRole.alertSeverity
+        });
+        setHasChanges(false);
+        // Optionally, refetch roles to ensure data consistency
+        const updatedRole = await getRoleDetail(currentRole.id);
+        setRoles(prevRoles => prevRoles.map(r => r.id === updatedRole.id ? updatedRole : r));
 
-            toast.success('Lưu thành công!', {
+        toast.success('Lưu thành công!', {
                 description: `Quyền của ${currentRole.name} đã được cập nhật.`,
             });
             setLoading(false);
-        } else {
-            throw new Error('Failed to update permissions');
-        }
     } catch (err) {
         toast.error('Lưu thất bại: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
@@ -428,13 +449,46 @@ const RolePermissionManager: React.FC = () => {
             {currentRole && (
               <div>
                 <div className="mb-4 sm:mb-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 justify-center items-center">
+                  <div>
                     <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{currentRole.name}</h3>
-                  </div>
                   <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">{currentRole.description}</p>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                     <span>{currentRole.userCount || 0} {t("user")}</span>
                     <span>{currentRole.permissionCount || currentRole.permissions?.length || 0} {t("role.permissions").toLowerCase()}</span>
+                  </div>
+
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        {/* <Mail className="w-5 h-5" /> */}
+                        Email Alert Notifications
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                        Select which alert severity types this role should receive via email
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {['Critical', 'High', 'Medium', 'Low', 'Info'].map((severity) => (
+                        <label
+                            key={severity}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                            currentRole.alertSeverity?.includes(severity)
+                                ? 'bg-purple-100 border-purple-300'
+                                : 'bg-white border-gray-300 hover:border-gray-400'
+                            }`}
+                        >
+                            <input
+                            type="checkbox"
+                            checked={currentRole.alertSeverity?.includes(severity) || false}
+                            onChange={(e) => handleAlertSeverityChange(severity, e.target.checked)}
+                            disabled={!authService.hasPermission('role.edit')}
+                            className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                            />
+                            <span className="font-medium text-sm">{severity}</span>
+                        </label>
+                        ))}
+                    </div>
+                    </div>
                   </div>
                 </div>
 

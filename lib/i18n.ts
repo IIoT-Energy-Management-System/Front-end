@@ -25,7 +25,7 @@ export const translations = {
     "dashboard.allCompany": "All Company",
     "dashboard.allShifts": "All Shifts",
     "dashboard.currentPower": "Current Power",
-    "dashboard.monthlyC": "Monthly Cost",
+    "dashboard.monthlyC": "Current Cost",
     "dashboard.activeAlerts": "Active Alerts",
     "dashboard.systemUptime": "System Uptime",
     "dashboard.requiresAttention": "Requires attention",
@@ -396,6 +396,7 @@ export const translations = {
     "analytics.performance.rootCausesIdentified": "Root Causes Identified",
     "analytics.performance.viewDetails": "View Details",
     "analytics.performance.maintenance": "Maintenance",
+    "analytics.performance.currentEfficiency": "Current Efficiency",
 
     // Cost Optimization Tab
     "analytics.cost.costBreakdown": "Cost Breakdown",
@@ -802,7 +803,7 @@ export const translations = {
     "dashboard.allCompany": "Toàn công ty",
     "dashboard.allShifts": "Tất cả ca",
     "dashboard.currentPower": "Công suất hiện tại",
-    "dashboard.monthlyC": "Chi phí tháng",
+    "dashboard.monthlyC": "Chi phí hiện tại",
     "dashboard.activeAlerts": "Cảnh báo đang hoạt động",
     "dashboard.systemUptime": "Thời gian hoạt động hệ thống",
     "dashboard.requiresAttention": "Cần chú ý",
@@ -1188,6 +1189,7 @@ export const translations = {
     "analytics.performance.rootCausesIdentified": "Nguyên nhân gốc rễ đã xác định",
     "analytics.performance.viewDetails": "Xem chi tiết",
     "analytics.performance.maintenance": "Bảo trì",
+    "analytics.performance.currentEfficiency": "Hiệu suất hiện tại",
 
     "analytics.cost.costBreakdown": "Phân tích chi phí",
     "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng trong 7 ngày",

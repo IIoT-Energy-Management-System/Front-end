@@ -9,7 +9,7 @@ import { useTranslation } from "@/lib/i18n"
 // import { useAppStore } from "@/lib/store"
 // import type { RolePermissions } from "@/lib/types"
 import { useAppStore } from "@/lib/store"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Backup from "./layouts/Backup"
 import DatabaseSettings from "./layouts/DatabaseSettings"
 import EnergySettings from "./layouts/EnergySettings"
@@ -20,14 +20,23 @@ import ShiftManagement from "./layouts/ShiftManagement"
 import UserManagement from "./layouts/UserManagement"
 
 export default function AdminPage() {
-    const { user } = useAppStore()
-  const [activeTab, setActiveTab] = useState(user?.permissions?.includes("user.view") ? "users" : "database")
+  const { user, isCheckingAuth } = useAppStore()
+  const [activeTab, setActiveTab] = useState<string>("")
+  const { t } = useTranslation()
+
+  // Set activeTab sau khi user đã được load
+  useEffect(() => {
+    if (!isCheckingAuth && user) {
+      const defaultTab = user.permissions?.includes("user.view") ? "users" : "database"
+      setActiveTab(defaultTab)
+    }
+  }, [user, isCheckingAuth])
+
 //   const [rolePermissions, setRolePermissions] = useState<Map<string, RolePermissions>>(new Map())
 //   const [isRolePermissionDialogOpen, setIsRolePermissionDialogOpen] = useState(false)
 //   const [selectedRole, setSelectedRole] = useState<string>("")
 
 //   const { factories } = useAppStore()
-  const { t } = useTranslation()
 
 //   const loadRolePermissions = async () => {
 //     try {
@@ -86,14 +95,23 @@ export default function AdminPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
-            <p className="text-gray-600">{t("settings.description")}</p>
+      {/* Hiển thị loading khi đang check auth hoặc chưa có activeTab */}
+      {(isCheckingAuth || !activeTab) ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading...</p>
           </div>
         </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
+              <p className="text-gray-600">{t("settings.description")}</p>
+            </div>
+          </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="flex overflow-x-auto pb-2 *:w-full">
@@ -227,6 +245,7 @@ export default function AdminPage() {
           </TabsContent>
         </Tabs>
       </div>
+      )}
     </MainLayout>
   )
 }

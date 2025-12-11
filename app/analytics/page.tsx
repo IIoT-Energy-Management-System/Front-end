@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AnalyticApiService, BASE_API_URL, BuildingApiService, DeviceApiService, FactoryApiService, FloorApiService, LineApiService } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
@@ -30,8 +31,6 @@ import {
     CartesianGrid,
     Cell,
     Legend,
-    Line,
-    LineChart,
     Pie,
     PieChart,
     ResponsiveContainer,
@@ -108,7 +107,7 @@ export default function AnalyticsPage() {
   const [selectedFactory, setSelectedFactory] = useState("all")
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [socket, setSocket] = useState<Socket | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("performance")
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set(["performance"]))
   const [page, setPage] = useState(1)
@@ -228,6 +227,7 @@ export default function AnalyticsPage() {
         case 'floor':
           // Fetch lines for this floor
           const lines = await LineApiService.getLinesByFloor(currentLevel.id)
+          console.log("lines: ", lines)
           items = lines.map((l: any) => ({
             id: l.id,
             name: l.name,
@@ -256,7 +256,8 @@ export default function AnalyticsPage() {
       if (items.length > 0 && currentLevel.type !== 'line') {
         const metricsPromises = items.map(async (item) => {
           try {
-            const response = await AnalyticApiService.getHierarchy(timeRange, item.type, item.id)
+            const response = await AnalyticApiService.getHierarchy("1h", item.type, item.id)
+            console.log("response: ", response)
             return {
               ...item,
               ...response
@@ -266,10 +267,8 @@ export default function AnalyticsPage() {
             return item
           }
         })
-        
         items = await Promise.all(metricsPromises)
       }
-      console.log(items)
       setHierarchyItems(items)
     } catch (error) {
       console.error('Error fetching hierarchy data:', error)
@@ -296,6 +295,7 @@ export default function AnalyticsPage() {
   // Fetch hierarchy data when path changes
   useEffect(() => {
     const currentLevel = hierarchyPath[hierarchyPath.length - 1]
+    console.log("hierarchy: ", currentLevel)
     if (currentLevel.type !== 'line') {
       fetchHierarchyData(currentLevel)
     }
@@ -339,27 +339,78 @@ export default function AnalyticsPage() {
     
     try {
       await DeviceApiService.updateDeviceStatus(issue.deviceId, 'Maintenance')
-      alert(`Device "${issue.device}" has been set to Maintenance mode.`)
-      // Optionally refresh the data
-      // You might want to remove this device from the performance issues list
-      // or update its status in the UI
+      
+      // Remove this device from performance issues list
+      setAnalyticsData(prev => ({
+        ...prev,
+        performanceIssues: prev?.performanceIssues?.filter(p => p.deviceId !== issue.deviceId) || []
+      } as AnalyticsData))
+      
+      // Show success notification (you can use toast library if available)
+      alert(`✅ Device "${issue.device}" has been set to Maintenance mode and removed from performance issues.`)
     } catch (error) {
       console.error('Error setting device to maintenance:', error)
-      alert('Failed to set device to maintenance mode. Please try again.')
+      alert('❌ Failed to set device to maintenance mode. Please try again.')
     }
   }
 
-  // Map tab names to backend sections
-  const tabToSection: Record<string, string> = {
-    performance: "performance",
-    trends: "trends",
-    comparison: "comparison",
-    cost: "cost",
-    carbon: "carbon",
-    forecast: "forecast",
+  // Fetch KPI data on mount
+  const fetchKPIData = async () => {
+    try {
+        setIsLoading(true)
+      const data = await AnalyticApiService.getKPIData({
+        timeRange,
+        factoryId: selectedFactory
+      })
+      
+      setAnalyticsData(prev => ({
+        ...prev,
+        kpiData: data,
+        metadata: {
+          timeRange,
+          factoryId: selectedFactory,
+          generatedAt: new Date().toISOString()
+        }
+      } as AnalyticsData))
+    } catch (error) {
+      console.error('Error fetching KPI data:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Initialize WebSocket connection
+  // Fetch tab-specific data
+  const fetchTabData = async (tab: string) => {
+    try {
+      let data: any
+      
+      switch (tab) {
+        case 'trends':
+          data = await AnalyticApiService.getTrendAnalysis({
+            timeRange,
+            factoryId: selectedFactory
+          })
+          setAnalyticsData(prev => ({ ...prev, trendAnalysis: data } as AnalyticsData))
+          break
+          
+        case 'comparison':
+          data = await AnalyticApiService.getBuildingComparison({ timeRange })
+          setAnalyticsData(prev => ({ ...prev, buildingComparison: data } as AnalyticsData))
+          break
+          
+        case 'cost':
+          data = await AnalyticApiService.getCostOptimization({ factoryId: selectedFactory })
+          setAnalyticsData(prev => ({ ...prev, costOptimization: data } as AnalyticsData))
+          break
+      }
+      
+      setLoadedTabs(prev => new Set(prev).add(tab))
+    } catch (error) {
+      console.error(`Error fetching ${tab} data:`, error)
+    }
+  }
+
+  // Initialize WebSocket connection for real-time updates only
   useEffect(() => {
     const apiUrl = BASE_API_URL
     console.log("🔌 Connecting to WebSocket at:", apiUrl)
@@ -369,12 +420,10 @@ export default function AnalyticsPage() {
     })
 
     socketInstance.on("connect", () => {
-      console.log("✅ Connected to WebSocket, socket ID:", socketInstance.id)
-      
-      // Subscribe to initial tab (performance)
-      console.log("📤 Subscribing to initial section:", { section: "performance", filters: { timeRange, factoryId: selectedFactory, page, limit } })
+      console.log("✅ Connected to WebSocket for real-time updates, socket ID:", socketInstance.id)
+      console.log("📤 Subscribing to initial section:", { section: "hierarchy", filters: { timeRange, factoryId: selectedFactory, page, limit } })
       socketInstance.emit("subscribe-analytics-section", {
-        section: "performance",
+        section: "hierarchy",
         filters: {
           timeRange,
           factoryId: selectedFactory,
@@ -384,20 +433,11 @@ export default function AnalyticsPage() {
       })
     })
 
+    // Handle real-time analytics data updates
     socketInstance.on("analytics-data", (data) => {
-      console.log("📊 Received analytics data:", data)
+      console.log("📊 Received real-time analytics update:", data)
       setAnalyticsData(prev => {
         if (!prev) return data.data
-        
-        // If it's a pagination update for performance issues, append the data
-        if (data.filters?.page > 1 && data.data.performanceIssues) {
-           return {
-             ...prev,
-             ...data.data,
-             performanceIssues: [...prev.performanceIssues, ...data.data.performanceIssues],
-             metadata: data.data.metadata
-           }
-        }
         
         return {
           ...prev,
@@ -405,17 +445,24 @@ export default function AnalyticsPage() {
           metadata: data.data.metadata
         }
       })
-      setIsLoading(false)
     })
 
     socketInstance.on("analytics-error", (error) => {
       console.error("❌ Analytics error:", error)
-      setIsLoading(false)
     })
 
+    // Handle real-time performance issue alerts
     socketInstance.on("performance-issue", (data) => {
       console.log("⚠️ New performance issue:", data)
-      // Handle real-time performance issue alerts
+      // Add new performance issue to the list
+      setAnalyticsData(prev => {
+        if (!prev?.performanceIssues) return prev as AnalyticsData
+        
+        return {
+          ...prev,
+          performanceIssues: [data, ...prev.performanceIssues]
+        }
+      })
     })
 
     socketInstance.on("disconnect", () => {
@@ -424,25 +471,35 @@ export default function AnalyticsPage() {
     
     socketInstance.on("connect_error", (error) => {
       console.error("❌ Connection error:", error)
-      setIsLoading(false)
     })
 
     setSocket(socketInstance)
 
     return () => {
       console.log("🔌 Cleaning up WebSocket connection")
-      socketInstance.emit("unsubscribe-analytics")
       socketInstance.disconnect()
     }
   }, [])
 
-  // Handle tab change and lazy loading
+  // Fetch initial KPI data on mount
+  useEffect(() => {
+    fetchKPIData()
+  }, [])
+ const tabToSection: Record<string, string> = {
+    performance: "performance",
+    trends: "trends",
+    comparison: "comparison",
+    cost: "cost",
+    // carbon: "carbon",
+    // forecast: "forecast",
+ }
+  // Handle tab change and lazy loading via API
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     const section = tabToSection[value]
     
-    if (section && !loadedTabs.has(value) && socket?.connected) {
-      console.log(`🔄 Lazy loading section: ${section}`)
+    if (!loadedTabs.has(value) && socket?.connected && section) {
+      console.log(`🔄 Lazy loading section: ${value}`)
       socket.emit("subscribe-analytics-section", {
         section,
         filters: {
@@ -450,82 +507,134 @@ export default function AnalyticsPage() {
           factoryId: selectedFactory,
         }
       })
-      setLoadedTabs(prev => new Set(prev).add(value))
+      fetchTabData(value)
     }
   }
 
-  // Handle load more
-  const handleLoadMore = () => {
-    if (socket && socket.connected) {
-      const nextPage = page + 1
-      setPage(nextPage)
-      console.log(`🔄 Loading more performance issues (page ${nextPage})`)
-      socket.emit("subscribe-analytics-section", {
-        section: "performance",
-        filters: {
-          timeRange,
-          factoryId: selectedFactory,
-          page: nextPage,
-          limit
-        }
-      })
-    }
-  }
-
-  // Update filters
-  useEffect(() => {
-    if (socket && socket.connected) {
-      // Reset loaded tabs when filters change, but keep active tab
-      setLoadedTabs(new Set([activeTab]))
-      console.log("loadedTab", Array.from(loadedTabs))
-      setPage(1) // Reset page
-      
-      socket.emit("update-analytics-filters", {
+  // Handle load more via API
+  const handleLoadMore = async () => {
+    const nextPage = page + 1
+    setPage(nextPage)
+    console.log(`🔄 Loading more performance issues (page ${nextPage})`)
+    
+    try {
+      const currentLevel = hierarchyPath[hierarchyPath.length - 1]
+      const issues = await AnalyticApiService.getPerformanceIssues({
         timeRange,
-        factoryId: selectedFactory,
+        lineId: currentLevel.type === 'line' ? currentLevel.id : undefined,
+        page: nextPage,
+        limit
+      })
+      
+      setAnalyticsData(prev => ({
+        ...prev,
+        performanceIssues: [...(prev?.performanceIssues || []), ...(issues.performanceIssues || [])],
+        performanceIssuesPagination: issues.performanceIssuesPagination
+      } as AnalyticsData))
+    } catch (error) {
+      console.error('Error loading more performance issues:', error)
+    }
+  }
+
+  // Update filters - refetch data when filters change
+  useEffect(() => {
+    // Reset loaded tabs when filters change
+    setIsLoading(true)
+    try {
+        setLoadedTabs(new Set(['performance']))
+        setPage(1)
+        
+        // Refetch KPI data with new filters
+        fetchKPIData()
+        
+        if (socket && socket.connected) {
+            socket.emit("update-analytics-filters", {
+                timeRange,
+                factoryId: selectedFactory,
+                page: 1,
+                limit
+            })
+        }
+        // Refetch active tab data if not performance
+        if (activeTab !== 'performance' && loadedTabs.has(activeTab)) {
+            fetchTabData(activeTab)
+        }
+    } catch (error) {
+        console.error('Error updating filters:', error)
+    } finally {
+        setIsLoading(false)
+    }
+    
+  }, [timeRange, selectedFactory, socket])
+
+  // Fetch performance issues when navigating to line level via API
+  useEffect(() => {
+    const currentLevel = hierarchyPath[hierarchyPath.length - 1]
+    
+    if (currentLevel.type === 'line' && activeTab === 'performance') {
+      console.log(`🔍 Fetching performance issues for line: ${currentLevel.id}`)
+      setIsLoadingHierarchy(true)
+      setPage(1)
+
+        if (socket && socket.connected) {
+            socket.emit("subscribe-analytics-section", {
+                section: "performance",
+                filters: {
+                    timeRange,
+                    lineId: currentLevel.id,
+                    page: 1,
+                    limit
+                }
+            })
+        }
+      
+      // Fetch performance issues for this specific line
+      AnalyticApiService.getPerformanceIssues({
+        timeRange,
+        lineId: currentLevel.id,
         page: 1,
         limit
       })
-      setIsLoading(true)
+        .then(issues => {
+            console.log('Performance issues:', issues)
+          setAnalyticsData(prev => ({
+            ...prev,
+            performanceIssues: issues.data || [],
+            performanceIssuesPagination: issues.pagination
+          } as AnalyticsData))
+          setIsLoadingHierarchy(false)
+        })
+        .catch(error => {
+          console.error('Error fetching performance issues:', error)
+          setIsLoadingHierarchy(false)
+        })
+    } else {
+      // Clear performance issues when not at line level
+      setAnalyticsData(prev => ({
+        ...prev,
+        performanceIssues: [],
+        performanceIssuesPagination: undefined
+      } as AnalyticsData))
     }
-  }, [timeRange, selectedFactory, socket])
-
-  // Fetch performance issues when navigating to line level
-  useEffect(() => {
-    const currentLevel = hierarchyPath[hierarchyPath.length - 1]
-    
-    if (currentLevel.type === 'line' && socket && socket.connected) {
-      console.log(`🔍 Fetching performance issues for line: ${currentLevel.id}`)
-      
-      // Subscribe to performance issues for this line
-      socket.emit("update-analytics-filters", {
-          timeRange,
-          lineId: currentLevel.id,
-          page: 1,
-          limit
-      })
-      
-      setIsLoading(true)
-    }
-  }, [hierarchyPath, socket, timeRange, limit])
+  }, [hierarchyPath, timeRange, limit, socket])
 
   // Subscribe to hierarchy metrics when path changes
-  useEffect(() => {
-    const currentLevel = hierarchyPath[hierarchyPath.length - 1]
+//   useEffect(() => {
+//     const currentLevel = hierarchyPath[hierarchyPath.length - 1]
     
-    if (socket && socket.connected && currentLevel.type !== 'all' && currentLevel.type !== 'line') {
-      console.log(`🔍 Subscribing to hierarchy metrics for: ${currentLevel.type} ${currentLevel.id}`)
+//     if (socket && socket.connected && currentLevel.type !== 'all' && currentLevel.type !== 'line') {
+//       console.log(`🔍 Subscribing to hierarchy metrics for: ${currentLevel.type} ${currentLevel.id}`)
       
-      socket.emit("subscribe-analytics-section", {
-          section: "hierarchy",
-          filters: {
-              timeRange,
-              hierarchyType: currentLevel.type,
-              hierarchyId: currentLevel.id
-          }
-      })
-    }
-  }, [hierarchyPath, socket, timeRange])
+//       socket.emit("subscribe-analytics-section", {
+//           section: "hierarchy",
+//           filters: {
+//               timeRange,
+//               hierarchyType: currentLevel.type,
+//               hierarchyId: currentLevel.id
+//           }
+//       })
+//     }
+//   }, [hierarchyPath, socket, timeRange])
 
   if (isLoading) {
     return (
@@ -745,6 +854,7 @@ export default function AnalyticsPage() {
           </div>
 
           <Tabs defaultValue="performance" className="w-full" onValueChange={handleTabChange}>
+            <div className="flex justify-between items-center">
             <TabsList className="bg-white border-0 shadow-sm">
               <TabsTrigger value="performance">{t('analytics.tabs.performance')}</TabsTrigger>
               {/* <TabsTrigger value="recommendations">{t('analytics.tabs.recommendations')}</TabsTrigger> */}
@@ -754,6 +864,18 @@ export default function AnalyticsPage() {
               {/* <TabsTrigger value="carbon">{t('analytics.tabs.carbon')}</TabsTrigger>
               <TabsTrigger value="forecast">Forecasting</TabsTrigger> */}
             </TabsList>
+                { activeTab !== "performance" && <Select value={timeRange} onValueChange={setTimeRange}>
+                                <SelectTrigger className="w-32">
+                                    <SelectValue placeholder="Time Range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1h">Last Hour</SelectItem>
+                                    <SelectItem value="24h">Last 24h</SelectItem>
+                                    <SelectItem value="7d">Last 7 days</SelectItem>
+                                    <SelectItem value="30d">Last 30 days</SelectItem>
+                                </SelectContent>
+                            </Select>}
+            </div>
 
             {/* Performance Issues Tab */}
             <TabsContent value="performance" className="space-y-6 mt-6">
@@ -913,7 +1035,13 @@ export default function AnalyticsPage() {
               </div>
 
               {/* Hierarchy Items Grid or Performance Issues */}
-              {hierarchyPath[hierarchyPath.length - 1].type === 'line' ? (
+              {isLoadingHierarchy ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-slate-600 mt-4">{t('analytics.performance.loadingHierarchy')}</p>
+                  </div>
+                ) : hierarchyPath[hierarchyPath.length - 1].type === 'line' ? (
+                 
                 // Show performance issues when at device level
                 analyticsData?.performanceIssues && analyticsData.performanceIssues.length > 0 ? (
                 <>
@@ -963,12 +1091,12 @@ export default function AnalyticsPage() {
                                 </Badge>
                                 <span className="text-sm text-slate-600">{issue.location}</span>
                                 <span className="text-xs text-slate-500">
-                                  Last updated: {new Date().toLocaleTimeString()}
+                                  {t('common.lastUpdated')}: {new Date().toLocaleTimeString()}
                                 </span>
                               </div>
                               <CardTitle className="text-xl">{issue.device}</CardTitle>
-                              <CardDescription className="mt-1">
-                                Current Efficiency: 
+                              <CardDescription className="mt-1 gap-2 flex">
+                                {t('analytics.performance.currentEfficiency')}: 
                                 <span className={`font-bold ${
                                   issue.efficiency < 70 ? 'text-red-600' : 
                                   issue.efficiency < 85 ? 'text-amber-600' : 'text-green-600'
@@ -1081,12 +1209,7 @@ export default function AnalyticsPage() {
             ) : (
               // Show hierarchy items grid when not at device level
               <div>
-                {isLoadingHierarchy ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-slate-600 mt-4">{t('analytics.performance.loadingHierarchy')}</p>
-                  </div>
-                ) : hierarchyItems.length > 0 ? (
+                {hierarchyItems.length > 0 ? (
                   <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                     {hierarchyItems.map((item) => (
                       <Card
@@ -1140,244 +1263,10 @@ export default function AnalyticsPage() {
             )}
             </TabsContent>
 
-            {/* Action Recommendations Tab */}
-            <TabsContent value="recommendations" className="space-y-6 mt-6">
-              {analyticsData?.recommendations && analyticsData.recommendations.length > 0 ? (
-                <>
-                  {/* Recommendations Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                            <AlertTriangle className="h-5 w-5 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-red-900">Critical Actions</p>
-                            <p className="text-2xl font-bold text-red-700">
-                              {analyticsData.recommendations.filter(r => r.priority === 'critical').length}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-r from-amber-50 to-amber-100 border-amber-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                            <AlertTriangle className="h-5 w-5 text-amber-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-amber-900">High Priority</p>
-                            <p className="text-2xl font-bold text-amber-700">
-                              {analyticsData.recommendations.filter(r => r.priority === 'high').length}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <BarChart3 className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-blue-900">Medium Priority</p>
-                            <p className="text-2xl font-bold text-blue-700">
-                              {analyticsData.recommendations.filter(r => r.priority === 'medium').length}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                            <Leaf className="h-5 w-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-green-900">Total Savings</p>
-                            <p className="text-2xl font-bold text-green-700">
-                              {(analyticsData.recommendations.reduce((sum, r) => sum + r.estimatedSavings, 0) / 1000000).toFixed(1)}M
-                            </p>
-                            <p className="text-xs text-green-600">VND/month</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Recommendations List */}
-                  <div className="space-y-4">
-                    {analyticsData.recommendations.map((rec, index) => (
-                      <Card
-                        key={index}
-                        className={`border-l-4 ${
-                          rec.priority === 'critical' ? 'border-l-red-500 bg-red-50/50' :
-                          rec.priority === 'high' ? 'border-l-amber-500 bg-amber-50/50' :
-                          rec.priority === 'medium' ? 'border-l-blue-500 bg-blue-50/50' :
-                          'border-l-green-500 bg-green-50/50'
-                        }`}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between gap-6">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3">
-                                <Badge
-                                  className={`${
-                                    rec.priority === 'critical' ? 'bg-red-600 text-white' :
-                                    rec.priority === 'high' ? 'bg-amber-600 text-white' :
-                                    rec.priority === 'medium' ? 'bg-blue-600 text-white' :
-                                    'bg-green-600 text-white'
-                                  }`}
-                                >
-                                  {rec.priority.toUpperCase()} PRIORITY
-                                </Badge>
-                                <Badge variant="outline" className="text-slate-600">
-                                  {rec.category.replace('_', ' ').toUpperCase()}
-                                </Badge>
-                              </div>
-
-                              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                                {getTranslationText(rec.title)}
-                              </h3>
-
-                              <p className="text-slate-700 mb-4">
-                                {getTranslationText(rec.description)}
-                              </p>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                  <Zap className="h-4 w-4 text-blue-600" />
-                                  <span className="text-slate-600">Impact:</span>
-                                  <span className="font-medium text-slate-900">{getTranslationText(rec.impact)}</span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <BarChart3 className="h-4 w-4 text-green-600" />
-                                  <span className="text-slate-600">Action:</span>
-                                  <span className="font-medium text-slate-900">{getTranslationText(rec.action)}</span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <Leaf className="h-4 w-4 text-green-600" />
-                                  <span className="text-slate-600">Savings:</span>
-                                  <span className="font-bold text-green-700">
-                                    {(rec.estimatedSavings / 1000).toFixed(0)}K VND/month
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2 min-w-[140px]">
-                              <Button
-                                className={`w-full ${
-                                  rec.priority === 'critical' ? 'bg-red-600 hover:bg-red-700' :
-                                  rec.priority === 'high' ? 'bg-amber-600 hover:bg-amber-700' :
-                                  rec.priority === 'medium' ? 'bg-blue-600 hover:bg-blue-700' :
-                                  'bg-green-600 hover:bg-green-700'
-                                }`}
-                              >
-                                <Zap className="h-4 w-4 mr-2" />
-                                Implement
-                              </Button>
-
-                              <Button variant="outline" className="w-full">
-                                <BarChart3 className="h-4 w-4 mr-2" />
-                                View Details
-                              </Button>
-
-                              <Button variant="outline" className="w-full">
-                                <Download className="h-4 w-4 mr-2" />
-                                Export Plan
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Implementation Timeline */}
-                  <Card className="mt-6">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5" />
-                        Implementation Roadmap
-                      </CardTitle>
-                      <CardDescription>
-                        Suggested timeline for implementing recommendations
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                          <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                            <span className="text-red-700 font-bold">1</span>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-red-900">Week 1: Critical Issues</h4>
-                            <p className="text-sm text-red-700">
-                              Address {analyticsData.recommendations.filter(r => r.priority === 'critical').length} critical recommendations
-                            </p>
-                          </div>
-                          <Badge className="bg-red-100 text-red-700">Immediate</Badge>
-                        </div>
-
-                        <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                          <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
-                            <span className="text-amber-700 font-bold">2</span>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-amber-900">Week 2-4: High Priority</h4>
-                            <p className="text-sm text-amber-700">
-                              Implement {analyticsData.recommendations.filter(r => r.priority === 'high').length} high-priority actions
-                            </p>
-                          </div>
-                          <Badge className="bg-amber-100 text-amber-700">1-4 Weeks</Badge>
-                        </div>
-
-                        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-blue-700 font-bold">3</span>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-blue-900">Month 2-3: Medium Priority</h4>
-                            <p className="text-sm text-blue-700">
-                              Complete {analyticsData.recommendations.filter(r => r.priority === 'medium').length} medium-priority improvements
-                            </p>
-                          </div>
-                          <Badge className="bg-blue-100 text-blue-700">2-3 Months</Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                        <Leaf className="h-8 w-8 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-green-900">Excellent Performance!</h3>
-                        <p className="text-slate-600">No action recommendations needed at this time.</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
             {/* Trend Analysis Tab */}
             <TabsContent value="trends" className="space-y-6 mt-6">
               {analyticsData?.trendAnalysis ? (
+                analyticsData.trendAnalysis.monthlyTrend.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card>
@@ -1491,6 +1380,13 @@ export default function AnalyticsPage() {
                     </Card>
                   </div>
                 </>
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <p className="text-slate-600">No trend data available</p>
+                    </CardContent>
+                  </Card>
+                )
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
@@ -1503,53 +1399,236 @@ export default function AnalyticsPage() {
             {/* Comparison Tab */}
             <TabsContent value="comparison" className="space-y-6 mt-6">
               {analyticsData?.buildingComparison && analyticsData.buildingComparison.length > 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Building Performance Comparison</CardTitle>
-                    <CardDescription>Efficiency and consumption metrics (Average: {(analyticsData.buildingComparison.reduce((total, building) => total + building.consumption, 0) / analyticsData.buildingComparison.length).toFixed(2)} kWh) in 7 days</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {analyticsData.buildingComparison.map((building, index) => (
-                        <div key={index} className="p-4 bg-slate-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-semibold text-slate-900">{building.name}</span>
-                            <Badge
-                              className={
-                                building.efficiency >= 90 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                              }
-                            >
-                              {building.efficiency}% Efficiency
-                            </Badge>
+                <>
+                  {/* Summary Statistics */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-green-600" />
                           </div>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <p className="text-slate-600">Consumption</p>
-                              <p className="font-bold text-slate-900">{building.consumption} kWh</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-600">Cost</p>
-                              <p className="font-bold text-slate-900">{(building.cost / 1000000).toFixed(2)}M VND</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-600">vs Average</p>
-                              <p
-                                className={`font-bold ${building.vsAverage > 0 ? "text-green-600" : "text-red-600"}`}
-                              >
-                                {building.vsAverage > 0 ? "+" : ""}
-                                {building.vsAverage}%
-                              </p>
-                            </div>
+                          <div>
+                            <p className="text-sm font-medium text-green-900">Hiệu suất tốt nhất</p>
+                            <p className="text-lg font-bold text-green-700">
+                              {analyticsData.buildingComparison[0]?.name || 'N/A'}
+                            </p>
+                            <p className="text-xs text-green-600">{analyticsData.buildingComparison[0]?.efficiency}% {t('detail.efficiency')}</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-r from-amber-50 to-amber-100 border-amber-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <AlertTriangle className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-amber-900">Cần cải thiện</p>
+                            <p className="text-lg font-bold text-amber-700">
+                              {analyticsData.buildingComparison[analyticsData.buildingComparison.length - 1]?.name || 'N/A'}
+                            </p>
+                            <p className="text-xs text-amber-600">{analyticsData.buildingComparison[analyticsData.buildingComparison.length - 1]?.efficiency}% {t('detail.efficiency')}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Zap className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-blue-900">{t('dashboard.totalDevices')}</p>
+                            <p className="text-2xl font-bold text-blue-700">
+                              {analyticsData.buildingComparison.reduce((sum, b) => sum + (b.deviceStats?.total || b.deviceCount || 0), 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                            <BarChart3 className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-purple-900">Tiêu thụ trung bình</p>
+                            <p className="text-2xl font-bold text-purple-700">
+                              {(analyticsData.buildingComparison.reduce((total, building) => total + building.consumption, 0) / analyticsData.buildingComparison.length).toFixed(0)}
+                            </p>
+                            <p className="text-xs text-purple-600">kWh</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Visual Comparison Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>So sánh sự tiêu thụ</CardTitle>
+                      <CardDescription>Tiêu thụ năng lượng trên tất cả các tòa nhà</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.buildingComparison}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 12 }} 
+                              tickLine={false} 
+                              axisLine={false}
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12 }} 
+                              tickLine={false} 
+                              axisLine={false}
+                              tickFormatter={(value) => `${value} kWh`}
+                            />
+                            <Tooltip 
+                              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                              formatter={(value: number) => [`${value.toFixed(1)} kWh`, 'Consumption']}
+                            />
+                            <Bar dataKey="consumption" radius={[8, 8, 0, 0]}>
+                              {analyticsData.buildingComparison.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.efficiency >= 90 ? '#22c55e' : entry.efficiency >= 85 ? '#3b82f6' : '#f59e0b'} 
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Building Cards */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Chi tiết hiệu suất tòa nhà</CardTitle>
+                      <CardDescription>Số liệu chi tiết cho từng tòa nhà</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {analyticsData.buildingComparison.map((building, index) => (
+                          <div key={index} className="p-5 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow">
+                            {/* Header with Name and Badges */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <span className="font-semibold text-lg text-slate-900">{building.name}</span>
+                                {building.rank && building.rank <= 3 && (
+                                  <Badge className={
+                                    `${building.rank === 1 ? "bg-yellow-500 text-white" :
+                                    building.rank === 2 ? "bg-gray-400 text-white" :
+                                    "bg-amber-600 text-white"}`
+                                  }>
+                                    {building.rank === 1 ? '🥇' : building.rank === 2 ? '🥈' : '🥉'} #{building.rank}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Badge
+                                className={
+                                  building.efficiency >= 90 ? "bg-green-100 text-green-700" : 
+                                  building.efficiency >= 85 ? "bg-blue-100 text-blue-700" :
+                                  "bg-amber-100 text-amber-700"
+                                }
+                              >
+                                {building.efficiency}% {t("detail.efficiency")}
+                              </Badge>
+                            </div>
+
+                            {/* Main Metrics Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                              <div className="bg-white p-3 rounded-md">
+                                <p className="text-xs text-slate-600 mb-1">{t('layouts.powerConsumption')}</p>
+                                <p className="font-bold text-slate-900">{building.consumption} kWh</p>
+                                {building.trend && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    {building.trend.direction === 'up' ? (
+                                      <span className="text-red-600 text-xs">↑ {building.trend.percentage}%</span>
+                                    ) : building.trend.direction === 'down' ? (
+                                      <span className="text-green-600 text-xs">↓ {building.trend.percentage}%</span>
+                                    ) : (
+                                      <span className="text-slate-600 text-xs">→ Stable</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="bg-white p-3 rounded-md">
+                                <p className="text-xs text-slate-600 mb-1">{t("analytics.kpi.cost")}</p>
+                                <p className="font-bold text-slate-900">
+                                  {(building.cost > 1000000 ? `${(building.cost / 1000000).toLocaleString('vi-VN')}M` : (building.cost).toLocaleString('vi-VN'))} VND
+                                </p>
+                                <p className={`text-xs mt-1 ${building.vsAverage > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  {building.vsAverage > 0 ? "+" : ""}{building.vsAverage}% vs avg
+                                </p>
+                              </div>
+
+                              <div className="bg-white p-3 rounded-md">
+                                <p className="text-xs text-slate-600 mb-1">{t("alerts.device")}</p>
+                                <p className="font-bold text-slate-900">{building.deviceStats?.total || building.deviceCount || 0}</p>
+                                {building.deviceStats && (
+                                  <div className="flex gap-1 mt-1">
+                                    {building.deviceStats.critical > 0 && (
+                                      <span className="text-xs text-red-600">{building.deviceStats.critical} {t('alerts.critical')}</span>
+                                    )}
+                                    {building.deviceStats.warning > 0 && (
+                                      <span className="text-xs text-amber-600">{building.deviceStats.warning} {t('alerts.warning')}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="bg-white p-3 rounded-md">
+                                <p className="text-xs text-slate-600 mb-1">Peak Hour</p>
+                                <p className="font-bold text-slate-900 text-xs">
+                                  {building.peakHour?.time || 'N/A'}
+                                </p>
+                                {building.peakHour && building.peakHour.consumption > 0 && (
+                                  <p className="text-xs text-slate-600 mt-1">{building.peakHour.consumption.toFixed(1)} kWh</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Additional Metrics */}
+                            {/* {(building.avgPowerFactor || building.operatingHours) && ( */}
+                              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-200">
+                                {/* {building.avgPowerFactor && ( */}
+                                  <div>
+                                    <p className="text-xs text-slate-600">{t('devices.powerFactor')}</p>
+                                    <p className={`font-semibold ${building.avgPowerFactor ? building.avgPowerFactor >= 0.85 ? 'text-green-600' : 'text-amber-600' : ""}`}>
+                                      {(building.avgPowerFactor || 0).toFixed(2)}
+                                    </p>
+                                  </div>
+                                {/* )} */}
+                                {/* {building.operatingHours && ( */}
+                                  <div>
+                                    <p className="text-xs text-slate-600">Operating Hours</p>
+                                    <p className="font-semibold text-slate-900">{building.operatingHours || 0}h</p>
+                                  </div>
+                                {/* )} */}
+                              </div>
+                            {/* )} */}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <p className="text-slate-600">No comparison data available</p>
+                    <p className="text-slate-600">Loading comparison data...</p>
                   </CardContent>
                 </Card>
               )}
@@ -1654,7 +1733,7 @@ export default function AnalyticsPage() {
             </TabsContent>
 
             {/* Carbon & Sustainability Tab */}
-            <TabsContent value="carbon" className="space-y-6 mt-6">
+            {/* <TabsContent value="carbon" className="space-y-6 mt-6">
               {analyticsData?.carbonFootprint && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <Card>
@@ -1709,10 +1788,10 @@ export default function AnalyticsPage() {
                   </Card>
                 </div>
               )}
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Forecasting Tab */}
-            <TabsContent value="forecast" className="space-y-6 mt-6">
+            {/* <TabsContent value="forecast" className="space-y-6 mt-6">
               {analyticsData?.forecast ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <Card className="lg:col-span-2">
@@ -1814,7 +1893,7 @@ export default function AnalyticsPage() {
                   </CardContent>
                 </Card>
               )}
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
 
           {/* Power Trend Dialog */}
