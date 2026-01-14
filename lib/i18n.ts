@@ -336,6 +336,7 @@ export const translations = {
     "analytics.report": "report",
     "analytics.live": "LIVE",
     "analytics.powerConsumptionDescription": "Live power consumption with real-time updates",
+    "analytics.loadingPowerTrendData": "Loading power trend data...",
     "analytics.noTrendData": "No trend data available - Device may be offline or not yet connected",
     "analytics.start": "Start",
     "analytics.now": "Now",
@@ -398,14 +399,40 @@ export const translations = {
     "analytics.performance.maintenance": "Maintenance",
     "analytics.performance.currentEfficiency": "Current Efficiency",
 
+    // Trend Tab
+    "analytics.trend.avgConsumption": "Average Consumption",
+    "analytics.trend.dailyAvg": "Daily Average",
+    "analytics.trend.peakConsumption": "Peak Consumption",
+    "analytics.trend.lowConsumption": "Low Consumption",
+    "analytics.trend.highestRecorded": "Highest Recorded",
+    "analytics.trend.lowestRecorded": "Lowest Recorded",
+    "analytics.trend.title": "Energy Consumption Trend",
+    "analytics.trend.description": "Analyze energy consumption patterns over time",
+    "analytics.trend.titlePeakHours": "Peak Hours Analysis",
+    "analytics.trend.descriptionPeakHours": "Identify peak consumption hours and optimize usage",
+    "analytics.trend.loadingTrendData": "Loading trend data...",
+    "analytics.trend.noTrendData": "No trend data available for the selected time range.",
+    
+    // Comparison Tab
+    "analytics.comparison.bestPerformance": "Best Performance",
+    "analytics.comparison.needsImprovement": "Needs Improvement",
+    "analytics.comparison.title": "Building Efficiency Comparison",
+    "analytics.comparison.description": "Compare energy efficiency across buildings to identify optimization opportunities",
+    "analytics.comparison.loadingComparisonData": "Loading comparison data...",
+    "analytics.comparison.noComparisonData": "No comparison data available for the selected time range.",
+    "analytics.comparison.titleBuildingEfficiencyDetail": "Building Efficiency Detail",
+    "analytics.comparison.descriptionBuildingEfficiencyDetail": "Compare detailed energy efficiency between buildings",
+    "analytics.comparison.stable": "Stable",
+
     // Cost Optimization Tab
     "analytics.cost.costBreakdown": "Cost Breakdown",
-    "analytics.cost.energyCostDistribution": "Energy cost distribution in 7 days",
+    "analytics.cost.energyCostDistribution": "Energy cost distribution",
     "analytics.cost.total": "Total",
     "analytics.cost.optimizationOpportunities": "Optimization Opportunities",
     "analytics.cost.actionableInsights": "Actionable insights to reduce costs",
     "analytics.cost.potentialSavings": "Potential Savings",
     "analytics.cost.loadingCostData": "Loading cost data...",
+    "analytics.cost.noCostData": "No cost optimization data available for the selected time range.",
 
     // Analytics Root Causes & Recommendations
     "analytics.rootCause.lowPF": "Low Power Factor ({{value}})",
@@ -1129,6 +1156,7 @@ export const translations = {
     "analytics.report": "báo cáo",
     "analytics.live": "TRỰC TIẾP",
     "analytics.powerConsumptionDescription": "Tiêu thụ điện trực tiếp với các cập nhật thời gian thực",
+    "analytics.loadingPowerTrendData": "Đang tải dữ liệu xu hướng tiêu thụ điện...",
     "analytics.noTrendData": "Không có dữ liệu xu hướng - Thiết bị có thể không hoạt động hoặc chưa được kết nối",
     "analytics.start": "Bắt đầu",
     "analytics.now": "Bây giờ",
@@ -1191,13 +1219,39 @@ export const translations = {
     "analytics.performance.maintenance": "Bảo trì",
     "analytics.performance.currentEfficiency": "Hiệu suất hiện tại",
 
+    // Trend Tab
+    "analytics.trend.avgConsumption": "Trung bình tiêu thụ điện",
+    "analytics.trend.dailyAvg": "Trung bình hàng ngày",
+    "analytics.trend.peakConsumption": "Tiêu thụ đỉnh",
+    "analytics.trend.lowConsumption": "Tiêu thụ thấp",
+    "analytics.trend.highestRecorded": "Ghi nhận cao nhất",
+    "analytics.trend.lowestRecorded": "Ghi nhận thấp nhất",
+    "analytics.trend.title": "Xu hướng tiêu thụ năng lượng",
+    "analytics.trend.description": "Phân tích các mẫu tiêu thụ năng lượng theo thời gian",
+    "analytics.trend.titlePeakHours": "Phân tích giờ cao điểm",
+    "analytics.trend.descriptionPeakHours": "Xác định giờ tiêu thụ cao điểm và tối ưu hóa sử dụng",
+    "analytics.trend.loadingTrendData": "Đang tải dữ liệu xu hướng...",
+    "analytics.trend.noTrendData": "Không có dữ liệu xu hướng cho khoảng thời gian đã chọn.",
+
+    // Comparison Tab
+    "analytics.comparison.bestPerformance": "Hiệu suất tốt nhất",
+    "analytics.comparison.needsImprovement": "Cần cải thiện",
+    "analytics.comparison.title": "So sánh hiệu suất tòa nhà",
+    "analytics.comparison.description": "So sánh hiệu suất năng lượng giữa các tòa nhà để xác định các cơ hội tối ưu hóa",
+    "analytics.comparison.loadingComparisonData": "Đang tải dữ liệu so sánh...",
+    "analytics.comparison.noComparisonData": "Không có dữ liệu so sánh cho khoảng thời gian đã chọn.",
+    "analytics.comparison.titleBuildingEfficiencyDetail": "Chi tiết hiệu suất tòa nhà",
+    "analytics.comparison.descriptionBuildingEfficiencyDetail": "So sánh hiệu suất năng lượng chi tiết giữa các tòa nhà",
+    "analytics.comparison.stable": "Ổn định",
+
     "analytics.cost.costBreakdown": "Phân tích chi phí",
-    "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng trong 7 ngày",
+    "analytics.cost.energyCostDistribution": "Phân bổ chi phí năng lượng",
     "analytics.cost.total": "Tổng",
     "analytics.cost.optimizationOpportunities": "Cơ hội tối ưu hóa",
     "analytics.cost.actionableInsights": "Thông tin chi tiết để giảm chi phí",
     "analytics.cost.potentialSavings": "Tiết kiệm tiềm năng",
     "analytics.cost.loadingCostData": "Đang tải dữ liệu chi phí...",
+    "analytics.cost.noCostData": "Không có dữ liệu chi phí cho khoảng thời gian đã chọn.",
 
     // Trend / small labels
     "trend.deltaFromPrevHour": "từ giờ trước",

@@ -767,11 +767,11 @@ return (
                 <CardTitle className="flex items-center gap-2 text-lg">
                 <Activity className="h-5 w-5 text-blue-600" />
                 {t("devices.realTimeData")}
-                {device.latestData && (
+                {/* {device.latestData && (
                     <Badge variant="secondary" className="ml-auto">
                     {device.latestData.status}
                     </Badge>
-                )}
+                )} */}
                 </CardTitle>
                 <CardDescription>
                 {device.latestData 

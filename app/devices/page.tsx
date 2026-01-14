@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDebounce } from "@/hooks/use-debounce"
-import { BASE_API_URL, useDeviceApi, useFactoryApi } from "@/lib/api"
+import { BASE_API_URL, useBuildingApi, useDeviceApi, useFactoryApi, useFloorApi, useLineApi } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
 import type { Device, Factory } from "@/lib/types"
 import { Clock, Edit, Eye, Filter, Gauge, Plus, Search, Trash2, Wrench, Zap } from "lucide-react"
@@ -24,6 +24,10 @@ import { toast } from "sonner"
 export default function DevicesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [factoryFilter, setFactoryFilter] = useState<string>("all")
+  const [buildingFilter, setBuildingFilter] = useState<string>("all")
+  const [floorFilter, setFloorFilter] = useState<string>("all")
+  const [lineFilter, setLineFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add")
@@ -31,7 +35,10 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
-    const [apiFactories, setApiFactories] = useState<Factory[]>([])
+  const [apiFactories, setApiFactories] = useState<Factory[]>([])
+  const [apiBuildings, setApiBuildings] = useState<any[]>([])
+  const [apiFloors, setApiFloors] = useState<any[]>([])
+  const [apiLines, setApiLines] = useState<any[]>([])
   const [totalDevices, setTotalDevices] = useState(0)
   const [deviceStats, setDeviceStats] = useState({
     totalDevices: 0,
@@ -43,6 +50,9 @@ export default function DevicesPage() {
 
   const { getDevices, createDevice, updateDevice, deleteDevice, updateDeviceStatus, getDeviceById } = useDeviceApi()
   const { getFactories } = useFactoryApi()
+  const { getBuildingsByFactory } = useBuildingApi()
+  const { getFloorsByBuilding } = useFloorApi()
+  const { getLinesByFloor } = useLineApi()
   const { t } = useTranslation()
   const searchParams = useSearchParams()
   const itemsPerPage = 10
@@ -62,6 +72,79 @@ export default function DevicesPage() {
     }
     loadFactories()
   }, [])
+
+  // Load buildings when factory changes
+  useEffect(() => {
+    const loadBuildings = async () => {
+      if (factoryFilter && factoryFilter !== 'all') {
+        try {
+          const buildingsData = await getBuildingsByFactory(factoryFilter)
+          setApiBuildings(buildingsData)
+        } catch (error) {
+          console.error('Error loading buildings:', error)
+          setApiBuildings([])
+        }
+      } else {
+        setApiBuildings([])
+      }
+    }
+    loadBuildings()
+  }, [factoryFilter])
+
+  // Load floors when building changes
+  useEffect(() => {
+    const loadFloors = async () => {
+      if (buildingFilter && buildingFilter !== 'all') {
+        try {
+          const floorsData = await getFloorsByBuilding(buildingFilter)
+          setApiFloors(floorsData)
+        } catch (error) {
+          console.error('Error loading floors:', error)
+          setApiFloors([])
+        }
+      } else {
+        setApiFloors([])
+      }
+    }
+    loadFloors()
+  }, [buildingFilter])
+
+  // Load lines when floor changes
+  useEffect(() => {
+    const loadLines = async () => {
+      if (floorFilter && floorFilter !== 'all') {
+        try {
+          const linesData = await getLinesByFloor(floorFilter)
+          setApiLines(linesData)
+        } catch (error) {
+          console.error('Error loading lines:', error)
+          setApiLines([])
+        }
+      } else {
+        setApiLines([])
+      }
+    }
+    loadLines()
+  }, [floorFilter])
+
+  // Reset child filters when parent changes
+  useEffect(() => {
+    // When factory changes, reset building, floor, line
+    setBuildingFilter('all')
+    setFloorFilter('all')
+    setLineFilter('all')
+  }, [factoryFilter])
+
+  useEffect(() => {
+    // When building changes, reset floor, line
+    setFloorFilter('all')
+    setLineFilter('all')
+  }, [buildingFilter])
+
+  useEffect(() => {
+    // When floor changes, reset line
+    setLineFilter('all')
+  }, [floorFilter])
 
   // Load devices when component mounts or page changes
   useEffect(() => {
@@ -144,6 +227,10 @@ export default function DevicesPage() {
         limit: limit,
         search: debouncedSearchTerm, // Sử dụng debounced search term
         status: statusFilter !== 'all' ? statusFilter : undefined, // Gửi status filter lên server
+        factoryId: factoryFilter !== 'all' ? factoryFilter : undefined,
+        buildingId: buildingFilter !== 'all' ? buildingFilter : undefined,
+        floorId: floorFilter !== 'all' ? floorFilter : undefined,
+        lineId: lineFilter !== 'all' ? lineFilter : undefined,
         minimal: true // Chỉ lấy thông tin cơ bản, không load power và operational time
       })
       
@@ -193,12 +280,12 @@ export default function DevicesPage() {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [debouncedSearchTerm, statusFilter]) // Sử dụng debouncedSearchTerm thay vì searchTerm
+  }, [debouncedSearchTerm, statusFilter, factoryFilter, buildingFilter, floorFilter, lineFilter])
 
   // Load devices khi page, debounced search hoặc filter thay đổi
   useEffect(() => {
     loadDevicesFromApi(currentPage, itemsPerPage)
-  }, [currentPage, debouncedSearchTerm, statusFilter]) // Sử dụng debouncedSearchTerm
+  }, [currentPage, debouncedSearchTerm, statusFilter, factoryFilter, buildingFilter, floorFilter, lineFilter])
   
   // Server-side search và filter, không cần filter client-side nữa
   const paginatedDevices = devices
@@ -469,6 +556,77 @@ export default function DevicesPage() {
                   <SelectItem value="Offline">{t("devices.offline")}</SelectItem>
                   <SelectItem value="Maintenance">{t("devices.maintenance")}</SelectItem>
                   <SelectItem value="Error">{t("devices.error")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 mt-4 border-t pt-4">
+              <Select value={factoryFilter} onValueChange={setFactoryFilter}>
+                <SelectTrigger className="w-full border-2 border-purple-200 focus:border-purple-400">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder={t("filters.allFactories")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("filters.allFactories")}</SelectItem>
+                  {apiFactories.map((factory) => (
+                    <SelectItem key={factory.id} value={factory.id}>
+                      {factory.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select 
+                value={buildingFilter} 
+                onValueChange={setBuildingFilter}
+                disabled={factoryFilter === 'all' || apiBuildings.length === 0}
+              >
+                <SelectTrigger className="w-full border-2 border-purple-200 focus:border-purple-400">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder={t("filters.allBuildings")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("filters.allBuildings")}</SelectItem>
+                  {apiBuildings.map((building) => (
+                    <SelectItem key={building.id} value={building.id}>
+                      {building.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select 
+                value={floorFilter} 
+                onValueChange={setFloorFilter}
+                disabled={buildingFilter === 'all' || apiFloors.length === 0}
+              >
+                <SelectTrigger className="w-full border-2 border-purple-200 focus:border-purple-400">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder={t("filters.allFloors")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("filters.allFloors")}</SelectItem>
+                  {apiFloors.map((floor) => (
+                    <SelectItem key={floor.id} value={floor.id}>
+                      {floor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select 
+                value={lineFilter} 
+                onValueChange={setLineFilter}
+                disabled={floorFilter === 'all' || apiLines.length === 0}
+              >
+                <SelectTrigger className="w-full border-2 border-purple-200 focus:border-purple-400">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder={t("filters.allLines")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("filters.allLines")}</SelectItem>
+                  {apiLines.map((line) => (
+                    <SelectItem key={line.id} value={line.id}>
+                      {line.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

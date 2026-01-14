@@ -9,12 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AnalyticApiService, BASE_API_URL, BuildingApiService, DeviceApiService, FactoryApiService, FloorApiService, LineApiService } from "@/lib/api"
 import { useTranslation } from "@/lib/i18n"
+import { Factory as Factories } from "@/lib/types"
 import {
     AlertTriangle,
     BarChart3,
     Building2,
     ChevronRight,
-    Download,
     Factory,
     Home,
     Layers,
@@ -84,6 +84,27 @@ interface AnalyticsData {
     avgEfficiency: number
     totalEnergy: number
   }
+  kpiData?: {
+    efficiency: {
+        score: number
+        rating: string
+        uptimeScore: number
+    }
+    powerFactor: {
+        overallAveragePF: number
+        lowPFPercentage: number
+        lowPFReadings: number
+    }
+    energyConsumption: {
+        totalEnergyConsumption: number
+        totalCost: number
+    }
+    overload: {
+        criticalAlertsCount: number
+        downtimePercentage: number
+        totalDowntimeHours: number
+    }
+  }
 }
 
 // Hierarchy types
@@ -104,14 +125,16 @@ interface HierarchyItem {
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("1h")
+  const [factories, setFactories] = useState<Factories[]>([])
   const [selectedFactory, setSelectedFactory] = useState("all")
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [socket, setSocket] = useState<Socket | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+//   const [isLoading, setIsLoading] = useState(true) // ✅ Start with true for initial load
   const [activeTab, setActiveTab] = useState("performance")
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set(["performance"]))
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
+  const [isLoadingTab, setIsLoadingTab] = useState(false) // ✅ New state for tab loading
   
   // Hierarchy navigation state
   const [hierarchyPath, setHierarchyPath] = useState<HierarchyLevel[]>([
@@ -176,7 +199,6 @@ export default function AnalyticsPage() {
     // Fallback: convert to string
     return String(value)
   }
-
 
   // Hierarchy navigation functions
   const fetchHierarchyData = async (currentLevel: HierarchyLevel) => {
@@ -357,11 +379,7 @@ export default function AnalyticsPage() {
   // Fetch KPI data on mount
   const fetchKPIData = async () => {
     try {
-        setIsLoading(true)
-      const data = await AnalyticApiService.getKPIData({
-        timeRange,
-        factoryId: selectedFactory
-      })
+      const data = await AnalyticApiService.getKPIData()
       
       setAnalyticsData(prev => ({
         ...prev,
@@ -374,13 +392,21 @@ export default function AnalyticsPage() {
       } as AnalyticsData))
     } catch (error) {
       console.error('Error fetching KPI data:', error)
-    } finally {
-      setIsLoading(false)
+    }
+  }
+
+  const fetchFactories = async () => {
+    try {
+        const factories = await FactoryApiService.getFactories()
+        setFactories(factories)
+    } catch (error) {
+        console.error('Error fetching factories:', error)
     }
   }
 
   // Fetch tab-specific data
   const fetchTabData = async (tab: string) => {
+    setIsLoadingTab(true) // ✅ Show loading when fetching tab data
     try {
       let data: any
       
@@ -394,12 +420,12 @@ export default function AnalyticsPage() {
           break
           
         case 'comparison':
-          data = await AnalyticApiService.getBuildingComparison({ timeRange })
+          data = await AnalyticApiService.getBuildingComparison({ timeRange, factoryId: selectedFactory })
           setAnalyticsData(prev => ({ ...prev, buildingComparison: data } as AnalyticsData))
           break
           
         case 'cost':
-          data = await AnalyticApiService.getCostOptimization({ factoryId: selectedFactory })
+          data = await AnalyticApiService.getCostOptimization({timeRange, factoryId: selectedFactory })
           setAnalyticsData(prev => ({ ...prev, costOptimization: data } as AnalyticsData))
           break
       }
@@ -407,6 +433,8 @@ export default function AnalyticsPage() {
       setLoadedTabs(prev => new Set(prev).add(tab))
     } catch (error) {
       console.error(`Error fetching ${tab} data:`, error)
+    } finally {
+      setIsLoadingTab(false) // ✅ Hide loading when done
     }
   }
 
@@ -425,8 +453,8 @@ export default function AnalyticsPage() {
       socketInstance.emit("subscribe-analytics-section", {
         section: "hierarchy",
         filters: {
-          timeRange,
-          factoryId: selectedFactory,
+          timeRange: '1h',
+          factoryId: 'all',
           page,
           limit
         }
@@ -484,6 +512,7 @@ export default function AnalyticsPage() {
   // Fetch initial KPI data on mount
   useEffect(() => {
     fetchKPIData()
+    fetchFactories()
   }, [])
  const tabToSection: Record<string, string> = {
     performance: "performance",
@@ -539,13 +568,13 @@ export default function AnalyticsPage() {
   // Update filters - refetch data when filters change
   useEffect(() => {
     // Reset loaded tabs when filters change
-    setIsLoading(true)
+    // setIsLoading(true)
     try {
         setLoadedTabs(new Set(['performance']))
         setPage(1)
         
         // Refetch KPI data with new filters
-        fetchKPIData()
+        // fetchKPIData()
         
         if (socket && socket.connected) {
             socket.emit("update-analytics-filters", {
@@ -561,8 +590,6 @@ export default function AnalyticsPage() {
         }
     } catch (error) {
         console.error('Error updating filters:', error)
-    } finally {
-        setIsLoading(false)
     }
     
   }, [timeRange, selectedFactory, socket])
@@ -580,7 +607,7 @@ export default function AnalyticsPage() {
             socket.emit("subscribe-analytics-section", {
                 section: "performance",
                 filters: {
-                    timeRange,
+                    // timeRange,
                     lineId: currentLevel.id,
                     page: 1,
                     limit
@@ -590,7 +617,7 @@ export default function AnalyticsPage() {
       
       // Fetch performance issues for this specific line
       AnalyticApiService.getPerformanceIssues({
-        timeRange,
+        // timeRange,
         lineId: currentLevel.id,
         page: 1,
         limit
@@ -636,18 +663,18 @@ export default function AnalyticsPage() {
 //     }
 //   }, [hierarchyPath, socket, timeRange])
 
-  if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Loading analytics data...</p>
-          </div>
-        </div>
-      </MainLayout>
-    )
-  }
+//   if (isLoading) {
+//     return (
+//       <MainLayout>
+//         <div className="flex items-center justify-center min-h-screen">
+//           <div className="text-center">
+//             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+//             <p className="text-slate-600">Loading analytics data...</p>
+//           </div>
+//         </div>
+//       </MainLayout>
+//     )
+//   }
 
   return (
     <MainLayout>
@@ -732,7 +759,7 @@ export default function AnalyticsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-700">Efficiency Score</p>
+                    <p className="text-sm font-medium text-green-700">Điểm hiệu suất</p>
                     <p className="text-3xl font-bold text-green-800 mt-1">
                       {analyticsData?.kpiData?.efficiency?.score! || 0}%
                     </p>
@@ -746,7 +773,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-green-700 mb-1">
-                    <span>Uptime</span>
+                    <span>Thời gian hoạt động</span>
                     <span>{(analyticsData?.kpiData?.efficiency?.uptimeScore!) || 0}%</span>
                   </div>
                   <div className="w-full bg-green-200 rounded-full h-2">
@@ -855,26 +882,41 @@ export default function AnalyticsPage() {
 
           <Tabs defaultValue="performance" className="w-full" onValueChange={handleTabChange}>
             <div className="flex justify-between items-center">
-            <TabsList className="bg-white border-0 shadow-sm">
-              <TabsTrigger value="performance">{t('analytics.tabs.performance')}</TabsTrigger>
-              {/* <TabsTrigger value="recommendations">{t('analytics.tabs.recommendations')}</TabsTrigger> */}
-              <TabsTrigger value="trends">{t('analytics.tabs.trends')}</TabsTrigger>
-              <TabsTrigger value="comparison">{t('analytics.tabs.comparison')}</TabsTrigger>
-              <TabsTrigger value="cost">{t('analytics.tabs.cost')}</TabsTrigger>
-              {/* <TabsTrigger value="carbon">{t('analytics.tabs.carbon')}</TabsTrigger>
-              <TabsTrigger value="forecast">Forecasting</TabsTrigger> */}
-            </TabsList>
-                { activeTab !== "performance" && <Select value={timeRange} onValueChange={setTimeRange}>
-                                <SelectTrigger className="w-32">
-                                    <SelectValue placeholder="Time Range" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="1h">Last Hour</SelectItem>
-                                    <SelectItem value="24h">Last 24h</SelectItem>
-                                    <SelectItem value="7d">Last 7 days</SelectItem>
-                                    <SelectItem value="30d">Last 30 days</SelectItem>
-                                </SelectContent>
-                            </Select>}
+                <TabsList className="bg-white border-0 shadow-sm">
+                    <TabsTrigger value="performance">{t('analytics.tabs.performance')}</TabsTrigger>
+                    {/* <TabsTrigger value="recommendations">{t('analytics.tabs.recommendations')}</TabsTrigger> */}
+                    <TabsTrigger value="trends">{t('analytics.tabs.trends')}</TabsTrigger>
+                    <TabsTrigger value="comparison">{t('analytics.tabs.comparison')}</TabsTrigger>
+                    <TabsTrigger value="cost">{t('analytics.tabs.cost')}</TabsTrigger>
+                    {/* <TabsTrigger value="carbon">{t('analytics.tabs.carbon')}</TabsTrigger>
+                    <TabsTrigger value="forecast">Forecasting</TabsTrigger> */}
+                </TabsList>
+                { activeTab !== "performance" &&
+                <div className="flex gap-3">
+                    <Select value={selectedFactory} onValueChange={setSelectedFactory}>
+                        <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Factory" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">{t('filters.allFactories')}</SelectItem>
+                            {factories.map((factory) => (
+                                <SelectItem key={factory.id} value={factory.id}>{factory.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={timeRange} onValueChange={setTimeRange}>
+                        <SelectTrigger className="w-32">
+                            <SelectValue placeholder="Time Range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="1h">{t("analytics.lastHour")}</SelectItem>
+                            <SelectItem value="24h">{t("analytics.last24h")}</SelectItem>
+                            <SelectItem value="7d">{t("analytics.last7days")}</SelectItem>
+                            <SelectItem value="30d">{t("analytics.last30days")}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                }
             </div>
 
             {/* Performance Issues Tab */}
@@ -1265,35 +1307,40 @@ export default function AnalyticsPage() {
 
             {/* Trend Analysis Tab */}
             <TabsContent value="trends" className="space-y-6 mt-6">
-              {analyticsData?.trendAnalysis ? (
-                analyticsData.trendAnalysis.monthlyTrend.length > 0 ? (
+              {
+                isLoadingTab && activeTab === 'trends' ? (
+                    <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-slate-600 mt-4">{t("analytics.trend.loadingTrendData")}</p>
+                    </div>
+                ) : analyticsData?.trendAnalysis && analyticsData?.trendAnalysis.monthlyTrend.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card>
                       <CardContent className="p-6">
-                        <p className="text-sm font-medium text-slate-600">Average Consumption</p>
+                        <p className="text-sm font-medium text-slate-600">{t("analytics.trend.avgConsumption")}</p>
                         <p className="text-2xl font-bold text-slate-900 mt-1">
                           {analyticsData.trendAnalysis.summary.averageConsumption.toFixed(0)} kWh
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Daily average</p>
+                        <p className="text-xs text-slate-500 mt-2">{t("analytics.trend.dailyAvg")}</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-6">
-                        <p className="text-sm font-medium text-slate-600">Peak Consumption</p>
+                        <p className="text-sm font-medium text-slate-600">{t("analytics.trend.peakConsumption")}</p>
                         <p className="text-2xl font-bold text-slate-900 mt-1">
                           {analyticsData.trendAnalysis.summary.peakConsumption.toFixed(0)} kWh
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Highest recorded</p>
+                        <p className="text-xs text-slate-500 mt-2">{t("analytics.trend.highestRecorded")}</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-6">
-                        <p className="text-sm font-medium text-slate-600">Lowest Consumption</p>
+                        <p className="text-sm font-medium text-slate-600">{t("analytics.trend.lowConsumption")}</p>
                         <p className="text-2xl font-bold text-slate-900 mt-1">
                           {analyticsData.trendAnalysis.summary.lowestConsumption.toFixed(0)} kWh
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Lowest recorded</p>
+                        <p className="text-xs text-slate-500 mt-2">{t("analytics.trend.lowestRecorded")}</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -1301,8 +1348,8 @@ export default function AnalyticsPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-2">
                       <CardHeader>
-                        <CardTitle>Energy Consumption Trend</CardTitle>
-                        <CardDescription>Daily energy usage in 7 days</CardDescription>
+                        <CardTitle>{t("analytics.trend.title")}</CardTitle>
+                        <CardDescription>{t("analytics.trend.description")}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="h-[300px] w-full">
@@ -1329,7 +1376,7 @@ export default function AnalyticsPage() {
                               />
                               <Tooltip 
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: number) => [`${value.toFixed(1)} kWh`, 'Consumption']}
+                                formatter={(value: number) => [`${value.toFixed(1)} kWh`, `${t("analytics.kpi.energyConsumption")}`]}
                               />
                               <Area 
                                 type="monotone" 
@@ -1347,8 +1394,8 @@ export default function AnalyticsPage() {
 
                     <Card>
                       <CardHeader>
-                        <CardTitle>Peak Hours Analysis</CardTitle>
-                        <CardDescription>Consumption by time of day</CardDescription>
+                        <CardTitle>{t("analytics.trend.titlePeakHours")}</CardTitle>
+                        <CardDescription>{t("analytics.trend.descriptionPeakHours")}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="h-[300px] w-full">
@@ -1367,6 +1414,7 @@ export default function AnalyticsPage() {
                               <Tooltip 
                                 cursor={{ fill: 'transparent' }}
                                 contentStyle={{ borderRadius: '8px' }}
+                                formatter={(value: number) => [`${value.toFixed(1)} kWh`, `${t("analytics.kpi.energyConsumption")}`]}
                               />
                               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                                 {analyticsData.trendAnalysis.peakHours.map((entry: any, index: number) => (
@@ -1383,22 +1431,20 @@ export default function AnalyticsPage() {
                 ) : (
                   <Card>
                     <CardContent className="p-12 text-center">
-                      <p className="text-slate-600">No trend data available</p>
+                      <p className="text-slate-600">{t("analytics.trend.noTrendData")}</p>
                     </CardContent>
                   </Card>
-                )
-              ) : (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <p className="text-slate-600">Loading trend data...</p>
-                  </CardContent>
-                </Card>
-              )}
+                )}
             </TabsContent>
 
             {/* Comparison Tab */}
             <TabsContent value="comparison" className="space-y-6 mt-6">
-              {analyticsData?.buildingComparison && analyticsData.buildingComparison.length > 0 ? (
+              {isLoadingTab && activeTab === 'comparison' ? (
+                    <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-slate-600 mt-4">{t("analytics.comparison.loadingComparisonData")}</p>
+                    </div>
+                ) : analyticsData?.buildingComparison && analyticsData.buildingComparison.length > 0 ? (
                 <>
                   {/* Summary Statistics */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1409,7 +1455,7 @@ export default function AnalyticsPage() {
                             <Building2 className="h-5 w-5 text-green-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-green-900">Hiệu suất tốt nhất</p>
+                            <p className="text-sm font-medium text-green-900">{t("analytics.comparison.bestPerformance")}</p>
                             <p className="text-lg font-bold text-green-700">
                               {analyticsData.buildingComparison[0]?.name || 'N/A'}
                             </p>
@@ -1426,7 +1472,7 @@ export default function AnalyticsPage() {
                             <AlertTriangle className="h-5 w-5 text-amber-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-amber-900">Cần cải thiện</p>
+                            <p className="text-sm font-medium text-amber-900">{t("analytics.comparison.needsImprovement")}</p>
                             <p className="text-lg font-bold text-amber-700">
                               {analyticsData.buildingComparison[analyticsData.buildingComparison.length - 1]?.name || 'N/A'}
                             </p>
@@ -1459,7 +1505,7 @@ export default function AnalyticsPage() {
                             <BarChart3 className="h-5 w-5 text-purple-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-purple-900">Tiêu thụ trung bình</p>
+                            <p className="text-sm font-medium text-purple-900">{t("analytics.trend.avgConsumption")}</p>
                             <p className="text-2xl font-bold text-purple-700">
                               {(analyticsData.buildingComparison.reduce((total, building) => total + building.consumption, 0) / analyticsData.buildingComparison.length).toFixed(0)}
                             </p>
@@ -1473,8 +1519,8 @@ export default function AnalyticsPage() {
                   {/* Visual Comparison Chart */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>So sánh sự tiêu thụ</CardTitle>
-                      <CardDescription>Tiêu thụ năng lượng trên tất cả các tòa nhà</CardDescription>
+                      <CardTitle>{t("analytics.comparison.title")}</CardTitle>
+                      <CardDescription>{t("analytics.comparison.description")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="h-[300px] w-full">
@@ -1495,7 +1541,25 @@ export default function AnalyticsPage() {
                             />
                             <Tooltip 
                               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: number) => [`${value.toFixed(1)} kWh`, 'Consumption']}
+                              formatter={(value: number) => [`${value.toFixed(1)} kWh`, `${t("analytics.kpi.energyConsumption")}`]}
+                            />
+                            <Legend 
+                              content={() => (
+                                <div className="flex justify-center gap-6 mt-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#22c55e' }}></div>
+                                    <span className="text-sm text-slate-600">{t('detail.efficiency')} ≥ 90%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
+                                    <span className="text-sm text-slate-600">{t('detail.efficiency')} ≥ 85%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f59e0b' }}></div>
+                                    <span className="text-sm text-slate-600">{t('detail.efficiency')} &lt; 85%</span>
+                                  </div>
+                                </div>
+                              )}
                             />
                             <Bar dataKey="consumption" radius={[8, 8, 0, 0]}>
                               {analyticsData.buildingComparison.map((entry, index) => (
@@ -1514,8 +1578,8 @@ export default function AnalyticsPage() {
                   {/* Building Cards */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Chi tiết hiệu suất tòa nhà</CardTitle>
-                      <CardDescription>Số liệu chi tiết cho từng tòa nhà</CardDescription>
+                      <CardTitle>{t("analytics.comparison.titleBuildingEfficiencyDetail")}</CardTitle>
+                      <CardDescription>{t("analytics.comparison.descriptionBuildingEfficiencyDetail")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
@@ -1558,7 +1622,7 @@ export default function AnalyticsPage() {
                                     ) : building.trend.direction === 'down' ? (
                                       <span className="text-green-600 text-xs">↓ {building.trend.percentage}%</span>
                                     ) : (
-                                      <span className="text-slate-600 text-xs">→ Stable</span>
+                                      <span className="text-slate-600 text-xs">→ {t("analytics.comparison.stable")}</span>
                                     )}
                                   </div>
                                 )}
@@ -1590,7 +1654,7 @@ export default function AnalyticsPage() {
                               </div>
 
                               <div className="bg-white p-3 rounded-md">
-                                <p className="text-xs text-slate-600 mb-1">Peak Hour</p>
+                                <p className="text-xs text-slate-600 mb-1">{t("analytics.trend.titlePeakHours")}</p>
                                 <p className="font-bold text-slate-900 text-xs">
                                   {building.peakHour?.time || 'N/A'}
                                 </p>
@@ -1613,7 +1677,7 @@ export default function AnalyticsPage() {
                                 {/* )} */}
                                 {/* {building.operatingHours && ( */}
                                   <div>
-                                    <p className="text-xs text-slate-600">Operating Hours</p>
+                                    <p className="text-xs text-slate-600">{t("dashboard.operatingTime")}</p>
                                     <p className="font-semibold text-slate-900">{building.operatingHours || 0}h</p>
                                   </div>
                                 {/* )} */}
@@ -1628,7 +1692,7 @@ export default function AnalyticsPage() {
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <p className="text-slate-600">Loading comparison data...</p>
+                    <p className="text-slate-600">{t("analytics.comparison.noComparisonData")}</p>
                   </CardContent>
                 </Card>
               )}
@@ -1636,7 +1700,12 @@ export default function AnalyticsPage() {
 
             {/* Cost Optimization Tab */}
             <TabsContent value="cost" className="space-y-6 mt-6">
-              {analyticsData?.costOptimization ? (
+              {isLoadingTab && activeTab === 'cost' ? (
+                    <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-slate-600 mt-4">{t('analytics.cost.loadingCostData')}</p>
+                    </div>
+                ) : analyticsData?.costOptimization ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <Card className="lg:col-span-1">
                     <CardHeader>
@@ -1723,13 +1792,13 @@ export default function AnalyticsPage() {
                     </CardContent>
                   </Card>
                 </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <p className="text-slate-600">{t('analytics.cost.loadingCostData')}</p>
-                  </CardContent>
-                </Card>
-              )}
+                ) : (
+                    <Card>
+                    <CardContent className="p-12 text-center">
+                        <p className="text-slate-600">{t("analytics.cost.noCostData")}</p>
+                    </CardContent>
+                    </Card>
+                )}
             </TabsContent>
 
             {/* Carbon & Sustainability Tab */}
@@ -1901,12 +1970,12 @@ export default function AnalyticsPage() {
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold">
-                  {selectedDeviceForTrend?.device || 'Device'} - Power Trend
+                  {selectedDeviceForTrend?.device || 'Device'} - {t("analytics.powerConsumptionTrend")}
                 </DialogTitle>
                 <DialogDescription>
                   {selectedDeviceForTrend?.location && (
                     <span className="text-sm text-slate-600">
-                      Location: {selectedDeviceForTrend.location}
+                      {t("analytics.performance.location")}: {selectedDeviceForTrend.location}
                     </span>
                   )}
                 </DialogDescription>
@@ -1915,7 +1984,7 @@ export default function AnalyticsPage() {
               <div className="space-y-6 mt-4">
                 {/* Time Range Selector */}
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-slate-700">Time Range:</span>
+                  <span className="text-sm font-medium text-slate-700">{t("reports.dateRange")}:</span>
                   <div className="flex gap-2">
                     {['1d', '7d'].map((range) => (
                       <Button
@@ -1940,7 +2009,7 @@ export default function AnalyticsPage() {
                       'bg-green-50 border-green-200'
                     }`}>
                       <CardContent className="p-4">
-                        <p className="text-sm font-medium text-slate-600">Current Efficiency</p>
+                        <p className="text-sm font-medium text-slate-600">{t("analytics.performance.currentEfficiency")}</p>
                         <p className={`text-2xl font-bold mt-1 ${
                           selectedDeviceForTrend.efficiency < 70 ? 'text-red-600' :
                           selectedDeviceForTrend.efficiency < 85 ? 'text-amber-600' :
@@ -1955,7 +2024,7 @@ export default function AnalyticsPage() {
                       selectedDeviceForTrend.status === 'critical' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
                     }`}>
                       <CardContent className="p-4">
-                        <p className="text-sm font-medium text-slate-600">Status</p>
+                        <p className="text-sm font-medium text-slate-600">{t("detail.status")}</p>
                         <Badge className={`mt-2 ${
                           selectedDeviceForTrend.status === 'critical' ? 'bg-red-600' : 'bg-amber-600'
                         }`}>
@@ -1980,10 +2049,10 @@ export default function AnalyticsPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Zap className="h-5 w-5 text-blue-600" />
-                      Power Consumption Trend
+                      {t("analytics.powerConsumptionTrend")}
                     </CardTitle>
                     <CardDescription>
-                      Historical power consumption over the selected time range
+                      {t("analytics.powerConsumptionDescription")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1991,7 +2060,7 @@ export default function AnalyticsPage() {
                       <div className="h-[400px] flex items-center justify-center">
                         <div className="text-center">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                          <p className="text-slate-600">Loading power trend data...</p>
+                          <p className="text-slate-600">{t("analytics.loadingPowerTrendData")}</p>
                         </div>
                       </div>
                     ) : powerTrendData.length > 0 ? (
@@ -2041,10 +2110,7 @@ export default function AnalyticsPage() {
                       <div className="h-[400px] flex items-center justify-center">
                         <div className="text-center">
                           <AlertTriangle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                          <p className="text-slate-600 font-medium">No power trend data available</p>
-                          <p className="text-sm text-slate-500 mt-2">
-                            Try selecting a different time range or check back later
-                          </p>
+                          <p className="text-slate-600 font-medium">{t("analytics.trend.noTrendData")}</p>
                         </div>
                       </div>
                     )}
@@ -2057,7 +2123,7 @@ export default function AnalyticsPage() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-red-900">
                         <AlertTriangle className="h-5 w-5 text-red-600" />
-                        Identified Issues
+                        {t("analytics.performance.rootCausesIdentified")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>

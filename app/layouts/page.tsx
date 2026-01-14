@@ -1134,7 +1134,7 @@ const renderFloorView = () => {
                     setLoading(true)
                     const [lines, devicesData] = await Promise.all([
                         LineApiService.getLinesByFloor(floor.id),
-                        DeviceApiService.getDevices({limit: 200, minimal: false })
+                        DeviceApiService.getDevices()
                     ])
                     setApiLines(lines)
                     // Handle devices response

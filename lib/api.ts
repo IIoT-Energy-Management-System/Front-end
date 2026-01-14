@@ -437,16 +437,8 @@ export class AnalyticApiService {
     return response.data.data;
   }
 
-  static async getKPIData(filters: {
-    timeRange?: string
-    factoryId?: string
-    lineId?: string
-  }) {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([k, v]) => v != null && params.append(k, String(v)));
-    }
-    const response = await api.get(`/v2/analytics/kpi-data?${params.toString()}`);
+  static async getKPIData() {
+    const response = await api.get(`/v2/analytics/kpi-data`);
     return response.data.data;
   }
 
@@ -463,7 +455,8 @@ export class AnalyticApiService {
   }
 
   static async getBuildingComparison(filters: {
-    timeRange?: string
+    timeRange?: string,
+    factoryId?: string
   }) {
     const params = new URLSearchParams();
     if (filters) {
@@ -474,6 +467,7 @@ export class AnalyticApiService {
   }
 
   static async getCostOptimization(filters: {
+    timeRange?: string,
     factoryId?: string
   }) {
     const params = new URLSearchParams();
@@ -626,16 +620,37 @@ export class ReportApiService {
 
   static async createReport(reportData: {
     name: string;
-    factoryId: string;
-    buildingId?: string;
+    type: string;
+    factoryIds: string[];
+    buildingIds?: string[];
+    floorIds?: string[];
+    lineIds?: string[];
+    deviceIds?: string[];
+    dateRange?: {
+      start: string;
+      end: string;
+    };
     timeRange?: string;
     generatedBy: string;
   }): Promise<Report> {
+    // Calculate timeRange from dateRange if provided
+    let calculatedTimeRange = reportData.timeRange || '30d';
+    if (reportData.dateRange) {
+      const start = new Date(reportData.dateRange.start);
+      const end = new Date(reportData.dateRange.end);
+      const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      calculatedTimeRange = `${diffDays}d`;
+    }
+
     const payload = {
       name: reportData.name,
-      factoryId: reportData.factoryId,
-      buildingId: reportData.buildingId,
-      timeRange: reportData.timeRange || '30d',
+      type: reportData.type,
+      factoryIds: reportData.factoryIds,
+      buildingIds: reportData.buildingIds,
+      floorIds: reportData.floorIds,
+      lineIds: reportData.lineIds,
+      deviceIds: reportData.deviceIds,
+      timeRange: calculatedTimeRange,
       generatedBy: reportData.generatedBy
     };
     const response = await api.post(`/v2/reports`, payload);
